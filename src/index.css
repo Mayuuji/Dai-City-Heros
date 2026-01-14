@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap');
+
+@theme {
+  /* Color System - Cyberpunk 2077 Style */
+  /* TEAL/CYAN (#40E0D0): All text, titles, labels, values (primary content) */
+  /* DARK TEAL (#1A3A3A): All borders, accents, buttons, badges (interactive/structural) */
+  /* RED (#D93654): HP bar, danger indicators */
+  /* ORANGE (#FF9F1C): Highlights, warnings, selected states */
+  /* DARK BG: Gradient from #0D1117 to #010409 */
+  
+  --color-cyber-dark: #0D1117;
+  --color-cyber-darker: #010409;
+  --color-cyber-blue: #40E0D0;
+  --color-cyber-cyan: #40E0D0;
+  --color-cyber-magenta: #D93654;
+  --color-cyber-purple: #D93654;
+  --color-cyber-pink: #D93654;
+  --color-cyber-green: #1A3A3A;
+  --color-cyber-yellow: #FF9F1C;
+  --color-cyber-red: #FF003C;
+  
+  /* Fonts */
+  --font-mono: 'Courier New', monospace;
+  --font-cyber: 'Orbitron', sans-serif;
+  
+  /* Box Shadows */
+  --shadow-neon-cyan: 0 0 5px #40E0D0, 0 0 20px rgba(64, 224, 208, 0.3);
+  --shadow-neon-magenta: 0 0 5px #D93654, 0 0 20px rgba(217, 54, 84, 0.3);
+  --shadow-neon-green: 0 0 5px #1A3A3A, 0 0 20px rgba(26, 58, 58, 0.3);
+  --shadow-neon-yellow: 0 0 5px #FF9F1C, 0 0 20px rgba(255, 159, 28, 0.3);
+  
+  /* Animations */
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-flicker: flicker 2s infinite;
+}
+
+@layer base {
+  body {
+    background: linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%);
+    background-attachment: fixed;
+    color: var(--color-cyber-cyan);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background-color: color-mix(in srgb, var(--color-cyber-dark) 30%, transparent);
+    backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent);
+    border-radius: 0.5rem;
+  }
+  
+  .neon-border {
+    border: 2px solid var(--color-cyber-cyan);
+    box-shadow: var(--shadow-neon-cyan);
+  }
+  
+  .neon-text {
+    color: var(--color-cyber-cyan);
+    text-shadow: 0 0 10px #00fff9, 0 0 20px #00fff9, 0 0 30px #00fff9;
+  }
+  
+  .neon-button {
+    background-color: color-mix(in srgb, var(--color-cyber-dark) 50%, transparent);
+    border: 2px solid var(--color-cyber-cyan);
+    color: var(--color-cyber-cyan);
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s;
+  }
+  
+  .neon-button:hover {
+    background-color: color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent);
+    box-shadow: var(--shadow-neon-cyan);
+  }
+  
+  .neon-button:active {
+    transform: scale(0.95);
+  }
+  
+  .neon-button-magenta {
+    background-color: color-mix(in srgb, var(--color-cyber-dark) 50%, transparent);
+    border: 2px solid var(--color-cyber-magenta);
+    color: var(--color-cyber-magenta);
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s;
+  }
+  
+  .neon-button-magenta:hover {
+    background-color: color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent);
+    box-shadow: var(--shadow-neon-magenta);
+  }
+  
+  .neon-button-magenta:active {
+    transform: scale(0.95);
+  }
+  
+  .terminal-input {
+    background-color: color-mix(in srgb, var(--color-cyber-darker) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-cyber-cyan) 50%, transparent);
+    color: var(--color-cyber-cyan);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+  }
+  
+  .terminal-input:focus {
+    outline: none;
+    border-color: var(--color-cyber-cyan);
+    box-shadow: var(--shadow-neon-cyan);
+  }
+  
+  .terminal-input::placeholder {
+    color: color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent);
+  }
+  
+  .stat-bar {
+    height: 0.5rem;
+    background-color: color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+  
+  .stat-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--color-cyber-cyan), var(--color-cyber-blue));
+    transition: all 0.3s;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0D1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #40E0D0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5CEBD7;
+}
+
+/* Gradient background (replaces grid pattern) */
+.grid-bg {
+  background: linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%);
+  background-attachment: fixed;
+}
+
+/* Glitch effect for headers */
+.glitch {
+  position: relative;
+  animation: glitch 2s infinite;
+}
+
+@keyframes glitch {
+  0%, 90%, 100% {
+    transform: translate(0);
+  }
+  92% {
+    transform: translate(-2px, 2px);
+  }
+  94% {
+    transform: translate(2px, -2px);
+  }
+  96% {
+    transform: translate(-2px, -2px);
+  }
+  98% {
+    transform: translate(2px, 2px);
+  }
+}
+
+@keyframes flicker {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Leaflet map styling - match fantasy-map example */
+.leaflet-container {
+  font-family: var(--font-cyber) !important;
+  background: #0a0a0f !important;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(0.7) saturate(0.8);
+}
+
+/* Ensure custom markers are visible */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-marker-icon {
+  z-index: 1000 !important;
+}
+
+.leaflet-marker-pane {
+  z-index: 600 !important;
+}
