@@ -162,7 +162,7 @@ function createCustomIcon(location: Location): L.DivIcon {
   });
 }
 
-const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLocationClick, onMapClick, selectedLocationId, filterByIcon, showPopups, externalLocations }, ref) => {
+const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLocationClick, onMapClick, selectedLocationId: _selectedLocationId, filterByIcon, showPopups, externalLocations }, ref) => {
   const [settings, setSettings] = useState<MapSettings | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
