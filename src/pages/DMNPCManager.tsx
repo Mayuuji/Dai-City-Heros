@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { NPC, NPCType, NPCDisposition, NPCAbility, NPCDrops } from '../types/npc';
+import type { NPC, NPCType, NPCDisposition, NPCAbility } from '../types/npc';
 
 interface Location {
   id: string;

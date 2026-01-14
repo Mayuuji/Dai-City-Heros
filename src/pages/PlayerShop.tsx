@@ -124,7 +124,7 @@ export default function PlayerShop() {
           item_id: selectedItem.item_id,
           quantity: 1,
           is_equipped: false,
-          current_uses: selectedItem.item.is_consumable ? selectedItem.item.max_uses : null
+          current_uses: null
         });
       
       if (addItemError) {
@@ -248,7 +248,7 @@ export default function PlayerShop() {
                     </h3>
                     <div className="flex gap-2 mb-2">
                       <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'var(--color-cyber-purple)', color: 'white', fontFamily: 'var(--font-mono)' }}>
-                        {invItem.item.category}
+                        {invItem.item.type}
                       </span>
                       <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'var(--color-cyber-cyan)', color: 'var(--color-cyber-darker)', fontFamily: 'var(--font-mono)' }}>
                         {invItem.item.rarity}
@@ -274,7 +274,7 @@ export default function PlayerShop() {
                 
                 <div className="flex items-center justify-between mb-3 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
                   <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                    Weight: {invItem.item.weight}kg
+                    Price: ${invItem.item.price}
                   </span>
                   <span style={{ color: invItem.stock_quantity === 0 ? 'var(--color-cyber-red)' : 'var(--color-cyber-green)' }}>
                     {invItem.stock_quantity === -1 ? '∞ In Stock' : `${invItem.stock_quantity} Left`}

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { InventoryItem } from '../types/inventory';
-import { formatModifier } from '../utils/stats';
 
 interface Character {
   id: string;

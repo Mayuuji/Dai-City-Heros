@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Shop, ShopInventoryItemWithDetails, ShopWithLocation } from '../types/shop';
 import type { Location } from '../types/map';
-import type { Item } from '../types/item';
+import type { Item } from '../types/inventory';
 
 export default function DMShopManager() {
   const navigate = useNavigate();
@@ -484,7 +484,7 @@ export default function DMShopManager() {
                       
                       <div className="flex gap-2 mt-2 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
                         <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                          Category: {invItem.item.category}
+                          Type: {invItem.item.type}
                         </span>
                         <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
                           Rarity: {invItem.item.rarity}
@@ -667,7 +667,7 @@ export default function DMShopManager() {
                   <option value="">Select an item...</option>
                   {availableItems.map(item => (
                     <option key={item.id} value={item.id}>
-                      {item.name} ({item.category})
+                      {item.name} ({item.type})
                     </option>
                   ))}
                 </select>

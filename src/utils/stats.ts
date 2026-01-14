@@ -30,7 +30,10 @@ export function calculateTotalStats(
     int_mod: 0,
     cha_mod: 0,
     hp_mod: 0,
-    ac_mod: 0
+    ac_mod: 0,
+    speed_mod: 0,
+    init_mod: 0,
+    ic_mod: 0
   };
   
   const skillBonuses: { [key: string]: number } = {};

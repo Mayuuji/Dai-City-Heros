@@ -15,7 +15,7 @@ export default function PlayerMissionLog() {
   const { profile } = useAuth();
   
   const [missions, setMissions] = useState<MissionWithDetails[]>([]);
-  const [characters, setCharacters] = useState<Character[]>([]);
+  const [_characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<MissionStatus | 'all'>('active');
   const [selectedMission, setSelectedMission] = useState<MissionWithDetails | null>(null);

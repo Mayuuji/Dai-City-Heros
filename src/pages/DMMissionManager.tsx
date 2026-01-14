@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Mission, MissionWithDetails, MissionType, MissionDifficulty, MissionStatus, RewardDistribution } from '../types/mission';
+import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus, RewardDistribution } from '../types/mission';
 
 interface Character {
   id: string;
@@ -237,7 +237,6 @@ export default function DMMissionManager() {
       
       // Add items to character inventories
       for (const rd of rewardDistributions) {
-        const item = items.find(i => i.id === rd.item_id);
         await supabase
           .from('inventory')
           .insert({

@@ -5,11 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import WorldMap from '../components/WorldMap';
 import type { Location } from '../types/map';
 import type { Shop } from '../types/shop';
-import { getLocationIcon, getLocationColor, ALL_LOCATION_ICONS } from '../utils/mapUtils';
+import { getLocationColor, ALL_LOCATION_ICONS } from '../utils/mapUtils';
 
 export default function PlayerMapView() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile: _profile } = useAuth();
   
   const [locations, setLocations] = useState<Location[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);

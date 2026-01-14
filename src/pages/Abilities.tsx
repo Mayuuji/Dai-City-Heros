@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { CharacterAbility, Ability } from '../types/inventory';
+import type { CharacterAbility } from '../types/inventory';
 import {
   getAbilityTypeIcon,
   getChargeTypeText,

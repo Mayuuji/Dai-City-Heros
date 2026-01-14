@@ -20,7 +20,7 @@ export default function DMMapEditor() {
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('details');
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
-  const [settings, setSettings] = useState<MapSettings | null>(null);
+  const [_settings, setSettings] = useState<MapSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
