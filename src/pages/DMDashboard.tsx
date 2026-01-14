@@ -70,7 +70,7 @@ interface Character {
   created_at?: string;
 }
 
-type TabId = 'players' | 'items' | 'abilities' | 'npcs' | 'map' | 'encounters' | 'missions';
+type TabId = 'players' | 'items' | 'abilities' | 'npcs' | 'map' | 'encounters' | 'missions' | 'settings';
 type PlayerSubTab = 'stats' | 'inventory' | 'abilities';
 
 export default function DMDashboard() {
@@ -101,6 +101,10 @@ export default function DMDashboard() {
   const [playersLocked, setPlayersLocked] = useState(false);
   const [lockReason, setLockReason] = useState<string | null>(null);
   const [lockLoading, setLockLoading] = useState(false);
+  
+  // Settings State
+  const [landingSubtitle, setLandingSubtitle] = useState('ENTER THE NEON SHADOWS');
+  const [settingsSaving, setSettingsSaving] = useState(false);
   
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -433,6 +437,41 @@ export default function DMDashboard() {
     }
   };
 
+  // Fetch landing page subtitle setting
+  const fetchLandingSubtitle = async () => {
+    const { data } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('key', 'landing_subtitle')
+      .single();
+    
+    if (data?.value?.text) {
+      setLandingSubtitle(data.value.text);
+    }
+  };
+
+  // Save landing page subtitle
+  const saveLandingSubtitle = async () => {
+    setSettingsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('game_settings')
+        .upsert({
+          key: 'landing_subtitle',
+          value: { text: landingSubtitle },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' });
+      
+      if (error) throw error;
+      alert('Settings saved successfully!');
+    } catch (err: any) {
+      console.error('Error saving settings:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (profile && profile.role !== 'admin') {
       navigate('/player');
@@ -442,6 +481,9 @@ export default function DMDashboard() {
   useEffect(() => {
     if (activeTab === 'players') {
       fetchCharacters();
+    }
+    if (activeTab === 'settings') {
+      fetchLandingSubtitle();
     }
   }, [activeTab]);
 
@@ -2749,6 +2791,7 @@ export default function DMDashboard() {
     { id: 'map', label: 'MAP', icon: '🗺️' },
     { id: 'encounters', label: 'ENCOUNTERS', icon: '⚔️' },
     { id: 'missions', label: 'MISSIONS', icon: '📋' },
+    { id: 'settings', label: 'SETTINGS', icon: '⚙️' },
   ];
 
   return (
@@ -6982,6 +7025,70 @@ export default function DMDashboard() {
                     {missionSaving ? 'Saving...' : selectedMission ? 'Save Changes' : 'Create Mission'}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ============ SETTINGS TAB ============ */}
+          {activeTab === 'settings' && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
+                ⚙️ GAME SETTINGS
+              </h2>
+
+              {/* Landing Page Settings */}
+              <div className="glass-panel p-6" style={{ border: '2px solid var(--color-cyber-cyan)' }}>
+                <h3 className="text-lg mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                  🏠 Landing Page
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                      Subtitle Text (shown below "DAI CITY HEROS")
+                    </label>
+                    <input
+                      type="text"
+                      value={landingSubtitle}
+                      onChange={(e) => setLandingSubtitle(e.target.value)}
+                      placeholder="Enter subtitle text..."
+                      className="w-full px-4 py-3 rounded text-lg"
+                      style={{
+                        background: 'var(--color-cyber-dark)',
+                        border: '2px solid var(--color-cyber-cyan)',
+                        color: 'var(--color-cyber-cyan)',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                    <p className="text-xs mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6 }}>
+                      Preview: [ {landingSubtitle.toUpperCase()} ]
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={saveLandingSubtitle}
+                    disabled={settingsSaving}
+                    className="px-6 py-3 rounded font-bold text-lg"
+                    style={{
+                      background: settingsSaving ? 'var(--color-cyber-dark)' : 'var(--color-cyber-cyan)',
+                      color: settingsSaving ? 'var(--color-cyber-cyan)' : '#0D1117',
+                      fontFamily: 'var(--font-cyber)',
+                      opacity: settingsSaving ? 0.5 : 1
+                    }}
+                  >
+                    {settingsSaving ? '⏳ Saving...' : '💾 Save Settings'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Future settings can go here */}
+              <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-purple)', opacity: 0.5 }}>
+                <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-purple)' }}>
+                  🔮 More Settings Coming Soon...
+                </h3>
+                <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                  Additional game configuration options will be added here.
+                </p>
               </div>
             </div>
           )}

@@ -1,11 +1,45 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export default function LandingPage() {
   const [glitchText, setGlitchText] = useState('DAI CITY HEROS');
   const [showContent, setShowContent] = useState(false);
   const [hoverRegister, setHoverRegister] = useState(false);
+  const [subtitle, setSubtitle] = useState('ENTER THE NEON SHADOWS');
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Fetch subtitle from game settings
+  useEffect(() => {
+    const fetchSubtitle = async () => {
+      const { data } = await supabase
+        .from('game_settings')
+        .select('value')
+        .eq('key', 'landing_subtitle')
+        .single();
+      
+      if (data?.value?.text) {
+        setSubtitle(data.value.text);
+      }
+    };
+    fetchSubtitle();
+  }, []);
+
+  // Parallax effect on mouse move
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = (e.clientX - rect.left - rect.width / 2) / rect.width;
+      const y = (e.clientY - rect.top - rect.height / 2) / rect.height;
+      setMousePos({ x, y });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     // Fade in content after mount
@@ -23,10 +57,11 @@ export default function LandingPage() {
 
   return (
     <div 
+      ref={containerRef}
       className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
       style={{ backgroundColor: '#0a0a0f' }}
     >
-      {/* Animated background grid */}
+      {/* Parallax background grid */}
       <div 
         className="absolute inset-0 opacity-20"
         style={{
@@ -35,35 +70,44 @@ export default function LandingPage() {
             linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px)
           `,
           backgroundSize: '50px 50px',
-          animation: 'gridMove 20s linear infinite'
+          transform: `translate(${mousePos.x * 30}px, ${mousePos.y * 30}px)`,
+          transition: 'transform 0.1s ease-out'
         }}
       />
       
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Floating particles with parallax */}
+      <div 
+        className="absolute inset-0 overflow-hidden pointer-events-none"
+        style={{
+          transform: `translate(${mousePos.x * 20}px, ${mousePos.y * 20}px)`,
+          transition: 'transform 0.15s ease-out'
+        }}
+      >
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${(i * 17 + 5) % 100}%`,
+              top: `${(i * 23 + 10) % 100}%`,
               backgroundColor: i % 3 === 0 ? '#00ffff' : i % 3 === 1 ? '#ff00ff' : '#ffff00',
               opacity: 0.4,
-              animation: `float ${5 + Math.random() * 10}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 5}s`
+              animation: `float ${5 + (i % 5) * 2}s ease-in-out infinite`,
+              animationDelay: `${(i % 7) * 0.5}s`
             }}
           />
         ))}
       </div>
 
-      {/* Glow effects */}
+      {/* Glow effects with deeper parallax */}
       <div 
         className="absolute w-96 h-96 rounded-full blur-3xl opacity-20"
         style={{ 
           background: 'radial-gradient(circle, #00ffff 0%, transparent 70%)',
           top: '20%',
           left: '10%',
+          transform: `translate(${mousePos.x * 50}px, ${mousePos.y * 50}px)`,
+          transition: 'transform 0.2s ease-out',
           animation: 'pulse 4s ease-in-out infinite'
         }}
       />
@@ -73,6 +117,8 @@ export default function LandingPage() {
           background: 'radial-gradient(circle, #ff00ff 0%, transparent 70%)',
           bottom: '20%',
           right: '10%',
+          transform: `translate(${mousePos.x * -50}px, ${mousePos.y * -50}px)`,
+          transition: 'transform 0.2s ease-out',
           animation: 'pulse 4s ease-in-out infinite',
           animationDelay: '2s'
         }}
@@ -124,7 +170,7 @@ export default function LandingPage() {
             animation: 'fadeInUp 1s ease-out 0.5s both'
           }}
         >
-          [ ENTER THE NEON SHADOWS ]
+          [ {subtitle.toUpperCase()} ]
         </div>
 
         {/* Login button with hover effect */}
@@ -150,7 +196,7 @@ export default function LandingPage() {
             e.currentTarget.style.boxShadow = 'none';
           }}
         >
-          <span className="relative z-10">⚡ JACK IN ⚡</span>
+          <span className="relative z-10">⚡ LOG IN ⚡</span>
         </button>
 
         {/* Register link */}
@@ -197,19 +243,14 @@ export default function LandingPage() {
 
       {/* CSS Animations */}
       <style>{`
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-        
         @keyframes float {
           0%, 100% { transform: translateY(0) translateX(0); opacity: 0.4; }
           50% { transform: translateY(-20px) translateX(10px); opacity: 0.8; }
         }
         
         @keyframes pulse {
-          0%, 100% { opacity: 0.15; transform: scale(1); }
-          50% { opacity: 0.25; transform: scale(1.1); }
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.25; }
         }
         
         @keyframes neonFlicker {
