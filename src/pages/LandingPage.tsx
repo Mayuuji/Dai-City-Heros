@@ -204,17 +204,18 @@ export default function LandingPage() {
           <span 
             style={{ 
               fontFamily: 'var(--font-mono)',
-              color: hoverRegister ? '#ff00ff' : '#888',
+              color: hoverRegister ? '#ff3333' : '#888',
               textDecoration: hoverRegister ? 'underline' : 'none',
+              fontWeight: hoverRegister ? 'bold' : 'normal',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
               fontSize: '0.95rem'
             }}
             onMouseEnter={() => setHoverRegister(true)}
             onMouseLeave={() => setHoverRegister(false)}
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/login?register=true')}
           >
-            New to the city? <span style={{ color: hoverRegister ? '#00ffff' : '#aaa', fontWeight: 'bold' }}>Create an account →</span>
+            New to the city? <span style={{ color: hoverRegister ? '#00ffff' : '#aaa', fontWeight: 'bold', textDecoration: hoverRegister ? 'underline' : 'none' }}>Create an account →</span>
           </span>
         </div>
 

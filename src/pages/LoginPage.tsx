@@ -1,17 +1,26 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function LoginPage() {
+  const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hoverToggle, setHoverToggle] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Check URL params to see if we should show register form
+  useEffect(() => {
+    if (searchParams.get('register') === 'true') {
+      setIsLogin(false);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -132,8 +141,16 @@ export default function LoginPage() {
               setIsLogin(!isLogin);
               setError('');
             }}
-            className="text-sm"
-            style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}
+            onMouseEnter={() => setHoverToggle(true)}
+            onMouseLeave={() => setHoverToggle(false)}
+            className="text-sm transition-all"
+            style={{ 
+              color: hoverToggle ? '#ff3333' : 'var(--color-cyber-cyan)', 
+              opacity: hoverToggle ? 1 : 0.7, 
+              fontFamily: 'var(--font-mono)',
+              textDecoration: hoverToggle ? 'underline' : 'none',
+              fontWeight: hoverToggle ? 'bold' : 'normal'
+            }}
           >
             {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'}
           </button>
