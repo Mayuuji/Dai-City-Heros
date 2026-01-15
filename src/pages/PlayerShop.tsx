@@ -38,6 +38,68 @@ export default function PlayerShop() {
     fetchData();
   }, [shopId]);
 
+  // Real-time subscription for shop inventory changes (stock updates, price changes)
+  useEffect(() => {
+    if (!shopId) return;
+
+    const shopChannel = supabase
+      .channel(`player-shop-${shopId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shop_inventory',
+          filter: `shop_id=eq.${shopId}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shops',
+          filter: `id=eq.${shopId}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(shopChannel);
+    };
+  }, [shopId]);
+
+  // Real-time subscription for character USD updates
+  useEffect(() => {
+    if (!character) return;
+
+    const charChannel = supabase
+      .channel(`player-shop-char-${character.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'characters',
+          filter: `id=eq.${character.id}`
+        },
+        (payload) => {
+          setCharacter(prev => prev ? { ...prev, ...payload.new } : null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(charChannel);
+    };
+  }, [character?.id]);
+
   const fetchData = async () => {
     try {
       setLoading(true);

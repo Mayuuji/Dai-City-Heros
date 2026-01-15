@@ -65,6 +65,7 @@ interface Character {
   skill_sleight_of_hand: number;
   skill_stealth: number;
   skill_survival: number;
+  cdd: string;
   profile?: { username: string };
   class_features?: any[];
   created_at?: string;
@@ -561,6 +562,7 @@ export default function DMDashboard() {
       skill_sleight_of_hand: selectedCharacter.skill_sleight_of_hand || 0,
       skill_stealth: selectedCharacter.skill_stealth || 0,
       skill_survival: selectedCharacter.skill_survival || 0,
+      cdd: selectedCharacter.cdd || 'd8',
     });
     setEditingStats(true);
   };
@@ -3049,6 +3051,25 @@ export default function DMDashboard() {
                               <div className="text-2xl" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>${selectedCharacter.usd.toLocaleString()}</div>
                             )}
                           </div>
+                          <div className="p-4 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
+                            <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>DAMAGE DIE</div>
+                            {editingStats ? (
+                              <select 
+                                value={statEdits.cdd ?? 'd8'} 
+                                onChange={e => setStatEdits({ ...statEdits, cdd: e.target.value })} 
+                                className="w-20 px-2 py-1 rounded text-center cursor-pointer" 
+                                style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
+                              >
+                                <option value="d4">D4</option>
+                                <option value="d6">D6</option>
+                                <option value="d8">D8</option>
+                                <option value="d10">D10</option>
+                                <option value="d12">D12</option>
+                              </select>
+                            ) : (
+                              <div className="text-2xl" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>{(selectedCharacter.cdd || 'd8').toUpperCase()}</div>
+                            )}
+                          </div>
                         </div>
 
                         {/* INIT, SPEED, IC */}
@@ -3965,13 +3986,14 @@ export default function DMDashboard() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-green)' }}>Price ($)</label>
+                          <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>Price ($)</label>
                           <input
                             type="number"
+                            min="0"
                             value={itemPrice}
-                            onChange={e => setItemPrice(parseInt(e.target.value) || 0)}
+                            onChange={e => setItemPrice(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value)))}
                             className="w-full px-3 py-2 rounded"
-                            style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)', color: 'var(--color-cyber-green)' }}
+                            style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
                           />
                         </div>
                       </div>

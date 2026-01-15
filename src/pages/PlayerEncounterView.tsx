@@ -18,11 +18,50 @@ export default function PlayerEncounterView() {
 
   useEffect(() => {
     loadEncounterData();
-    
-    // Poll for encounter updates every 5 seconds
+  }, [user]);
+
+  // Real-time subscription for encounter updates
+  useEffect(() => {
+    if (!activeEncounter) return;
+
+    const encounterChannel = supabase
+      .channel(`encounter-player-${activeEncounter.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'encounters',
+          filter: `id=eq.${activeEncounter.id}`
+        },
+        () => {
+          loadEncounterData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'encounter_participants',
+          filter: `encounter_id=eq.${activeEncounter.id}`
+        },
+        () => {
+          fetchParticipants(activeEncounter.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(encounterChannel);
+    };
+  }, [activeEncounter?.id]);
+
+  // Also poll occasionally as a fallback (every 10 seconds instead of 5)
+  useEffect(() => {
     const interval = setInterval(() => {
       loadEncounterData();
-    }, 5000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [user]);

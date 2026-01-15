@@ -173,6 +173,58 @@ export default function PlayerDashboard() {
     };
   }, [selectedCharacter?.id]);
 
+  // Real-time subscription for inventory changes (when DM gives/removes items)
+  useEffect(() => {
+    if (!selectedCharacter) return;
+
+    const inventoryChannel = supabase
+      .channel(`inventory-${selectedCharacter.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventory',
+          filter: `character_id=eq.${selectedCharacter.id}`
+        },
+        () => {
+          // Refetch inventory when any change happens
+          fetchInventory(selectedCharacter.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(inventoryChannel);
+    };
+  }, [selectedCharacter?.id]);
+
+  // Real-time subscription for ability changes (when DM grants/removes abilities)
+  useEffect(() => {
+    if (!selectedCharacter) return;
+
+    const abilitiesChannel = supabase
+      .channel(`abilities-${selectedCharacter.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'character_abilities',
+          filter: `character_id=eq.${selectedCharacter.id}`
+        },
+        () => {
+          // Refetch abilities when any change happens
+          fetchAbilities(selectedCharacter.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(abilitiesChannel);
+    };
+  }, [selectedCharacter?.id]);
+
   // Fetch and subscribe to player lock status
   useEffect(() => {
     const fetchLockStatus = async () => {

@@ -493,12 +493,13 @@ export default function DMItemEditor() {
 
                     <div>
                       <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        Price (USD)
+                        Price ($)
                       </label>
                       <input
                         type="number"
+                        min="0"
                         value={price}
-                        onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+                        onChange={(e) => setPrice(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value)))}
                         className="w-full px-4 py-2 rounded"
                         style={{
                           backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -603,15 +604,15 @@ export default function DMItemEditor() {
               </div>
 
               {/* Skill Modifiers */}
-              <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <h2 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-green)' }}>
+              <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-cyan)' }}>
+                <h2 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
                   SKILL BONUSES
                 </h2>
                 
                 <div className="grid md:grid-cols-2 gap-3">
                   {ALL_SKILLS.map(skill => (
                     <div key={skill} className="flex items-center justify-between gap-4">
-                      <span className="text-xs flex-1" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                      <span className="text-xs flex-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                         {skill}
                       </span>
                       <div className="flex items-center gap-2">
@@ -619,23 +620,23 @@ export default function DMItemEditor() {
                           onClick={() => handleAddSkillMod(skill, (skillMods[skill] || 0) - 1)}
                           className="px-2 py-1 rounded text-xs"
                           style={{ 
-                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)',
-                            border: '1px solid var(--color-cyber-green)',
-                            color: 'var(--color-cyber-green)'
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)'
                           }}
                         >
                           −
                         </button>
-                        <span className="w-12 text-center text-sm" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                        <span className="w-12 text-center text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                           {skillMods[skill] ? formatModifier(skillMods[skill]) : '—'}
                         </span>
                         <button
                           onClick={() => handleAddSkillMod(skill, (skillMods[skill] || 0) + 1)}
                           className="px-2 py-1 rounded text-xs"
                           style={{ 
-                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)',
-                            border: '1px solid var(--color-cyber-green)',
-                            color: 'var(--color-cyber-green)'
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)'
                           }}
                         >
                           +
@@ -733,7 +734,7 @@ export default function DMItemEditor() {
 
                   {hasAnyMods && (
                     <div className="p-4 rounded" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)' }}>
-                      <h3 className="text-sm mb-2" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
+                      <h3 className="text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
                         EFFECTS
                       </h3>
                       <div className="space-y-1">
@@ -750,12 +751,12 @@ export default function DMItemEditor() {
                           { label: 'INIT', value: initMod },
                           { label: 'IC', value: icMod }
                         ].filter(s => s.value !== 0).map(stat => (
-                          <div key={stat.label} className="text-xs" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                          <div key={stat.label} className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                             • {stat.label} {formatModifier(stat.value)}
                           </div>
                         ))}
                         {Object.entries(skillMods).map(([skill, bonus]) => (
-                          <div key={skill} className="text-xs" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                          <div key={skill} className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                             • {skill} {formatModifier(bonus)}
                           </div>
                         ))}

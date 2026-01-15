@@ -58,6 +58,31 @@ export default function CharacterSheet() {
     }
   }, [id, user]);
 
+  // Real-time subscription for character updates from DM
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`character-sheet-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'characters',
+          filter: `id=eq.${id}`
+        },
+        (payload) => {
+          setCharacter(prev => prev ? { ...prev, ...payload.new } : null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   const fetchCharacter = async () => {
     try {
       setLoading(true);

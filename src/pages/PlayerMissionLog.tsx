@@ -24,6 +24,28 @@ export default function PlayerMissionLog() {
     fetchData();
   }, [profile]);
 
+  // Real-time subscription for mission updates
+  useEffect(() => {
+    const missionsChannel = supabase
+      .channel('player-missions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'missions'
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(missionsChannel);
+    };
+  }, [profile]);
+
   const fetchData = async () => {
     try {
       setLoading(true);

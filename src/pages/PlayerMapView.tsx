@@ -24,6 +24,39 @@ export default function PlayerMapView() {
     fetchShops();
   }, []);
 
+  // Real-time subscription for map location updates
+  useEffect(() => {
+    const mapChannel = supabase
+      .channel('player-map-locations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'locations'
+        },
+        () => {
+          fetchLocations();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shops'
+        },
+        () => {
+          fetchShops();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(mapChannel);
+    };
+  }, []);
+
   const fetchLocations = async () => {
     try {
       setLoading(true);

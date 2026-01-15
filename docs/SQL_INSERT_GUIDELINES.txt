@@ -1,0 +1,243 @@
+# SQL INSERT Guidelines for Dai City Heros Database
+
+## Overview
+This document provides the schema and formatting guidelines for generating SQL INSERT statements for the Dai City Heros tabletop RPG database (Supabase PostgreSQL).
+
+---
+
+## ITEMS TABLE SCHEMA
+
+```sql
+CREATE TABLE items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  type VARCHAR(50) NOT NULL,
+  rarity VARCHAR(50) DEFAULT 'Common',
+  price INTEGER DEFAULT 0,
+  
+  -- Subtypes (for weapons and armor)
+  armor_subtype VARCHAR(50),    -- 'clothes', 'light', 'medium', 'heavy', 'shield'
+  weapon_subtype VARCHAR(50),   -- 'unarmed', 'melee', 'sidearms', 'longarms', 'heavy'
+  ic_cost INTEGER DEFAULT 0,    -- Implant Capacity cost (for cyberware)
+  
+  -- Stat modifiers
+  str_mod INTEGER DEFAULT 0,
+  dex_mod INTEGER DEFAULT 0,
+  con_mod INTEGER DEFAULT 0,
+  wis_mod INTEGER DEFAULT 0,
+  int_mod INTEGER DEFAULT 0,
+  cha_mod INTEGER DEFAULT 0,
+  hp_mod INTEGER DEFAULT 0,
+  hp_mod_type VARCHAR(20) DEFAULT 'heal',  -- 'heal' or 'max_hp'
+  ac_mod INTEGER DEFAULT 0,
+  speed_mod INTEGER DEFAULT 0,
+  init_mod INTEGER DEFAULT 0,
+  ic_mod INTEGER DEFAULT 0,     -- Implant Capacity modifier
+  
+  -- Skill modifiers (JSONB format)
+  skill_mods JSONB DEFAULT '{}',
+  
+  -- Item properties
+  is_consumable BOOLEAN DEFAULT false,
+  is_equippable BOOLEAN DEFAULT true,
+  stack_size INTEGER DEFAULT 1,
+  
+  -- Metadata
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID
+);
+```
+
+### Valid ENUM Values
+
+**type** (required):
+- `'weapon'` - Weapons (guns, melee, etc.)
+- `'armor'` - Protective gear
+- `'consumable'` - Single-use items (stims, medkits)
+- `'cyberware'` - Implants and augmentations
+- `'item'` - General miscellaneous items
+- `'mission_item'` - Quest-related items
+
+**rarity** (required):
+- `'Common'`
+- `'Uncommon'`
+- `'Rare'`
+- `'Epic'`
+- `'Mythic'`
+- `'Ultra Rare'`
+- `'MISSION ITEM'` (for quest items only)
+
+**armor_subtype** (for armor type only):
+- `'clothes'` - No AC bonus, looks good
+- `'light'` - Light armor
+- `'medium'` - Medium armor
+- `'heavy'` - Heavy armor
+- `'shield'` - Shields
+
+**weapon_subtype** (for weapon type only):
+- `'unarmed'` - Fists, knuckles
+- `'melee'` - Swords, bats, knives
+- `'sidearms'` - Pistols, revolvers
+- `'longarms'` - Rifles, shotguns
+- `'heavy'` - Rocket launchers, miniguns
+
+**hp_mod_type**:
+- `'heal'` - Heals HP when consumed
+- `'max_hp'` - Increases maximum HP while equipped
+
+---
+
+## INSERT STATEMENT FORMAT
+
+### Basic Template
+```sql
+INSERT INTO items (name, description, type, rarity, price, str_mod, dex_mod, con_mod, wis_mod, int_mod, cha_mod, hp_mod, ac_mod, speed_mod, init_mod, is_consumable, is_equippable, stack_size) VALUES
+('Item Name', 'Item description here.', 'type', 'Rarity', 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true, 1);
+```
+
+### Example: Weapon
+```sql
+INSERT INTO items (name, description, type, weapon_subtype, rarity, price, str_mod, dex_mod, is_equippable) VALUES
+('Plasma Katana', 'A high-tech blade that superheats on impact, dealing devastating thermal damage.', 'weapon', 'melee', 'Rare', 5000, 2, 0, true);
+```
+
+### Example: Armor
+```sql
+INSERT INTO items (name, description, type, armor_subtype, rarity, price, ac_mod, speed_mod, is_equippable) VALUES
+('Tactical Vest', 'Military-grade kevlar vest with ceramic plate inserts.', 'armor', 'medium', 'Uncommon', 2500, 3, -1, true);
+```
+
+### Example: Cyberware
+```sql
+INSERT INTO items (name, description, type, rarity, price, ic_cost, dex_mod, init_mod, is_equippable) VALUES
+('Reflex Booster', 'Neural implant that enhances reaction time and motor control.', 'cyberware', 'Epic', 15000, 3, 2, 2, true);
+```
+
+### Example: Consumable
+```sql
+INSERT INTO items (name, description, type, rarity, price, hp_mod, hp_mod_type, is_consumable, is_equippable, stack_size) VALUES
+('Combat Stim', 'Adrenaline injector that provides a quick burst of healing.', 'consumable', 'Common', 100, 15, 'heal', true, false, 10);
+```
+
+### Example: Item with Skill Modifiers
+```sql
+INSERT INTO items (name, description, type, rarity, price, skill_mods, is_equippable) VALUES
+('Hacker Toolkit', 'Portable deck with pre-loaded exploits and bypass tools.', 'item', 'Rare', 3000, '{"Hacking": 3, "Investigation": 1}', true);
+```
+
+---
+
+## SKILL MODIFIERS (skill_mods JSONB)
+
+Available skills for the skill_mods field:
+- `"Acrobatics"`
+- `"Animal Handling"`
+- `"Athletics"`
+- `"Biology"`
+- `"Deception"`
+- `"Hacking"`
+- `"History"`
+- `"Insight"`
+- `"Intimidation"`
+- `"Investigation"`
+- `"Medicine"`
+- `"Nature"`
+- `"Perception"`
+- `"Performance"`
+- `"Persuasion"`
+- `"Sleight of Hand"`
+- `"Stealth"`
+- `"Survival"`
+
+Format: `'{"SkillName": modifier, "SkillName2": modifier}'`
+
+---
+
+## ABILITIES TABLE SCHEMA
+
+```sql
+CREATE TABLE abilities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  charge_type VARCHAR(50) NOT NULL,
+  max_charges INTEGER DEFAULT 1,
+  charges_per_rest INTEGER DEFAULT NULL,
+  effects JSONB DEFAULT '[]',
+  damage_dice VARCHAR(20),
+  damage_type VARCHAR(50),
+  range_feet INTEGER,
+  area_of_effect VARCHAR(100),
+  duration VARCHAR(100),
+  source VARCHAR(50) DEFAULT 'custom',
+  class_name VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Valid ENUM Values
+
+**type** (required):
+- `'action'` - Standard action
+- `'bonus_action'` - Bonus action
+- `'reaction'` - Reaction ability
+- `'passive'` - Always active
+- `'utility'` - Out of combat utility
+
+**charge_type** (required):
+- `'infinite'` - Unlimited uses
+- `'short_rest'` - Recharges on short rest
+- `'long_rest'` - Recharges on long rest
+- `'uses'` - Limited uses, no recharge
+
+**source**:
+- `'custom'` - DM created
+- `'class'` - From a character class
+- `'item'` - From an item
+
+### Example: Ability
+```sql
+INSERT INTO abilities (name, description, type, charge_type, max_charges, effects, damage_dice, damage_type, range_feet) VALUES
+('Neural Overload', 'Overload a target''s cybernetic implants, causing intense pain and disruption.', 'action', 'short_rest', 2, '["Target takes psychic damage", "Target is stunned until end of their next turn on failed CON save"]', '3d8', 'psychic', 60);
+```
+
+---
+
+## BATCH INSERT FORMAT
+
+When inserting multiple items, use this format:
+
+```sql
+INSERT INTO items (name, description, type, rarity, price, str_mod, dex_mod, con_mod, wis_mod, int_mod, cha_mod, hp_mod, ac_mod, is_consumable, is_equippable, stack_size) VALUES
+('Item 1', 'Description 1', 'weapon', 'Common', 100, 0, 0, 0, 0, 0, 0, 0, 0, false, true, 1),
+('Item 2', 'Description 2', 'armor', 'Rare', 500, 0, 0, 1, 0, 0, 0, 0, 2, false, true, 1),
+('Item 3', 'Description 3', 'consumable', 'Uncommon', 50, 0, 0, 0, 0, 0, 0, 25, 0, true, false, 5);
+```
+
+---
+
+## IMPORTANT NOTES
+
+1. **UUIDs are auto-generated** - Do not provide id values, let the database generate them
+2. **Escape single quotes** - Use two single quotes (`''`) to escape apostrophes in strings
+3. **JSONB format** - Use proper JSON with double quotes inside single quotes: `'{"key": value}'`
+4. **Defaults** - You can omit columns that have defaults (they'll use DEFAULT values)
+5. **Case sensitivity** - Rarity values are case-sensitive (`'Common'` not `'common'`)
+6. **Price** - Represents USD in the game world
+7. **Consumables** - Set `is_consumable = true` and `is_equippable = false`
+8. **Equipment** - Set `is_equippable = true` for items that can be worn/wielded
+
+---
+
+## CYBERPUNK THEME
+
+This is a cyberpunk/sci-fi setting. Items should fit the theme:
+- High-tech weapons (plasma, laser, smart guns)
+- Cybernetic implants and augmentations
+- Hacking tools and neural interfaces
+- Combat drugs and medical stims
+- Armored clothing and tactical gear
+- Corporate tech and street gear
