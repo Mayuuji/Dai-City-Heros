@@ -782,6 +782,8 @@ export default function DMDashboard() {
         .eq('character_id', characterId)
         .order('granted_at', { ascending: false });
       
+      console.log('Fetched character abilities:', charAbilities, 'Error:', charError);
+      
       if (charError) throw charError;
       
       // Convert to consistent format with source info
@@ -789,6 +791,8 @@ export default function DMDashboard() {
         ...ca,
         displaySource: 'granted' as const
       }));
+      
+      console.log('Direct abilities after mapping:', directAbilities);
       
       // 2. Fetch item abilities from equipped items
       const { data: equippedItems, error: itemsError } = await supabase
@@ -1399,7 +1403,7 @@ export default function DMDashboard() {
         return;
       }
       
-      await supabase
+      const { error: insertError } = await supabase
         .from('character_abilities')
         .insert({
           character_id: giveAbilityCharacter.id,
@@ -1408,6 +1412,11 @@ export default function DMDashboard() {
           source_type: 'class',
           source_id: null
         });
+      
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw insertError;
+      }
       
       alert(`Gave "${selectedGiveAbility.name}" to ${giveAbilityCharacter.name}!`);
       
