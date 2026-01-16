@@ -624,8 +624,18 @@ export default function DMDashboard() {
       setInventoryLoading(true);
       const { data, error } = await supabase
         .from('inventory')
-        .select(`*, item:items(*)`)
-        .eq('character_id', characterId);
+        .select(`
+          *,
+          item:items(
+            *,
+            abilities:item_abilities(
+              requires_equipped,
+              ability:abilities(*)
+            )
+          )
+        `)
+        .eq('character_id', characterId)
+        .order('is_equipped', { ascending: false });
       
       if (error) throw error;
       setPlayerInventory(data || []);
@@ -3422,106 +3432,89 @@ export default function DMDashboard() {
                           </div>
                         ) : (
                           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                            {/* Equipped Items Section */}
-                            {playerInventory.some(inv => inv.is_equipped) && (
-                              <div className="mb-4">
-                                <div className="text-xs mb-2 px-2 py-1 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
-                                  ⚔️ EQUIPPED ITEMS
-                                </div>
-                                <div className="space-y-2">
-                                  {playerInventory.filter(inv => inv.is_equipped && inv.item).map(inv => (
-                                    <div key={inv.id} className="p-3 rounded" style={{ border: '2px solid var(--color-cyber-yellow)', background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
-                                      <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-lg">{getItemTypeIcon(inv.item!.type)}</span>
-                                          <div>
-                                            <div className="font-bold text-sm" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-cyber)' }}>
-                                              {inv.item!.name}
-                                            </div>
-                                            <div className="text-xs flex items-center gap-2">
-                                              <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{toTitleCase(inv.item!.type)}</span>
-                                              <span className="px-1.5 py-0.5 rounded" style={{ background: getRarityBgColor(inv.item!.rarity), color: getRarityColor(inv.item!.rarity), fontSize: '10px' }}>{inv.item!.rarity}</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <button
-                                          onClick={() => openRemoveItemModal(inv)}
-                                          className="text-xs px-2 py-1 rounded"
-                                          style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
-                                        >
-                                          ✕
-                                        </button>
+                            {playerInventory.map(inv => inv.item && (
+                              <div key={inv.id} className="p-4 rounded" style={{ 
+                                border: inv.is_equipped ? '2px solid var(--color-cyber-yellow)' : '1px solid var(--color-cyber-green)', 
+                                background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' 
+                              }}>
+                                {/* Header Row */}
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">{getItemTypeIcon(inv.item.type)}</span>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold" style={{ color: inv.is_equipped ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
+                                          {inv.item.name}
+                                        </span>
+                                        {inv.is_equipped && (
+                                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontWeight: 'bold' }}>EQUIPPED</span>
+                                        )}
                                       </div>
-                                      {/* Item Stats */}
-                                      {inv.item!.description && (
-                                        <p className="text-xs mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{inv.item!.description}</p>
-                                      )}
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        {inv.item!.ac_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', color: 'var(--color-cyber-cyan)' }}>AC {inv.item!.ac_mod > 0 ? '+' : ''}{inv.item!.ac_mod}</span>}
-                                        {inv.item!.hp_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)', color: 'var(--color-cyber-magenta)' }}>HP {inv.item!.hp_mod > 0 ? '+' : ''}{inv.item!.hp_mod}</span>}
-                                        {inv.item!.str_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>STR {inv.item!.str_mod > 0 ? '+' : ''}{inv.item!.str_mod}</span>}
-                                        {inv.item!.dex_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>DEX {inv.item!.dex_mod > 0 ? '+' : ''}{inv.item!.dex_mod}</span>}
-                                        {inv.item!.con_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>CON {inv.item!.con_mod > 0 ? '+' : ''}{inv.item!.con_mod}</span>}
-                                        {inv.item!.wis_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>WIS {inv.item!.wis_mod > 0 ? '+' : ''}{inv.item!.wis_mod}</span>}
-                                        {inv.item!.int_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>INT {inv.item!.int_mod > 0 ? '+' : ''}{inv.item!.int_mod}</span>}
-                                        {inv.item!.cha_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>CHA {inv.item!.cha_mod > 0 ? '+' : ''}{inv.item!.cha_mod}</span>}
-                                        {inv.item!.init_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-green)' }}>INIT {inv.item!.init_mod > 0 ? '+' : ''}{inv.item!.init_mod}</span>}
-                                        {inv.item!.speed_mod !== 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-green)' }}>SPD {inv.item!.speed_mod > 0 ? '+' : ''}{inv.item!.speed_mod}</span>}
+                                      <div className="text-xs flex items-center gap-2 mt-1">
+                                        <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{toTitleCase(inv.item.type)}</span>
+                                        <span className="px-1.5 py-0.5 rounded" style={{ background: getRarityBgColor(inv.item.rarity), color: getRarityColor(inv.item.rarity), fontSize: '10px' }}>{inv.item.rarity}</span>
+                                        <span style={{ color: 'var(--color-cyber-cyan)' }}>×{inv.quantity}</span>
+                                        {inv.item.price > 0 && <span style={{ color: 'var(--color-cyber-yellow)' }}>${inv.item.price}</span>}
                                       </div>
                                     </div>
-                                  ))}
+                                  </div>
+                                  <button
+                                    onClick={() => openRemoveItemModal(inv)}
+                                    className="text-xs px-2 py-1 rounded"
+                                    style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
+                                  >
+                                    ✕
+                                  </button>
                                 </div>
-                              </div>
-                            )}
-                            
-                            {/* Unequipped Items Section */}
-                            {playerInventory.some(inv => !inv.is_equipped) && (
-                              <div>
-                                <div className="text-xs mb-2 px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
-                                  📦 INVENTORY
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  {playerInventory.filter(inv => !inv.is_equipped && inv.item).map(inv => (
-                                    <div key={inv.id} className="p-3 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
-                                      <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-lg">{getItemTypeIcon(inv.item!.type)}</span>
-                                          <div>
-                                            <div className="font-bold text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
-                                              {inv.item!.name}
-                                            </div>
-                                            <div className="text-xs flex items-center gap-2">
-                                              <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{toTitleCase(inv.item!.type)}</span>
-                                              <span className="px-1.5 py-0.5 rounded" style={{ background: getRarityBgColor(inv.item!.rarity), color: getRarityColor(inv.item!.rarity), fontSize: '10px' }}>{inv.item!.rarity}</span>
-                                            </div>
+
+                                {/* Description */}
+                                {inv.item.description && (
+                                  <p className="text-sm mt-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>{inv.item.description}</p>
+                                )}
+
+                                {/* Stat Modifiers */}
+                                {(inv.item.ac_mod !== 0 || inv.item.hp_mod !== 0 || inv.item.str_mod !== 0 || inv.item.dex_mod !== 0 || inv.item.con_mod !== 0 || inv.item.wis_mod !== 0 || inv.item.int_mod !== 0 || inv.item.cha_mod !== 0 || inv.item.init_mod !== 0 || inv.item.speed_mod !== 0) && (
+                                  <div className="flex flex-wrap gap-2 mt-3">
+                                    {inv.item.ac_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', color: 'var(--color-cyber-cyan)' }}>AC {inv.item.ac_mod > 0 ? '+' : ''}{inv.item.ac_mod}</span>}
+                                    {inv.item.hp_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)', color: 'var(--color-cyber-magenta)' }}>HP {inv.item.hp_mod > 0 ? '+' : ''}{inv.item.hp_mod}</span>}
+                                    {inv.item.str_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>STR {inv.item.str_mod > 0 ? '+' : ''}{inv.item.str_mod}</span>}
+                                    {inv.item.dex_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>DEX {inv.item.dex_mod > 0 ? '+' : ''}{inv.item.dex_mod}</span>}
+                                    {inv.item.con_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>CON {inv.item.con_mod > 0 ? '+' : ''}{inv.item.con_mod}</span>}
+                                    {inv.item.wis_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>WIS {inv.item.wis_mod > 0 ? '+' : ''}{inv.item.wis_mod}</span>}
+                                    {inv.item.int_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>INT {inv.item.int_mod > 0 ? '+' : ''}{inv.item.int_mod}</span>}
+                                    {inv.item.cha_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)' }}>CHA {inv.item.cha_mod > 0 ? '+' : ''}{inv.item.cha_mod}</span>}
+                                    {inv.item.init_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-green)' }}>INIT {inv.item.init_mod > 0 ? '+' : ''}{inv.item.init_mod}</span>}
+                                    {inv.item.speed_mod !== 0 && <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-green)' }}>SPD {inv.item.speed_mod > 0 ? '+' : ''}{inv.item.speed_mod}</span>}
+                                  </div>
+                                )}
+
+                                {/* Item Abilities */}
+                                {inv.item.abilities && inv.item.abilities.length > 0 && (
+                                  <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--color-cyber-green)' }}>
+                                    <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>GRANTS ABILITIES:</div>
+                                    <div className="space-y-2">
+                                      {inv.item.abilities.map((itemAbility: any, idx: number) => itemAbility.ability && (
+                                        <div key={idx} className="p-2 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 10%, transparent)', border: '1px solid var(--color-cyber-magenta)' }}>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm">{getAbilityTypeIcon(itemAbility.ability.type)}</span>
+                                            <span className="text-sm font-bold" style={{ color: 'var(--color-cyber-magenta)' }}>{itemAbility.ability.name}</span>
+                                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', color: 'var(--color-cyber-cyan)' }}>
+                                              {toTitleCase(itemAbility.ability.type)}
+                                            </span>
+                                            {itemAbility.requires_equipped && (
+                                              <span className="text-xs" style={{ color: 'var(--color-cyber-yellow)', opacity: 0.7 }}>(when equipped)</span>
+                                            )}
                                           </div>
+                                          {itemAbility.ability.description && (
+                                            <p className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{itemAbility.ability.description}</p>
+                                          )}
                                         </div>
-                                        <button
-                                          onClick={() => openRemoveItemModal(inv)}
-                                          className="text-xs px-2 py-1 rounded"
-                                          style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                      <div className="flex justify-between items-center mt-2">
-                                        <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)' }}>Qty: {inv.quantity}</span>
-                                        {inv.item!.price > 0 && <span className="text-xs" style={{ color: 'var(--color-cyber-yellow)' }}>${inv.item!.price}</span>}
-                                      </div>
-                                      {/* Show item mods preview */}
-                                      {(inv.item!.ac_mod !== 0 || inv.item!.hp_mod !== 0 || inv.item!.str_mod !== 0 || inv.item!.dex_mod !== 0) && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {inv.item!.ac_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontSize: '9px' }}>AC{inv.item!.ac_mod > 0 ? '+' : ''}{inv.item!.ac_mod}</span>}
-                                          {inv.item!.hp_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)', color: 'var(--color-cyber-magenta)', fontSize: '9px' }}>HP{inv.item!.hp_mod > 0 ? '+' : ''}{inv.item!.hp_mod}</span>}
-                                          {inv.item!.str_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)', fontSize: '9px' }}>STR{inv.item!.str_mod > 0 ? '+' : ''}{inv.item!.str_mod}</span>}
-                                          {inv.item!.dex_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)', color: 'var(--color-cyber-yellow)', fontSize: '9px' }}>DEX{inv.item!.dex_mod > 0 ? '+' : ''}{inv.item!.dex_mod}</span>}
-                                        </div>
-                                      )}
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            ))}
                           </div>
                         )}
                       </div>
