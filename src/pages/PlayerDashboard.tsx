@@ -199,6 +199,31 @@ export default function PlayerDashboard() {
     };
   }, [selectedCharacter?.id]);
 
+  // Real-time subscription for item updates (when item details change)
+  useEffect(() => {
+    if (!selectedCharacter) return;
+
+    const itemsChannel = supabase
+      .channel(`items-updates-${selectedCharacter.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'items'
+        },
+        () => {
+          // Refetch inventory to get updated item details
+          fetchInventory(selectedCharacter.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(itemsChannel);
+    };
+  }, [selectedCharacter?.id]);
+
   // Real-time subscription for ability changes (when DM grants/removes abilities)
   useEffect(() => {
     if (!selectedCharacter) return;
