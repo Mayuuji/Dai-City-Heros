@@ -1405,10 +1405,17 @@ export default function DMDashboard() {
           character_id: giveAbilityCharacter.id,
           ability_id: selectedGiveAbility.id,
           current_charges: selectedGiveAbility.max_charges || 0,
-          source: 'class'
+          source_type: 'class',
+          source_id: null
         });
       
       alert(`Gave "${selectedGiveAbility.name}" to ${giveAbilityCharacter.name}!`);
+      
+      // Refresh player abilities if this is the currently selected character
+      if (selectedCharacter?.id === giveAbilityCharacter.id && playerSubTab === 'abilities') {
+        fetchPlayerAbilities(giveAbilityCharacter.id);
+      }
+      
       setShowGiveAbilityModal(false);
       setGiveAbilityCharacter(null);
       setSelectedGiveAbility(null);
