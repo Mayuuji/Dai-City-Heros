@@ -70,7 +70,7 @@ CREATE TABLE locations (
   
   CONSTRAINT locations_lat_check CHECK (lat >= -90 AND lat <= 90),
   CONSTRAINT locations_lng_check CHECK (lng >= -180 AND lng <= 180),
-  CONSTRAINT locations_icon_check CHECK (icon IN ('marker', 'city', 'dungeon', 'shop', 'quest', 'danger', 'safe-zone')),
+  CONSTRAINT locations_icon_check CHECK (icon IN ('marker', 'city', 'dungeon', 'shop', 'quest', 'danger', 'safe-zone', 'region')),
   CONSTRAINT locations_color_check CHECK (color IN ('cyan', 'purple', 'pink', 'green', 'orange', 'red', 'blue', 'yellow'))
 );
 

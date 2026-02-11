@@ -11,7 +11,8 @@ export function getLocationIcon(icon: LocationIcon): string {
     shop: '🛒',
     quest: '⭐',
     danger: '☠️',
-    'safe-zone': '🛡️'
+    'safe-zone': '🛡️',
+    region: '🌐'
   };
   return icons[icon] || icons.marker;
 }
@@ -34,6 +35,7 @@ export function getLocationColor(color: LocationColor): string {
 
 // Get all available icons
 export const ALL_LOCATION_ICONS: { value: LocationIcon; label: string; emoji: string }[] = [
+  { value: 'region', label: 'Region', emoji: '🌐' },
   { value: 'marker', label: 'Generic Marker', emoji: '📍' },
   { value: 'city', label: 'City/Settlement', emoji: '🏙️' },
   { value: 'dungeon', label: 'Dungeon/Combat', emoji: '⚔️' },
@@ -42,6 +44,9 @@ export const ALL_LOCATION_ICONS: { value: LocationIcon; label: string; emoji: st
   { value: 'danger', label: 'Dangerous Area', emoji: '☠️' },
   { value: 'safe-zone', label: 'Safe Zone', emoji: '🛡️' }
 ];
+
+// Minimum zoom level required for non-region icons to appear on the map
+export const LOCATION_ZOOM_THRESHOLD = 8;
 
 // Get all available colors
 export const ALL_LOCATION_COLORS: { value: LocationColor; label: string }[] = [

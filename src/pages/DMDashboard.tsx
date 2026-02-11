@@ -5130,7 +5130,7 @@ export default function DMDashboard() {
                                       style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
                                     >
                                       {ALL_LOCATION_ICONS.map(icon => (
-                                        <option key={icon.value} value={icon.value}>{icon.emoji}</option>
+                                        <option key={icon.value} value={icon.value}>{icon.emoji} {icon.label}</option>
                                       ))}
                                     </select>
                                   </div>

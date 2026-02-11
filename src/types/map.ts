@@ -25,7 +25,7 @@ export interface Location {
   lore: string | null;
   lat: number;
   lng: number;
-  icon: 'marker' | 'city' | 'dungeon' | 'shop' | 'quest' | 'danger' | 'safe-zone';
+  icon: 'marker' | 'city' | 'dungeon' | 'shop' | 'quest' | 'danger' | 'safe-zone' | 'region';
   color: 'cyan' | 'purple' | 'pink' | 'green' | 'orange' | 'red' | 'blue' | 'yellow';
   tags: string[];
   is_visible: boolean;

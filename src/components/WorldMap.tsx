@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
 import type { MapSettings, Location } from '../types/map';
-import { getLocationIcon, getLocationColor } from '../utils/mapUtils';
+import { getLocationIcon, getLocationColor, LOCATION_ZOOM_THRESHOLD } from '../utils/mapUtils';
 
 // Fix Leaflet's default icon issue with Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -126,6 +126,23 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null;
 }
 
+// Component to track current zoom level for visibility filtering
+function ZoomHandler({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    // Set initial zoom
+    onZoomChange(map.getZoom());
+  }, [map]);
+  
+  useMapEvents({
+    zoomend: () => {
+      onZoomChange(map.getZoom());
+    },
+  });
+  return null;
+}
+
 // Custom marker icon creator - simple colored dots based on location type
 function createCustomIcon(location: Location): L.DivIcon {
   const color = getLocationColor(location.color);
@@ -138,10 +155,32 @@ function createCustomIcon(location: Location): L.DivIcon {
     'shop': '#00FF88',      // Green for shops
     'quest': '#FFD700',     // Gold for quests
     'danger': '#FF0000',    // Bright red for danger
-    'safe-zone': '#00FF88'  // Green for safe zones
+    'safe-zone': '#00FF88', // Green for safe zones
+    'region': '#FFD700'     // Gold for regions
   };
   
   const dotColor = typeColors[location.icon] || color;
+  
+  // Region icons are larger and have a different shape (diamond/ring)
+  if (location.icon === 'region') {
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `
+        <div style="
+          width: 24px;
+          height: 24px;
+          background: transparent;
+          border: 3px solid ${dotColor};
+          border-radius: 50%;
+          box-shadow: 0 0 12px ${dotColor}, 0 0 24px ${dotColor}60, inset 0 0 8px ${dotColor}40;
+          transform: translate(-50%, -50%);
+        "></div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -14]
+    });
+  }
   
   return L.divIcon({
     className: 'custom-marker',
@@ -166,6 +205,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
   const [settings, setSettings] = useState<MapSettings | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentZoom, setCurrentZoom] = useState<number>(3);
   const mapRef = useRef<L.Map | null>(null);
 
   // Expose the map instance to parent components
@@ -259,6 +299,10 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
     if (filterByIcon && filterByIcon !== 'all' && loc.icon !== filterByIcon) {
       return false;
     }
+    // Zoom-based visibility: regions always visible, others only when zoomed in enough
+    if (loc.icon !== 'region' && currentZoom < LOCATION_ZOOM_THRESHOLD) {
+      return false;
+    }
     return true;
   });
 
@@ -283,6 +327,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
         
         <MapInitializer mapRef={mapRef} />
         <BoundsRestrictor settings={settings} isDM={isDM} />
+        <ZoomHandler onZoomChange={setCurrentZoom} />
         {isDM && onMapClick && <MapClickHandler onMapClick={onMapClick} />}
         
         {displayedLocations.map((location) => {
