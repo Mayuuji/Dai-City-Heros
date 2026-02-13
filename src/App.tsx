@@ -22,6 +22,7 @@ import PlayerMissionLog from './pages/PlayerMissionLog';
 import DMNPCManager from './pages/DMNPCManager';
 import DMEncounterManager from './pages/DMEncounterManager';
 import PlayerEncounterView from './pages/PlayerEncounterView';
+import RulesPage from './pages/RulesPage';
 import './index.css';
 
 // Protected route wrapper
@@ -238,6 +239,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <PlayerEncounterView />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/rules" 
+            element={
+              <ProtectedRoute>
+                <RulesPage />
               </ProtectedRoute>
             } 
           />

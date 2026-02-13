@@ -1098,6 +1098,18 @@ export default function PlayerDashboard() {
                 🔒 {lockReason || 'LOCKED'}
               </div>
             )}
+            <button
+              onClick={() => navigate('/rules')}
+              className="text-sm px-3 py-1.5 rounded transition-all hover:opacity-80"
+              style={{
+                border: '1px solid var(--color-cyber-cyan)',
+                color: 'var(--color-cyber-cyan)',
+                fontFamily: 'var(--font-mono)',
+                background: 'transparent'
+              }}
+            >
+              📜 RULES
+            </button>
             <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
               {profile?.username || 'PLAYER'}
             </span>
