@@ -46,7 +46,7 @@ export const ALL_LOCATION_ICONS: { value: LocationIcon; label: string; emoji: st
 ];
 
 // Minimum zoom level required for non-region icons to appear on the map
-export const LOCATION_ZOOM_THRESHOLD = 24;
+export const LOCATION_ZOOM_THRESHOLD = 18;
 
 // Get all available colors
 export const ALL_LOCATION_COLORS: { value: LocationColor; label: string }[] = [
