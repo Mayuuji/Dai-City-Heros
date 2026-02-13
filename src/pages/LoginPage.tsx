@@ -12,8 +12,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [hoverToggle, setHoverToggle] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, profile } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in with a loaded profile
+  useEffect(() => {
+    if (user && profile) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, profile, navigate]);
 
   // Check URL params to see if we should show register form
   useEffect(() => {

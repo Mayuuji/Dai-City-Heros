@@ -29,29 +29,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Track which user ID we've already started fetching profile for
+    // to prevent duplicate fetches from getSession + onAuthStateChange
+    let handledUserId = '';
+
+    const handleSession = (session: Session | null) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        if (handledUserId !== session.user.id) {
+          handledUserId = session.user.id;
+          setLoading(true);
+          fetchProfile(session.user.id);
+        }
       } else {
+        handledUserId = '';
+        setProfile(null);
         setLoading(false);
       }
+    };
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();

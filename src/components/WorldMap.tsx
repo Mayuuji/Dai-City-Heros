@@ -143,8 +143,18 @@ function ZoomHandler({ onZoomChange }: { onZoomChange: (zoom: number) => void })
   return null;
 }
 
+// Calculate dynamic marker size based on current zoom level
+// Starts small when first appearing, grows slightly, then caps
+function getMarkerSize(zoom: number): number {
+  if (zoom <= LOCATION_ZOOM_THRESHOLD) return 6;
+  if (zoom <= LOCATION_ZOOM_THRESHOLD + 1) return 8;
+  if (zoom <= LOCATION_ZOOM_THRESHOLD + 2) return 10;
+  if (zoom <= LOCATION_ZOOM_THRESHOLD + 3) return 12;
+  return 14; // max size
+}
+
 // Custom marker icon creator - simple colored dots based on location type
-function createCustomIcon(location: Location): L.DivIcon {
+function createCustomIcon(location: Location, zoom: number = 14): L.DivIcon {
   const color = getLocationColor(location.color);
   
   // Get a unique color based on the location icon type for visual differentiation
@@ -161,43 +171,49 @@ function createCustomIcon(location: Location): L.DivIcon {
   
   const dotColor = typeColors[location.icon] || color;
   
-  // Region icons are larger and have a different shape (diamond/ring)
+  // Region icons - hollow glowing ring, slightly smaller
   if (location.icon === 'region') {
     return L.divIcon({
       className: 'custom-marker',
       html: `
         <div style="
-          width: 24px;
-          height: 24px;
+          width: 18px;
+          height: 18px;
           background: transparent;
-          border: 3px solid ${dotColor};
+          border: 2px solid ${dotColor};
           border-radius: 50%;
-          box-shadow: 0 0 12px ${dotColor}, 0 0 24px ${dotColor}60, inset 0 0 8px ${dotColor}40;
+          box-shadow: 0 0 10px ${dotColor}, 0 0 20px ${dotColor}60, inset 0 0 6px ${dotColor}40;
           transform: translate(-50%, -50%);
         "></div>
       `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-      popupAnchor: [0, -14]
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+      popupAnchor: [0, -12]
     });
   }
+  
+  // Dynamic size for non-region markers based on zoom
+  const size = getMarkerSize(zoom);
+  const half = size / 2;
+  const borderWidth = size <= 8 ? 1 : 2;
   
   return L.divIcon({
     className: 'custom-marker',
     html: `
       <div style="
-        width: 14px;
-        height: 14px;
+        width: ${size}px;
+        height: ${size}px;
         background: ${dotColor};
-        border: 2px solid rgba(255,255,255,0.9);
+        border: ${borderWidth}px solid rgba(255,255,255,0.9);
         border-radius: 50%;
-        box-shadow: 0 0 8px ${dotColor}, 0 0 16px ${dotColor}80, 0 1px 3px rgba(0,0,0,0.4);
+        box-shadow: 0 0 ${size <= 10 ? 4 : 8}px ${dotColor}, 0 0 ${size <= 10 ? 8 : 16}px ${dotColor}80, 0 1px 3px rgba(0,0,0,0.4);
         transform: translate(-50%, -50%);
+        transition: width 0.2s, height 0.2s;
       "></div>
     `,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    popupAnchor: [0, -10]
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+    popupAnchor: [0, -half - 3]
   });
 }
 
@@ -338,7 +354,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
             <Marker
               key={location.id}
               position={[location.lat, location.lng]}
-              icon={createCustomIcon(location)}
+              icon={createCustomIcon(location, currentZoom)}
               eventHandlers={{
                 click: () => {
                   if (onLocationClick) {
