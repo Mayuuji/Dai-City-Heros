@@ -2292,6 +2292,12 @@ export default function DMDashboard() {
     setEncounterCurrentTurn(newTurn);
     setEncounterRound(newRound);
     
+    // Auto-select the new current participant
+    const newCurrentParticipant = activeParticipants[newTurn];
+    if (newCurrentParticipant) {
+      selectCombatParticipant(newCurrentParticipant);
+    }
+    
     // Update in database
     await supabase.from('encounters').update({
       current_turn: newTurn,
@@ -2320,6 +2326,12 @@ export default function DMDashboard() {
     setEncounterCurrentTurn(newTurn);
     setEncounterRound(newRound);
     
+    // Auto-select the new current participant
+    const newCurrentParticipant = activeParticipants[newTurn];
+    if (newCurrentParticipant) {
+      selectCombatParticipant(newCurrentParticipant);
+    }
+    
     await supabase.from('encounters').update({
       current_turn: newTurn,
       round_number: newRound,
@@ -2343,6 +2355,12 @@ export default function DMDashboard() {
     setEncounterRound(1);
     setEncounterCurrentTurn(0);
     fetchAllEncounters();
+    
+    // Auto-select first participant
+    const activeParticipants = combatParticipants.filter(p => p.isActive);
+    if (activeParticipants.length > 0) {
+      selectCombatParticipant(activeParticipants[0]);
+    }
     
     // Auto-lock players when encounter starts
     await togglePlayerLock(true, `Combat: ${activeEncounter.name}`);
@@ -6255,7 +6273,52 @@ export default function DMDashboard() {
                             </div>
                           )}
 
-                          {/* Player Abilities (auto-loaded) */}
+                          {/* Class Features (from class data) */}
+                          {isPlayer && entityData && 'class' in entityData && (() => {
+                            const charClass = CHARACTER_CLASSES.find(c => c.name === (entityData as any).class || c.id === (entityData as any).class?.toLowerCase());
+                            if (!charClass || charClass.classFeatures.length === 0) return null;
+                            return (
+                              <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)' }}>
+                                <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                                  🎯 CLASS FEATURES — {charClass.name} ({charClass.classFeatures.length})
+                                </div>
+                                <div className="space-y-2">
+                                  {charClass.classFeatures.map((feat, idx) => (
+                                    <div key={idx} className="p-3 rounded" style={{
+                                      background: 'color-mix(in srgb, var(--color-cyber-yellow) 5%, transparent)',
+                                      border: '1px solid color-mix(in srgb, var(--color-cyber-yellow) 25%, transparent)'
+                                    }}>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                                          {feat.name}
+                                        </span>
+                                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>
+                                          {feat.type}
+                                        </span>
+                                        {feat.charges && (
+                                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}>
+                                            {feat.charges} charge{feat.charges > 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8, fontFamily: 'var(--font-mono)' }}>
+                                        {feat.description}
+                                      </div>
+                                      {feat.effects && feat.effects.length > 0 && (
+                                        <div className="mt-1">
+                                          {feat.effects.map((eff, i) => (
+                                            <div key={i} className="text-xs" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>• {eff}</div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Player Granted Abilities (from database) */}
                           {isPlayer && combatPlayerAbilities.length > 0 && (
                             <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)' }}>
                               <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
