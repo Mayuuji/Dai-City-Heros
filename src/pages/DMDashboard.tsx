@@ -317,9 +317,7 @@ export default function DMDashboard() {
     entityData?: Character | NPC;
   }
   const [allEncounters, setAllEncounters] = useState<Encounter[]>([]);
-  const [encountersLoading, setEncountersLoading] = useState(false);
-  const [encounterSearchQuery, setEncounterSearchQuery] = useState('');
-  const [encounterFilterStatus, setEncounterFilterStatus] = useState<string>('all');
+  const [_encountersLoading, setEncountersLoading] = useState(false);
   const [showCreateEncounterModal, setShowCreateEncounterModal] = useState(false);
   const [newEncounterName, setNewEncounterName] = useState('');
   const [newEncounterDescription, setNewEncounterDescription] = useState('');
@@ -329,7 +327,6 @@ export default function DMDashboard() {
   const [activeEncounter, setActiveEncounter] = useState<Encounter | null>(null);
   const [combatParticipants, setCombatParticipants] = useState<CombatParticipant[]>([]);
   const [showAddParticipantModal, setShowAddParticipantModal] = useState(false);
-  const [showParticipantDetailModal, setShowParticipantDetailModal] = useState<CombatParticipant | null>(null);
   const [participantSearchQuery, setParticipantSearchQuery] = useState('');
   const [participantTypeFilter, setParticipantTypeFilter] = useState<string>('all');
   const [npcQuantities, setNpcQuantities] = useState<{[npcId: string]: number}>({});
@@ -2375,12 +2372,6 @@ export default function DMDashboard() {
       default: return 'var(--color-cyber-cyan)';
     }
   };
-
-  const filteredEncountersList = allEncounters.filter(encounter => {
-    const matchesSearch = encounter.name.toLowerCase().includes(encounterSearchQuery.toLowerCase());
-    const matchesStatus = encounterFilterStatus === 'all' || encounter.status === encounterFilterStatus;
-    return matchesSearch && matchesStatus;
-  });
 
   // ============ MISSIONS TAB FUNCTIONS ============
   const MISSION_TYPES: MissionType[] = ['Character Mission', 'Past Time', 'Encounter', 'Side Mission', 'MAIN MISSION'];
@@ -6023,7 +6014,7 @@ export default function DMDashboard() {
                       </div>
                     ) : (
                       <div className="space-y-1 flex-1">
-                        {combatParticipants.map((p, idx) => {
+                        {combatParticipants.map((p) => {
                           const activeParticipants = combatParticipants.filter(pp => pp.isActive);
                           const isCurrentTurn = activeEncounter.status === 'active' && activeParticipants[encounterCurrentTurn]?.id === p.id;
                           const isSelected = p.id === selectedCombatParticipantId;
