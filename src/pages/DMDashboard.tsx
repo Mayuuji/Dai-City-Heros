@@ -339,6 +339,7 @@ export default function DMDashboard() {
   const [hpChangeInput, setHpChangeInput] = useState<{[key: string]: string}>({});
   const [notesInput, setNotesInput] = useState<{[key: string]: string}>({});
   const notesDebounceRef = useRef<{[key: string]: ReturnType<typeof setTimeout>}>({});
+  const [selectedCombatParticipantId, setSelectedCombatParticipantId] = useState<string | null>(null);
   
   // Combat participant resources (inventory/abilities for players in combat)
   const [combatPlayerInventory, setCombatPlayerInventory] = useState<InventoryItem[]>([]);
@@ -2249,6 +2250,32 @@ export default function DMDashboard() {
 
   const sortParticipantsByInitiative = () => {
     setCombatParticipants(prev => [...prev].sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0)));
+  };
+
+  // Select a combat participant and auto-load their resources
+  const selectCombatParticipant = (participant: CombatParticipant | null) => {
+    if (!participant) {
+      setSelectedCombatParticipantId(null);
+      setCombatPlayerInventory([]);
+      setCombatPlayerAbilities([]);
+      return;
+    }
+    setSelectedCombatParticipantId(participant.id);
+    // Auto-load resources for players
+    if (participant.type === 'player') {
+      fetchCombatPlayerResources(participant.entityId);
+    } else {
+      setCombatPlayerInventory([]);
+      setCombatPlayerAbilities([]);
+    }
+  };
+
+  // Get HP color based on percentage
+  const getHpBarColor = (current: number, max: number) => {
+    const pct = max > 0 ? current / max : 0;
+    if (pct > 0.6) return 'var(--color-cyber-green)';
+    if (pct > 0.3) return 'var(--color-cyber-yellow)';
+    return 'var(--color-cyber-magenta)';
   };
 
   const nextTurn = async () => {
@@ -5872,286 +5899,600 @@ export default function DMDashboard() {
           )}
 
           {activeTab === 'encounters' && (
-            <div className="flex gap-4 h-[calc(100vh-180px)]">
-              {/* Left Side - Encounter List */}
-              <div className="w-1/3 flex flex-col" style={{ minWidth: '300px' }}>
-                {/* Header */}
-                <div className="flex items-center gap-3 mb-4">
-                  <h3 className="text-lg" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-magenta)' }}>⚔️ ENCOUNTERS</h3>
-                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)', color: 'var(--color-cyber-magenta)' }}>
-                    {allEncounters.length}
-                  </span>
+            <div className="flex flex-col h-[calc(100vh-180px)]">
+              {/* Top Bar: Encounter Selector + Status + Actions */}
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
+                <h3 className="text-lg" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-magenta)' }}>⚔️ ENCOUNTERS</h3>
+                
+                <select
+                  value={activeEncounter?.id || ''}
+                  onChange={(e) => {
+                    const enc = allEncounters.find(en => en.id === e.target.value);
+                    if (enc) {
+                      loadEncounterForCombat(enc);
+                      setSelectedCombatParticipantId(null);
+                    } else {
+                      setActiveEncounter(null);
+                      setCombatParticipants([]);
+                      setSelectedCombatParticipantId(null);
+                    }
+                  }}
+                  className="px-3 py-2 rounded text-sm min-w-[220px]"
+                  style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                >
+                  <option value="">-- Select Encounter --</option>
+                  {allEncounters.map(enc => (
+                    <option key={enc.id} value={enc.id}>
+                      {enc.name} [{enc.status.toUpperCase()}]
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => setShowCreateEncounterModal(true)}
+                  className="px-3 py-1.5 rounded text-sm"
+                  style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                >
+                  ➕ NEW
+                </button>
+
+                {activeEncounter && (
                   <button
-                    onClick={() => setShowCreateEncounterModal(true)}
-                    className="ml-auto px-3 py-1.5 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                    onClick={() => handleDeleteEncounter(activeEncounter.id, activeEncounter.name)}
+                    className="px-2 py-1.5 rounded text-sm"
+                    style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
                   >
-                    ➕ NEW
+                    🗑️
                   </button>
-                </div>
+                )}
 
-                {/* Search and Filters */}
-                <div className="space-y-2 mb-3">
-                  <input
-                    type="text"
-                    placeholder="🔍 Search encounters..."
-                    value={encounterSearchQuery}
-                    onChange={e => setEncounterSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
-                  />
-                  <select
-                    value={encounterFilterStatus}
-                    onChange={e => setEncounterFilterStatus(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-cyan)' }}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
+                <div className="flex-1" />
 
-                {/* Encounter List */}
-                <div className="flex-1 overflow-y-auto pr-2 space-y-2">
-                  {encountersLoading ? (
-                    <div className="text-center py-8" style={{ color: 'var(--color-cyber-cyan)' }}>Loading...</div>
-                  ) : filteredEncountersList.length === 0 ? (
-                    <div className="text-center py-8" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>No encounters</div>
-                  ) : (
-                    filteredEncountersList.map(encounter => (
-                      <div
-                        key={encounter.id}
-                        className="p-3 rounded cursor-pointer transition-all hover:brightness-110"
-                        style={{
-                          border: `1px solid ${activeEncounter?.id === encounter.id ? 'var(--color-cyber-yellow)' : getStatusColor(encounter.status)}`,
-                          background: activeEncounter?.id === encounter.id ? 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)' : 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)'
-                        }}
-                        onClick={() => loadEncounterForCombat(encounter)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold truncate" style={{ color: 'var(--color-cyber-cyan)' }}>{encounter.name}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="px-1.5 py-0.5 rounded text-xs" style={{ background: getStatusColor(encounter.status), color: '#0D1117' }}>
-                                {encounter.status.toUpperCase()}
-                              </span>
-                              {encounter.status === 'active' && (
-                                <span className="text-xs" style={{ color: 'var(--color-cyber-yellow)' }}>R{encounter.round_number}</span>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteEncounter(encounter.id, encounter.name); }}
-                            className="text-xs px-1 py-0.5 rounded"
-                            style={{ color: 'var(--color-cyber-magenta)' }}
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+                {/* Status & Round Info */}
+                {activeEncounter && (
+                  <>
+                    <span className="text-sm font-bold px-2 py-1 rounded" style={{ 
+                      background: getStatusColor(activeEncounter.status), 
+                      color: '#0D1117',
+                      fontFamily: 'var(--font-mono)' 
+                    }}>
+                      {activeEncounter.status.toUpperCase()}
+                    </span>
 
-              {/* Right Side - Combat Tracker */}
-              <div className="flex-1 glass-panel p-5 overflow-y-auto" style={{ border: '1px solid var(--color-cyber-magenta)' }}>
-                {!activeEncounter ? (
-                  <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>
-                    <p className="text-xl mb-2" style={{ fontFamily: 'var(--font-cyber)' }}>SELECT AN ENCOUNTER</p>
-                    <p className="text-sm" style={{ fontFamily: 'var(--font-mono)' }}>Click an encounter to load the combat tracker</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Encounter Header */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
-                          {activeEncounter.name}
-                        </h3>
-                        <span className="text-xs px-2 py-0.5 rounded" style={{ background: getStatusColor(activeEncounter.status), color: '#0D1117' }}>
-                          {activeEncounter.status.toUpperCase()}
+                    {activeEncounter.status === 'active' && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                          ROUND <span style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-cyber)', fontSize: '1.1rem' }}>{encounterRound}</span>
+                        </span>
+                        <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                          TURN <span style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-cyber)', fontSize: '1.1rem' }}>{encounterCurrentTurn + 1}/{combatParticipants.filter(p => p.isActive).length}</span>
                         </span>
                       </div>
-                      <div className="flex gap-2">
-                        {activeEncounter.status === 'draft' && (
-                          <button onClick={startEncounter} className="px-3 py-1.5 rounded text-sm" style={{ background: 'var(--color-cyber-green)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}>
-                            ▶️ START COMBAT
-                          </button>
-                        )}
-                        {activeEncounter.status === 'active' && (
-                          <button onClick={endEncounter} className="px-3 py-1.5 rounded text-sm" style={{ background: 'var(--color-cyber-magenta)', color: '#fff', fontFamily: 'var(--font-cyber)' }}>
-                            ⏹️ END COMBAT
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Round/Turn Tracker */}
-                    {activeEncounter.status === 'active' && (
-                      <div className="flex items-center justify-center gap-6 p-4 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 10%, transparent)', border: '1px solid var(--color-cyber-yellow)' }}>
-                        <div className="text-center">
-                          <div className="text-3xl font-bold" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-cyber)' }}>{encounterRound}</div>
-                          <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)' }}>ROUND</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={prevTurn} className="px-3 py-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>◀</button>
-                          <div className="text-center px-4">
-                            <div className="text-xl font-bold" style={{ color: 'var(--color-cyber-cyan)' }}>
-                              {combatParticipants.filter(p => p.isActive)[encounterCurrentTurn]?.name || 'N/A'}
-                            </div>
-                            <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>Turn {encounterCurrentTurn + 1} of {combatParticipants.filter(p => p.isActive).length}</div>
-                          </div>
-                          <button onClick={nextTurn} className="px-3 py-2 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}>▶</button>
-                        </div>
-                      </div>
                     )}
+                  </>
+                )}
 
-                    {/* Add Participants Button */}
-                    <div className="flex items-center justify-between">
+                {/* Action Buttons */}
+                {activeEncounter?.status === 'draft' && (
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowAddParticipantModal(true)} className="px-3 py-1.5 rounded text-xs" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>
+                      ➕ ADD COMBATANT
+                    </button>
+                    <button onClick={sortParticipantsByInitiative} className="px-3 py-1.5 rounded text-xs" style={{ border: '1px solid var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }}>
+                      ⬇️ SORT INIT
+                    </button>
+                    <button onClick={startEncounter} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>
+                      ▶️ START
+                    </button>
+                  </div>
+                )}
+                {activeEncounter?.status === 'active' && (
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowAddParticipantModal(true)} className="px-2 py-1.5 rounded text-xs" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>
+                      ➕ ADD
+                    </button>
+                    <button onClick={prevTurn} className="px-3 py-1.5 rounded text-xs" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>◀</button>
+                    <button onClick={nextTurn} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}>⏩ NEXT TURN</button>
+                    <button onClick={endEncounter} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-magenta)', color: '#fff' }}>⏹️ END</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Main Content: Initiative Sidebar (1/3) + Details Panel (2/3) */}
+              {activeEncounter ? (
+                <div className="flex gap-4 flex-1 overflow-hidden">
+                  {/* LEFT: Initiative Order (1/3 width) */}
+                  <div className="w-1/3 glass-panel p-4 overflow-y-auto flex flex-col" style={{ border: '1px solid var(--color-cyber-magenta)', minWidth: '280px' }}>
+                    <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                        👥 COMBATANTS ({combatParticipants.length})
+                        INITIATIVE ORDER
                       </h4>
-                      <div className="flex gap-2">
-                        <button onClick={sortParticipantsByInitiative} className="px-2 py-1 rounded text-xs" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>
-                          ⬇️ SORT BY INIT
-                        </button>
-                        <button onClick={() => setShowAddParticipantModal(true)} className="px-2 py-1 rounded text-xs" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>
-                          ➕ ADD
-                        </button>
-                      </div>
+                      <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
+                        {combatParticipants.length} combatants
+                      </span>
                     </div>
 
-                    {/* Participants List */}
                     {participantsLoading ? (
                       <div className="text-center py-4" style={{ color: 'var(--color-cyber-cyan)' }}>Loading...</div>
                     ) : combatParticipants.length === 0 ? (
-                      <div className="text-center py-8 rounded" style={{ border: '1px dashed var(--color-cyber-cyan)', opacity: 0.5 }}>
-                        <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>No combatants yet</p>
-                        <p className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)' }}>Add players and NPCs to this encounter</p>
+                      <div className="text-center py-8">
+                        <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>No combatants yet</p>
+                        <button onClick={() => setShowAddParticipantModal(true)} className="px-3 py-1.5 rounded text-xs mt-2" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>
+                          ➕ Add Combatants
+                        </button>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {combatParticipants.map((participant, idx) => {
-                          const isCurrentTurn = activeEncounter.status === 'active' && idx === encounterCurrentTurn;
-                          const hpPercent = participant.maxHp > 0 ? (participant.currentHp / participant.maxHp) * 100 : 0;
-                          const hpColor = hpPercent > 50 ? 'var(--color-cyber-green)' : hpPercent > 25 ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-magenta)';
-                          
+                      <div className="space-y-1 flex-1">
+                        {combatParticipants.map((p, idx) => {
+                          const activeParticipants = combatParticipants.filter(pp => pp.isActive);
+                          const isCurrentTurn = activeEncounter.status === 'active' && activeParticipants[encounterCurrentTurn]?.id === p.id;
+                          const isSelected = p.id === selectedCombatParticipantId;
+                          const hpPct = p.maxHp > 0 ? (p.currentHp / p.maxHp) * 100 : 0;
+                          const isDead = p.currentHp <= 0;
+
                           return (
                             <div
-                              key={participant.id}
-                              className="p-3 rounded transition-all"
+                              key={p.id}
+                              onClick={() => selectCombatParticipant(p)}
+                              className="rounded cursor-pointer transition-all relative overflow-hidden"
                               style={{
-                                border: `2px solid ${isCurrentTurn ? 'var(--color-cyber-yellow)' : participant.type === 'player' ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)'}`,
-                                background: isCurrentTurn ? 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)' : 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)',
-                                opacity: participant.isActive ? 1 : 0.4
+                                background: isCurrentTurn 
+                                  ? 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)' 
+                                  : isSelected 
+                                    ? 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)' 
+                                    : 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)',
+                                border: `1px solid ${
+                                  isCurrentTurn ? 'var(--color-cyber-yellow)' :
+                                  isSelected ? 'var(--color-cyber-cyan)' :
+                                  'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)'
+                                }`,
+                                opacity: isDead ? 0.4 : p.isActive ? 1 : 0.5,
                               }}
                             >
-                              <div className="flex items-center gap-3">
-                                {/* Initiative */}
-                                <div className="w-12 text-center">
-                                  <input
-                                    type="number"
-                                    value={participant.initiative ?? ''}
-                                    onChange={e => updateParticipantInitiative(participant.id, parseInt(e.target.value) || 0)}
-                                    className="w-12 px-1 py-1 rounded text-center text-lg font-bold"
-                                    style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }}
-                                    placeholder="?"
-                                  />
-                                  <div className="text-xs mt-0.5" style={{ color: 'var(--color-cyber-purple)' }}>INIT</div>
-                                </div>
+                              {/* Current turn left bar */}
+                              {isCurrentTurn && (
+                                <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: 'var(--color-cyber-yellow)' }} />
+                              )}
 
-                                {/* Name and Type */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-lg">{participant.type === 'player' ? '👤' : '👹'}</span>
-                                    <span className="font-bold truncate" style={{ color: participant.type === 'player' ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)', fontFamily: 'var(--font-cyber)' }}>
-                                      {participant.name}
-                                    </span>
-                                    {isCurrentTurn && <span className="text-xs px-1.5 py-0.5 rounded animate-pulse" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}>TURN</span>}
+                              <div className="p-2 pl-3">
+                                <div className="flex items-center gap-2">
+                                  {/* Initiative circle */}
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" 
+                                    style={{ 
+                                      background: isCurrentTurn ? 'var(--color-cyber-yellow)' : 'color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)',
+                                      color: isCurrentTurn ? '#0D1117' : 'var(--color-cyber-purple)',
+                                      fontFamily: 'var(--font-mono)',
+                                      border: `1px solid ${isCurrentTurn ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-purple)'}`
+                                    }}>
+                                    {p.initiative ?? '?'}
                                   </div>
-                                  <div className="flex items-center gap-2 mt-1 text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                                    <span>🛡️ {participant.ac}</span>
-                                  </div>
-                                </div>
-
-                                {/* HP Controls */}
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => applyHpChange(participant, -1)}
-                                    className="px-2 py-1 rounded text-sm"
-                                    style={{ background: 'var(--color-cyber-magenta)', color: '#fff' }}
-                                  >−</button>
-                                  <div className="text-center">
-                                    <div className="text-lg font-bold" style={{ color: hpColor }}>
-                                      {participant.currentHp}/{participant.maxHp}
-                                    </div>
-                                    <div className="h-1 rounded overflow-hidden" style={{ background: 'var(--color-cyber-darker)', width: '80px' }}>
-                                      <div className="h-full transition-all" style={{ width: `${hpPercent}%`, background: hpColor }} />
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => applyHpChange(participant, 1)}
-                                    className="px-2 py-1 rounded text-sm"
-                                    style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}
-                                  >+</button>
                                   
-                                  {/* HP Change Input */}
-                                  <div className="flex items-center gap-1 ml-2">
-                                    <input
-                                      type="number"
-                                      value={hpChangeInput[participant.id] || ''}
-                                      onChange={e => setHpChangeInput(prev => ({ ...prev, [participant.id]: e.target.value }))}
-                                      placeholder="±"
-                                      className="w-14 px-1 py-1 rounded text-center text-sm"
-                                      style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                                    />
-                                    <button
-                                      onClick={() => {
-                                        const val = parseInt(hpChangeInput[participant.id] || '0');
-                                        if (val !== 0) applyHpChange(participant, val);
-                                      }}
-                                      className="px-2 py-1 rounded text-xs"
-                                      style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117' }}
-                                    >Apply</button>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-sm">{p.type === 'player' ? '👤' : '👹'}</span>
+                                      <span className="font-bold text-sm truncate" style={{ 
+                                        color: p.type === 'player' ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)',
+                                        fontFamily: 'var(--font-mono)' 
+                                      }}>
+                                        {p.name}
+                                      </span>
+                                      {isDead && <span className="text-xs">💀</span>}
+                                      {isCurrentTurn && <span className="text-xs ml-auto animate-pulse" style={{ color: 'var(--color-cyber-yellow)' }}>◄ TURN</span>}
+                                    </div>
+                                    
+                                    {/* HP bar */}
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 15%, transparent)' }}>
+                                        <div 
+                                          className="h-full rounded-full transition-all"
+                                          style={{ 
+                                            width: `${Math.max(0, Math.min(100, hpPct))}%`, 
+                                            background: getHpBarColor(p.currentHp, p.maxHp) 
+                                          }}
+                                        />
+                                      </div>
+                                      <span className="text-xs flex-shrink-0" style={{ color: getHpBarColor(p.currentHp, p.maxHp), fontFamily: 'var(--font-mono)' }}>
+                                        {p.currentHp}/{p.maxHp}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Actions */}
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => setShowParticipantDetailModal(participant)}
-                                    className="px-2 py-1 rounded text-xs"
-                                    style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                                  >📋</button>
-                                  <button
-                                    onClick={() => removeParticipantFromEncounter(participant.id)}
-                                    className="px-2 py-1 rounded text-xs"
-                                    style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
-                                  >✕</button>
+                                {/* Type & AC */}
+                                <div className="flex items-center gap-2 mt-1 pl-10">
+                                  <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
+                                    {p.type.toUpperCase()}
+                                    {p.entityData && 'class' in p.entityData ? ` • ${(p.entityData as any).class}` : ''}
+                                    {p.entityData && 'type' in p.entityData && !('class' in p.entityData) ? ` • ${(p.entityData as any).type}` : ''}
+                                  </span>
+                                  <span className="text-xs ml-auto" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
+                                    🛡️ {p.ac}
+                                  </span>
                                 </div>
                               </div>
-
-                              {/* Notes */}
-                              <input
-                                type="text"
-                                value={notesInput[participant.id] !== undefined ? notesInput[participant.id] : participant.notes}
-                                onChange={e => handleNotesChange(participant.id, e.target.value)}
-                                placeholder="Notes..."
-                                className="w-full mt-2 px-2 py-1 rounded text-xs"
-                                style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', opacity: 0.8 }}
-                              />
                             </div>
                           );
                         })}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+
+                  {/* RIGHT: Participant Details (2/3 width) */}
+                  <div className="w-2/3 glass-panel p-5 overflow-y-auto" style={{ border: '1px solid var(--color-cyber-magenta)' }}>
+                    {(() => {
+                      const selectedP = combatParticipants.find(p => p.id === selectedCombatParticipantId);
+                      if (!selectedP) {
+                        return (
+                          <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>
+                            <div className="text-5xl mb-4 opacity-30">⚔️</div>
+                            <p className="text-lg" style={{ fontFamily: 'var(--font-cyber)' }}>SELECT A COMBATANT</p>
+                            <p className="text-sm mt-1" style={{ fontFamily: 'var(--font-mono)' }}>Click on a participant from the initiative order</p>
+                          </div>
+                        );
+                      }
+
+                      const entityData = selectedP.entityData;
+                      const isPlayer = selectedP.type === 'player';
+
+                      return (
+                        <div className="space-y-5">
+                          {/* Name & Header */}
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="text-2xl" style={{ fontFamily: 'var(--font-cyber)', color: isPlayer ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)' }}>
+                                {isPlayer ? '👤' : '👹'} {selectedP.name}
+                              </h3>
+                              <div className="text-sm mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+                                {selectedP.type.toUpperCase()}
+                                {entityData && 'class' in entityData && ` • ${(entityData as any).class} • Level ${(entityData as any).level}`}
+                                {entityData && 'type' in entityData && !('class' in entityData) && ` • ${(entityData as any).type}`}
+                                {entityData && 'disposition' in entityData && ` • ${(entityData as any).disposition}`}
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={() => removeParticipantFromEncounter(selectedP.id)}
+                              className="px-3 py-1 rounded text-xs"
+                              style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
+                            >
+                              REMOVE
+                            </button>
+                          </div>
+
+                          {/* Combat Stats Row */}
+                          <div className="grid grid-cols-4 gap-3">
+                            {/* HP */}
+                            <div className="col-span-2 p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)' }}>
+                              <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>HIT POINTS</div>
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-3xl font-bold" style={{ color: getHpBarColor(selectedP.currentHp, selectedP.maxHp), fontFamily: 'var(--font-cyber)' }}>
+                                  {selectedP.currentHp}
+                                </span>
+                                <span className="text-lg" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>/</span>
+                                <span className="text-lg" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                  {selectedP.maxHp}
+                                </span>
+                              </div>
+                              
+                              {/* HP bar */}
+                              <div className="h-3 rounded-full overflow-hidden mb-3" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 15%, transparent)' }}>
+                                <div className="h-full rounded-full transition-all" style={{ 
+                                  width: `${Math.max(0, Math.min(100, (selectedP.currentHp / selectedP.maxHp) * 100))}%`, 
+                                  background: getHpBarColor(selectedP.currentHp, selectedP.maxHp) 
+                                }} />
+                              </div>
+
+                              {/* HP Controls */}
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => {
+                                    const val = parseInt(hpChangeInput[selectedP.id] || '0');
+                                    if (val > 0) applyHpChange(selectedP, -val);
+                                  }}
+                                  className="px-3 py-1 rounded text-xs"
+                                  style={{ background: 'var(--color-cyber-magenta)', color: '#fff' }}
+                                >− DMG</button>
+                                <input
+                                  type="number"
+                                  value={hpChangeInput[selectedP.id] || ''}
+                                  onChange={e => setHpChangeInput(prev => ({ ...prev, [selectedP.id]: e.target.value }))}
+                                  placeholder="±"
+                                  className="w-16 px-1 py-1 rounded text-center text-sm"
+                                  style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                                  min="0"
+                                />
+                                <button 
+                                  onClick={() => {
+                                    const val = parseInt(hpChangeInput[selectedP.id] || '0');
+                                    if (val > 0) applyHpChange(selectedP, val);
+                                  }}
+                                  className="px-3 py-1 rounded text-xs"
+                                  style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}
+                                >+ HEAL</button>
+                                <button
+                                  onClick={() => {
+                                    updateParticipantHp(selectedP.id, selectedP.maxHp, selectedP.entityId, selectedP.type);
+                                  }}
+                                  className="px-2 py-1 rounded text-xs ml-auto"
+                                  style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
+                                  title="Full Heal"
+                                >MAX</button>
+                              </div>
+                            </div>
+
+                            {/* AC */}
+                            <div className="p-4 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
+                              <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>ARMOR CLASS</div>
+                              <div className="text-4xl font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
+                                {selectedP.ac}
+                              </div>
+                            </div>
+
+                            {/* Initiative */}
+                            <div className="p-4 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)' }}>
+                              <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-purple)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>INITIATIVE</div>
+                              <input
+                                type="number"
+                                value={selectedP.initiative ?? ''}
+                                onChange={e => updateParticipantInitiative(selectedP.id, parseInt(e.target.value) || 0)}
+                                className="w-16 text-center text-3xl font-bold rounded mx-auto block"
+                                style={{ background: 'transparent', color: 'var(--color-cyber-purple)', fontFamily: 'var(--font-cyber)', border: 'none' }}
+                                placeholder="?"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Attribute Stats */}
+                          {entityData && (
+                            <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)' }}>
+                              <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-purple)', fontFamily: 'var(--font-mono)' }}>ATTRIBUTES</div>
+                              <div className="grid grid-cols-6 gap-3">
+                                {(['str', 'dex', 'con', 'wis', 'int', 'cha'] as const).map(stat => {
+                                  const value = (entityData as any)?.[stat] || 10;
+                                  const mod = Math.floor((value - 10) / 2);
+                                  return (
+                                    <div key={stat} className="text-center p-2 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-purple) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)' }}>
+                                      <div className="text-xs font-bold uppercase" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>{stat}</div>
+                                      <div className="text-2xl font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>{value}</div>
+                                      <div className="text-xs" style={{ color: mod >= 0 ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                                        {mod >= 0 ? '+' : ''}{mod}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Player Abilities (auto-loaded) */}
+                          {isPlayer && combatPlayerAbilities.length > 0 && (
+                            <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)' }}>
+                              <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                                ⚡ ABILITIES ({combatPlayerAbilities.length})
+                              </div>
+                              <div className="space-y-2">
+                                {combatPlayerAbilities.map((ca: any) => (
+                                  <div key={ca.id} className="p-3 rounded" style={{ 
+                                    background: 'color-mix(in srgb, var(--color-cyber-green) 5%, transparent)',
+                                    border: '1px solid color-mix(in srgb, var(--color-cyber-green) 25%, transparent)'
+                                  }}>
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                                            {ca.ability?.name}
+                                          </span>
+                                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>
+                                            {ca.ability?.type?.replace('_', ' ')}
+                                          </span>
+                                          {ca.ability?.source && (
+                                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ 
+                                              background: 'color-mix(in srgb, var(--color-cyber-cyan) 15%, transparent)',
+                                              color: 'var(--color-cyber-cyan)' 
+                                            }}>
+                                              {ca.ability.source}{ca.ability.class_name ? `: ${ca.ability.class_name}` : ''}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+                                          {ca.ability?.description}
+                                        </div>
+                                        {/* Combat details */}
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                          {ca.ability?.damage_dice && (
+                                            <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                                              🎯 {ca.ability.damage_dice} {ca.ability.damage_type || ''}
+                                            </span>
+                                          )}
+                                          {ca.ability?.range_feet && (
+                                            <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+                                              📏 {ca.ability.range_feet}ft
+                                            </span>
+                                          )}
+                                          {ca.ability?.area_of_effect && (
+                                            <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+                                              💥 {ca.ability.area_of_effect}
+                                            </span>
+                                          )}
+                                          {ca.ability?.duration && (
+                                            <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+                                              ⏱ {ca.ability.duration}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {/* Effects list */}
+                                        {ca.ability?.effects && ca.ability.effects.length > 0 && (
+                                          <div className="mt-1">
+                                            {ca.ability.effects.map((eff: string, i: number) => (
+                                              <div key={i} className="text-xs" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                                                • {eff}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Charges */}
+                                      {ca.ability?.charge_type !== 'infinite' && (
+                                        <div className="flex flex-col items-center gap-1 ml-3 flex-shrink-0">
+                                          <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>CHARGES</div>
+                                          <div className="text-lg font-bold" style={{ 
+                                            color: ca.current_charges > 0 ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', 
+                                            fontFamily: 'var(--font-mono)' 
+                                          }}>
+                                            {ca.current_charges}/{ca.ability?.max_charges || '?'}
+                                          </div>
+                                          {activeEncounter.status === 'active' && (
+                                            <button
+                                              onClick={() => useCombatAbilityCharge(ca.id, ca.ability?.name, ca.current_charges)}
+                                              disabled={ca.current_charges <= 0}
+                                              className="px-2 py-0.5 rounded text-xs font-bold"
+                                              style={{ 
+                                                background: ca.current_charges > 0 ? 'var(--color-cyber-green)' : 'transparent',
+                                                color: ca.current_charges > 0 ? '#0D1117' : 'var(--color-cyber-cyan)',
+                                                border: ca.current_charges > 0 ? 'none' : '1px solid var(--color-cyber-cyan)',
+                                                opacity: ca.current_charges > 0 ? 1 : 0.4
+                                              }}
+                                            >USE</button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Player Consumables */}
+                          {isPlayer && combatPlayerInventory.filter(inv => inv.item?.is_consumable).length > 0 && (
+                            <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)' }}>
+                              <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                                🍴 CONSUMABLES ({combatPlayerInventory.filter(inv => inv.item?.is_consumable).length})
+                              </div>
+                              <div className="space-y-1">
+                                {combatPlayerInventory.filter(inv => inv.item?.is_consumable).map(inv => (
+                                  <div key={inv.id} className="flex items-center justify-between p-2 rounded" style={{ border: '1px solid var(--color-cyber-yellow)', background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)' }}>
+                                    <div>
+                                      <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-yellow)' }}>{inv.item?.name}</span>
+                                      <span className="text-xs ml-2" style={{ color: 'var(--color-cyber-cyan)' }}>x{inv.quantity}</span>
+                                      {inv.item?.hp_mod !== 0 && (
+                                        <span className="text-xs ml-2" style={{ color: 'var(--color-cyber-green)' }}>
+                                          {inv.item?.hp_mod_type === 'heal' ? `❤️+${inv.item?.hp_mod}` : `❤️ Max +${inv.item?.hp_mod}`}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => useCombatConsumable(inv.id, inv.item, selectedP.entityId)}
+                                      className="px-3 py-1 rounded text-xs font-bold"
+                                      style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}
+                                    >USE</button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Loading indicator for player resources */}
+                          {isPlayer && combatResourcesLoading && (
+                            <div className="text-center py-4" style={{ color: 'var(--color-cyber-cyan)' }}>Loading abilities & inventory...</div>
+                          )}
+
+                          {/* NPC Abilities */}
+                          {!isPlayer && entityData && 'abilities' in entityData && (entityData as NPC).abilities?.length > 0 && (
+                            <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)' }}>
+                              <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                                NPC ABILITIES ({(entityData as NPC).abilities.length})
+                              </div>
+                              <div className="space-y-2">
+                                {(entityData as NPC).abilities.map((ability, idx) => (
+                                  <div key={idx} className="p-3 rounded" style={{ 
+                                    background: 'color-mix(in srgb, var(--color-cyber-magenta) 5%, transparent)',
+                                    border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 25%, transparent)'
+                                  }}>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                                        {ability.name}
+                                      </span>
+                                      {ability.damage && (
+                                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-magenta)', color: '#fff' }}>
+                                          {ability.damage}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {ability.effect && (
+                                      <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+                                        {ability.effect}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* NPC Details */}
+                          {!isPlayer && entityData && 'description' in entityData && (
+                            <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
+                              <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>NPC DETAILS</div>
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                {(entityData as any).description && (
+                                  <div className="col-span-2">
+                                    <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>Description: </span>
+                                    <span style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>{(entityData as any).description}</span>
+                                  </div>
+                                )}
+                                {(entityData as any).three_words && (
+                                  <div>
+                                    <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>3 Words: </span>
+                                    <span style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>{(entityData as any).three_words}</span>
+                                  </div>
+                                )}
+                                {(entityData as any).speech_pattern && (
+                                  <div>
+                                    <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>Speech: </span>
+                                    <span style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>{(entityData as any).speech_pattern}</span>
+                                  </div>
+                                )}
+                                {(entityData as any).drops_on_defeat && (
+                                  <div className="col-span-2">
+                                    <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>Drops: </span>
+                                    <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
+                                      ${(entityData as any).drops_on_defeat.usd}
+                                      {(entityData as any).drops_on_defeat.items?.length > 0 && ` + ${(entityData as any).drops_on_defeat.items.join(', ')}`}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* DM Notes */}
+                          <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
+                            <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>DM NOTES</div>
+                            <textarea
+                              value={notesInput[selectedP.id] !== undefined ? notesInput[selectedP.id] : selectedP.notes}
+                              onChange={e => handleNotesChange(selectedP.id, e.target.value)}
+                              placeholder="Combat notes... (auto-saves)"
+                              rows={3}
+                              className="w-full px-3 py-2 rounded text-sm"
+                              style={{ background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center glass-panel" style={{ border: '1px solid var(--color-cyber-magenta)' }}>
+                  <div className="text-center" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>
+                    <div className="text-5xl mb-4 opacity-30">⚔️</div>
+                    <p className="text-lg" style={{ fontFamily: 'var(--font-cyber)' }}>SELECT AN ENCOUNTER</p>
+                    <p className="text-sm mt-1" style={{ fontFamily: 'var(--font-mono)' }}>Choose from the dropdown above or create a new one</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -6293,7 +6634,7 @@ export default function DMDashboard() {
                     <div>
                       <h4 className="text-sm mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-cyber)' }}>👾 NPCs & ENEMIES</h4>
                       <div className="text-xs mb-2 p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px dashed var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }}>
-                        💡 Tip: Use the quantity selector to add multiple of the same NPC (e.g., 4 gang members). Click "ADD" to add them.
+                        💡 Tip: Use the quantity selector to add multiple of the same NPC
                       </div>
                       <div className="space-y-2">
                         {allNPCs
@@ -6330,251 +6671,27 @@ export default function DMDashboard() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => setNpcQuantities(q => ({ ...q, [npc.id]: Math.max(1, qty - 1) }))}
-                                    className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold"
-                                    style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                                  >
-                                    −
-                                  </button>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={20}
-                                    value={qty}
-                                    onChange={e => setNpcQuantities(q => ({ ...q, [npc.id]: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) }))}
-                                    className="w-12 text-center px-1 py-1 rounded text-sm"
-                                    style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                                  />
-                                  <button
-                                    onClick={() => setNpcQuantities(q => ({ ...q, [npc.id]: Math.min(20, qty + 1) }))}
-                                    className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold"
-                                    style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                                  >
-                                    +
-                                  </button>
-                                  <button
-                                    onClick={() => addMultipleNpcsToEncounter(npc.id, qty)}
-                                    className="px-3 py-1 rounded text-xs font-bold"
-                                    style={{ background: getNpcTypeColor(npc.type), color: '#0D1117' }}
-                                  >
+                                  <button onClick={() => setNpcQuantities(q => ({ ...q, [npc.id]: Math.max(1, qty - 1) }))} className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>−</button>
+                                  <input type="number" min={1} max={20} value={qty} onChange={e => setNpcQuantities(q => ({ ...q, [npc.id]: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) }))} className="w-12 text-center px-1 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                  <button onClick={() => setNpcQuantities(q => ({ ...q, [npc.id]: Math.min(20, qty + 1) }))} className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>+</button>
+                                  <button onClick={() => addMultipleNpcsToEncounter(npc.id, qty)} className="px-3 py-1 rounded text-xs font-bold" style={{ background: getNpcTypeColor(npc.type), color: '#0D1117' }}>
                                     ADD {qty > 1 ? `(${qty})` : ''}
                                   </button>
                                 </div>
                               </div>
                             );
                           })}
-                        {allNPCs.filter(n => n.is_alive).filter(n => !participantSearchQuery || n.name.toLowerCase().includes(participantSearchQuery.toLowerCase())).filter(n => {
-                          if (participantTypeFilter === 'all') return true;
-                          if (participantTypeFilter === 'enemy') return n.type === 'Enemy';
-                          if (participantTypeFilter === 'friendly') return n.type === 'Friendly NPC';
-                          if (participantTypeFilter === 'neutral') return n.type === 'Neutral NPC';
-                          if (participantTypeFilter === 'boss') return n.type === 'Boss' || n.type === 'Mini-Boss';
-                          return true;
-                        }).length === 0 && (
-                          <div className="text-center py-4 text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>
-                            {participantSearchQuery ? 'No matching NPCs found' : 'No available NPCs (create some in NPCs tab)'}
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
                 </div>
 
                 <div className="flex justify-between items-center mt-4 pt-4" style={{ borderTop: '1px solid var(--color-cyber-dark)' }}>
-                  <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                    {combatParticipants.length} combatants in encounter
-                  </div>
-                  <button
-                    onClick={() => { setShowAddParticipantModal(false); setParticipantSearchQuery(''); setParticipantTypeFilter('all'); }}
-                    className="px-4 py-2 rounded text-sm"
-                    style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
-                  >
+                  <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{combatParticipants.length} combatants in encounter</div>
+                  <button onClick={() => { setShowAddParticipantModal(false); setParticipantSearchQuery(''); setParticipantTypeFilter('all'); }} className="px-4 py-2 rounded text-sm" style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}>
                     DONE
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Participant Detail Modal */}
-          {showParticipantDetailModal && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => { setShowParticipantDetailModal(null); setCombatPlayerInventory([]); setCombatPlayerAbilities([]); }}>
-              <div className="glass-panel p-6 w-[600px] max-h-[85vh] overflow-y-auto" style={{ border: `2px solid ${showParticipantDetailModal.type === 'player' ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)'}` }} onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg" style={{ fontFamily: 'var(--font-cyber)', color: showParticipantDetailModal.type === 'player' ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)' }}>
-                    {showParticipantDetailModal.type === 'player' ? '👤' : '👹'} {showParticipantDetailModal.name}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    {showParticipantDetailModal.type === 'player' && (
-                      <button
-                        onClick={() => fetchCombatPlayerResources(showParticipantDetailModal.entityId)}
-                        disabled={combatResourcesLoading}
-                        className="px-3 py-1 rounded text-xs"
-                        style={{ background: 'var(--color-cyber-purple)', color: 'white', opacity: combatResourcesLoading ? 0.5 : 1 }}
-                      >
-                        {combatResourcesLoading ? '...' : '🔄 Load Resources'}
-                      </button>
-                    )}
-                    <button onClick={() => { setShowParticipantDetailModal(null); setCombatPlayerInventory([]); setCombatPlayerAbilities([]); }} style={{ color: 'var(--color-cyber-magenta)' }}>✕</button>
-                  </div>
-                </div>
-
-                {showParticipantDetailModal.entityData && (
-                  <div className="space-y-4">
-                    {/* Combat Stats */}
-                    <div className="grid grid-cols-4 gap-3 text-center">
-                      <div className="p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)' }}>
-                        <div className="text-xl font-bold" style={{ color: 'var(--color-cyber-magenta)' }}>{showParticipantDetailModal.currentHp}</div>
-                        <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)' }}>HP</div>
-                      </div>
-                      <div className="p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
-                        <div className="text-xl font-bold" style={{ color: 'var(--color-cyber-cyan)' }}>{showParticipantDetailModal.maxHp}</div>
-                        <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)' }}>MAX HP</div>
-                      </div>
-                      <div className="p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
-                        <div className="text-xl font-bold" style={{ color: 'var(--color-cyber-cyan)' }}>{showParticipantDetailModal.ac}</div>
-                        <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)' }}>AC</div>
-                      </div>
-                      <div className="p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)' }}>
-                        <div className="text-xl font-bold" style={{ color: 'var(--color-cyber-purple)' }}>{showParticipantDetailModal.initiative ?? '?'}</div>
-                        <div className="text-xs" style={{ color: 'var(--color-cyber-purple)' }}>INIT</div>
-                      </div>
-                    </div>
-
-                    {/* Core Stats */}
-                    <div>
-                      <h4 className="text-sm mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-purple)' }}>STATS</h4>
-                      <div className="grid grid-cols-6 gap-2 text-center">
-                        {['str', 'dex', 'con', 'wis', 'int', 'cha'].map(stat => (
-                          <div key={stat} className="p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)' }}>
-                            <div className="text-lg font-bold" style={{ color: 'var(--color-cyber-purple)' }}>
-                              {(showParticipantDetailModal.entityData as any)?.[stat] || 10}
-                            </div>
-                            <div className="text-xs uppercase" style={{ color: 'var(--color-cyber-cyan)' }}>{stat}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Player Consumables Section */}
-                    {showParticipantDetailModal.type === 'player' && combatPlayerInventory.length > 0 && (
-                      <div>
-                        <h4 className="text-sm mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>🍴 CONSUMABLES</h4>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {combatPlayerInventory.filter(inv => inv.item?.is_consumable).length === 0 ? (
-                            <p className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>No consumables in inventory</p>
-                          ) : combatPlayerInventory.filter(inv => inv.item?.is_consumable).map(inv => (
-                            <div key={inv.id} className="flex items-center justify-between p-2 rounded" style={{ border: '1px solid var(--color-cyber-yellow)', background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)' }}>
-                              <div>
-                                <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-yellow)' }}>{inv.item?.name}</span>
-                                <span className="text-xs ml-2" style={{ color: 'var(--color-cyber-cyan)' }}>x{inv.quantity}</span>
-                                {inv.item?.hp_mod !== 0 && (
-                                  <span className="text-xs ml-2" style={{ color: 'var(--color-cyber-green)' }}>
-                                    {inv.item?.hp_mod_type === 'heal' ? `❤️+${inv.item?.hp_mod}` : `❤️ Max +${inv.item?.hp_mod}`}
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => useCombatConsumable(inv.id, inv.item, showParticipantDetailModal.entityId)}
-                                className="px-3 py-1 rounded text-xs font-bold"
-                                style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}
-                              >
-                                USE
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Player Abilities Section */}
-                    {showParticipantDetailModal.type === 'player' && combatPlayerAbilities.length > 0 && (
-                      <div>
-                        <h4 className="text-sm mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-green)' }}>⚡ ABILITIES</h4>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {combatPlayerAbilities.map(ca => (
-                            <div key={ca.id} className="flex items-center justify-between p-2 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)' }}>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm truncate" style={{ color: 'var(--color-cyber-green)' }}>{ca.ability?.name}</span>
-                                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>
-                                    {ca.ability?.type?.replace('_', ' ')}
-                                  </span>
-                                </div>
-                                <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                                  {ca.ability?.charge_type === 'infinite' ? '∞ Unlimited' : (
-                                    <>
-                                      Charges: <span style={{ color: ca.current_charges > 0 ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)' }}>{ca.current_charges}</span>/{ca.ability?.max_charges || '?'}
-                                      {ca.ability?.charge_type === 'short_rest' && ' (Short Rest)'}
-                                      {ca.ability?.charge_type === 'long_rest' && ' (Long Rest)'}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                              {ca.ability?.charge_type !== 'infinite' && (
-                                <button
-                                  onClick={() => useCombatAbilityCharge(ca.id, ca.ability?.name, ca.current_charges)}
-                                  disabled={ca.current_charges <= 0}
-                                  className="px-3 py-1 rounded text-xs font-bold ml-2"
-                                  style={{ 
-                                    background: ca.current_charges > 0 ? 'var(--color-cyber-green)' : 'transparent', 
-                                    color: ca.current_charges > 0 ? '#0D1117' : 'var(--color-cyber-cyan)',
-                                    border: ca.current_charges > 0 ? 'none' : '1px solid var(--color-cyber-cyan)',
-                                    opacity: ca.current_charges > 0 ? 1 : 0.5
-                                  }}
-                                >
-                                  USE
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Load Resources Prompt (for players) */}
-                    {showParticipantDetailModal.type === 'player' && combatPlayerInventory.length === 0 && combatPlayerAbilities.length === 0 && !combatResourcesLoading && (
-                      <div className="text-center py-4" style={{ border: '1px dashed var(--color-cyber-purple)', borderRadius: '8px' }}>
-                        <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>Click "Load Resources" to view and manage player inventory & abilities</p>
-                      </div>
-                    )}
-
-                    {/* NPC Abilities (if NPC) */}
-                    {showParticipantDetailModal.type === 'npc' && (showParticipantDetailModal.entityData as NPC)?.abilities?.length > 0 && (
-                      <div>
-                        <h4 className="text-sm mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-green)' }}>ABILITIES</h4>
-                        <div className="space-y-2">
-                          {((showParticipantDetailModal.entityData as NPC).abilities || []).map((ability, idx) => (
-                            <div key={idx} className="p-2 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)' }}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold" style={{ color: 'var(--color-cyber-green)' }}>{ability.name}</span>
-                                {ability.damage && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-magenta)', color: '#fff' }}>{ability.damage}</span>}
-                              </div>
-                              {ability.effect && <p className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{ability.effect}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Notes */}
-                    <div>
-                      <h4 className="text-sm mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>NOTES</h4>
-                      <textarea
-                        value={showParticipantDetailModal.notes}
-                        onChange={e => {
-                          updateParticipantNotes(showParticipantDetailModal.id, e.target.value);
-                          setShowParticipantDetailModal({ ...showParticipantDetailModal, notes: e.target.value });
-                        }}
-                        placeholder="Combat notes..."
-                        rows={3}
-                        className="w-full px-3 py-2 rounded"
-                        style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
