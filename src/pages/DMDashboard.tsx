@@ -2200,9 +2200,53 @@ export default function DMDashboard() {
         `)
         .eq('character_id', characterId);
       
+      // Also fetch item abilities from equipped items
+      const { data: equippedItems } = await supabase
+        .from('inventory')
+        .select(`
+          *,
+          item:items(
+            *,
+            abilities:item_abilities(
+              requires_equipped,
+              ability:abilities(*)
+            )
+          )
+        `)
+        .eq('character_id', characterId)
+        .eq('is_equipped', true);
+      
+      // Build item abilities as CharacterAbility-like objects
+      const itemAbilities: any[] = [];
+      equippedItems?.forEach((invItem: any) => {
+        invItem.item?.abilities?.forEach((itemAbility: any) => {
+          if (itemAbility.ability) {
+            // Check if this ability is already in character_abilities (avoid duplicates)
+            const alreadyGranted = (abilitiesData || []).some(
+              (ca: any) => ca.ability_id === itemAbility.ability.id
+            );
+            if (!alreadyGranted) {
+              itemAbilities.push({
+                id: `item_${invItem.item.id}_${itemAbility.ability.id}`,
+                character_id: characterId,
+                ability_id: itemAbility.ability.id,
+                current_charges: itemAbility.ability.max_charges || 0,
+                source_type: 'item',
+                source_id: invItem.item.id,
+                granted_at: invItem.acquired_at || new Date().toISOString(),
+                ability: {
+                  ...itemAbility.ability,
+                  item_name: invItem.item.name,
+                },
+              });
+            }
+          }
+        });
+      });
+
       // Only set state if this is still the current fetch
       if (combatResourcesFetchIdRef.current === characterId) {
-        setCombatPlayerAbilities(abilitiesData || []);
+        setCombatPlayerAbilities([...(abilitiesData || []), ...itemAbilities]);
       }
     } catch (err: any) {
       console.error('Error fetching combat resources:', err);
@@ -2294,10 +2338,15 @@ export default function DMDashboard() {
     if (!confirm(`Use one charge of ${abilityName}? (${currentCharges - 1} charges will remain)`)) return;
     
     try {
-      await supabase
-        .from('character_abilities')
-        .update({ current_charges: currentCharges - 1 })
-        .eq('id', characterAbilityId);
+      // Item abilities have synthetic IDs (item_xxx_xxx) — only update local state
+      const isItemAbility = characterAbilityId.startsWith('item_');
+      
+      if (!isItemAbility) {
+        await supabase
+          .from('character_abilities')
+          .update({ current_charges: currentCharges - 1 })
+          .eq('id', characterAbilityId);
+      }
       
       // Update local state
       setCombatPlayerAbilities(prev => prev.map(ca => 
@@ -6385,6 +6434,14 @@ export default function DMDashboard() {
                                               color: 'var(--color-cyber-cyan)' 
                                             }}>
                                               {ca.ability.source}{ca.ability.class_name ? `: ${ca.ability.class_name}` : ''}
+                                            </span>
+                                          )}
+                                          {ca.ability?.item_name && (
+                                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ 
+                                              background: 'color-mix(in srgb, var(--color-cyber-yellow) 20%, transparent)',
+                                              color: 'var(--color-cyber-yellow)' 
+                                            }}>
+                                              🔧 {ca.ability.item_name}
                                             </span>
                                           )}
                                         </div>
