@@ -342,6 +342,7 @@ export default function DMDashboard() {
   const [combatPlayerInventory, setCombatPlayerInventory] = useState<InventoryItem[]>([]);
   const [combatPlayerAbilities, setCombatPlayerAbilities] = useState<any[]>([]);
   const [combatResourcesLoading, setCombatResourcesLoading] = useState(false);
+  const combatResourcesFetchIdRef = useRef<string | null>(null);
 
   // Missions Tab state
   const [allMissions, setAllMissions] = useState<MissionWithDetails[]>([]);
@@ -2101,6 +2102,8 @@ export default function DMDashboard() {
 
   // Fetch player inventory and abilities for combat management
   const fetchCombatPlayerResources = async (characterId: string) => {
+    // Track which fetch is current to prevent race conditions
+    combatResourcesFetchIdRef.current = characterId;
     setCombatResourcesLoading(true);
     try {
       // Fetch inventory with items
@@ -2113,6 +2116,8 @@ export default function DMDashboard() {
         .eq('character_id', characterId)
         .order('is_equipped', { ascending: false });
       
+      // Bail out if a different character was selected while we were fetching
+      if (combatResourcesFetchIdRef.current !== characterId) return;
       setCombatPlayerInventory(invData || []);
 
       // Auto-seed class features into the database if not already granted
@@ -2195,11 +2200,16 @@ export default function DMDashboard() {
         `)
         .eq('character_id', characterId);
       
-      setCombatPlayerAbilities(abilitiesData || []);
+      // Only set state if this is still the current fetch
+      if (combatResourcesFetchIdRef.current === characterId) {
+        setCombatPlayerAbilities(abilitiesData || []);
+      }
     } catch (err: any) {
       console.error('Error fetching combat resources:', err);
     } finally {
-      setCombatResourcesLoading(false);
+      if (combatResourcesFetchIdRef.current === characterId) {
+        setCombatResourcesLoading(false);
+      }
     }
   };
 
@@ -2324,15 +2334,19 @@ export default function DMDashboard() {
   const selectCombatParticipant = (participant: CombatParticipant | null) => {
     if (!participant) {
       setSelectedCombatParticipantId(null);
+      combatResourcesFetchIdRef.current = null;
       setCombatPlayerInventory([]);
       setCombatPlayerAbilities([]);
       return;
     }
+    // Skip if already selected (prevents unnecessary re-fetches)
+    if (participant.id === selectedCombatParticipantId) return;
     setSelectedCombatParticipantId(participant.id);
     // Auto-load resources for players
     if (participant.type === 'player') {
       fetchCombatPlayerResources(participant.entityId);
     } else {
+      combatResourcesFetchIdRef.current = null;
       setCombatPlayerInventory([]);
       setCombatPlayerAbilities([]);
     }
@@ -2366,6 +2380,7 @@ export default function DMDashboard() {
     // Auto-select the new current participant
     const newCurrentParticipant = activeParticipants[newTurn];
     if (newCurrentParticipant) {
+      setSelectedCombatParticipantId(null); // Reset to force re-select
       selectCombatParticipant(newCurrentParticipant);
     }
     
@@ -2400,6 +2415,7 @@ export default function DMDashboard() {
     // Auto-select the new current participant
     const newCurrentParticipant = activeParticipants[newTurn];
     if (newCurrentParticipant) {
+      setSelectedCombatParticipantId(null); // Reset to force re-select
       selectCombatParticipant(newCurrentParticipant);
     }
     
