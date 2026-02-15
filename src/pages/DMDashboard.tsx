@@ -2115,7 +2115,78 @@ export default function DMDashboard() {
       
       setCombatPlayerInventory(invData || []);
 
-      // Fetch character abilities
+      // Auto-seed class features into the database if not already granted
+      const char = characters.find(c => c.id === characterId);
+      if (char?.class) {
+        const charClass = CHARACTER_CLASSES.find(c => c.name === char.class || c.id === char.class?.toLowerCase());
+        if (charClass && charClass.classFeatures.length > 0) {
+          // Check which class features are already granted
+          const { data: existingClassAbilities } = await supabase
+            .from('character_abilities')
+            .select('*, ability:abilities(*)')
+            .eq('character_id', characterId)
+            .eq('source_type', 'class');
+          
+          const existingNames = (existingClassAbilities || []).map((ca: any) => ca.ability?.name).filter(Boolean);
+          const missingFeatures = charClass.classFeatures.filter(f => !existingNames.includes(f.name));
+          
+          for (const feat of missingFeatures) {
+            // Map ClassFeature type to AbilityType
+            const typeMap: Record<string, string> = {
+              'ACTION': 'action',
+              'BONUS': 'bonus_action',
+              'HIT/STEALTH': 'utility',
+              'ON HIT': 'reaction',
+              'passive': 'passive'
+            };
+            
+            // Check if ability already exists in abilities table
+            const { data: existingAbility } = await supabase
+              .from('abilities')
+              .select('id')
+              .eq('name', feat.name)
+              .eq('source', 'class')
+              .eq('class_name', charClass.name)
+              .maybeSingle();
+            
+            let abilityId = existingAbility?.id;
+            
+            if (!abilityId) {
+              // Create the ability in the abilities table
+              const { data: newAbility } = await supabase
+                .from('abilities')
+                .insert({
+                  name: feat.name,
+                  description: feat.description,
+                  type: typeMap[feat.type] || 'action',
+                  charge_type: feat.charges ? 'uses' : 'infinite',
+                  max_charges: feat.charges || null,
+                  effects: feat.effects || [],
+                  source: 'class',
+                  class_name: charClass.name,
+                })
+                .select('id')
+                .single();
+              abilityId = newAbility?.id;
+            }
+            
+            if (abilityId) {
+              // Grant to character
+              await supabase
+                .from('character_abilities')
+                .insert({
+                  character_id: characterId,
+                  ability_id: abilityId,
+                  current_charges: feat.charges || 0,
+                  source_type: 'class',
+                  source_id: charClass.id,
+                });
+            }
+          }
+        }
+      }
+
+      // Fetch character abilities (including freshly seeded class features)
       const { data: abilitiesData } = await supabase
         .from('character_abilities')
         .select(`
@@ -6271,52 +6342,7 @@ export default function DMDashboard() {
                             </div>
                           )}
 
-                          {/* Class Features (from class data) */}
-                          {isPlayer && entityData && 'class' in entityData && (() => {
-                            const charClass = CHARACTER_CLASSES.find(c => c.name === (entityData as any).class || c.id === (entityData as any).class?.toLowerCase());
-                            if (!charClass || charClass.classFeatures.length === 0) return null;
-                            return (
-                              <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)' }}>
-                                <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                                  🎯 CLASS FEATURES — {charClass.name} ({charClass.classFeatures.length})
-                                </div>
-                                <div className="space-y-2">
-                                  {charClass.classFeatures.map((feat, idx) => (
-                                    <div key={idx} className="p-3 rounded" style={{
-                                      background: 'color-mix(in srgb, var(--color-cyber-yellow) 5%, transparent)',
-                                      border: '1px solid color-mix(in srgb, var(--color-cyber-yellow) 25%, transparent)'
-                                    }}>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                                          {feat.name}
-                                        </span>
-                                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>
-                                          {feat.type}
-                                        </span>
-                                        {feat.charges && (
-                                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}>
-                                            {feat.charges} charge{feat.charges > 1 ? 's' : ''}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8, fontFamily: 'var(--font-mono)' }}>
-                                        {feat.description}
-                                      </div>
-                                      {feat.effects && feat.effects.length > 0 && (
-                                        <div className="mt-1">
-                                          {feat.effects.map((eff, i) => (
-                                            <div key={i} className="text-xs" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>• {eff}</div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Player Granted Abilities (from database) */}
+                          {/* Player Abilities (includes class features + granted) */}
                           {isPlayer && combatPlayerAbilities.length > 0 && (
                             <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)' }}>
                               <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
