@@ -6257,14 +6257,12 @@ export default function DMDashboard() {
                               <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-purple)', fontFamily: 'var(--font-mono)' }}>ATTRIBUTES</div>
                               <div className="grid grid-cols-6 gap-3">
                                 {(['str', 'dex', 'con', 'wis', 'int', 'cha'] as const).map(stat => {
-                                  const value = (entityData as any)?.[stat] || 10;
-                                  const mod = Math.floor((value - 10) / 2);
+                                  const value = (entityData as any)?.[stat] || 0;
                                   return (
                                     <div key={stat} className="text-center p-2 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-purple) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)' }}>
                                       <div className="text-xs font-bold uppercase" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>{stat}</div>
-                                      <div className="text-2xl font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>{value}</div>
-                                      <div className="text-xs" style={{ color: mod >= 0 ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
-                                        {mod >= 0 ? '+' : ''}{mod}
+                                      <div className="text-2xl font-bold" style={{ color: value >= 0 ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-magenta)', fontFamily: 'var(--font-cyber)' }}>
+                                        {value >= 0 ? '+' : ''}{value}
                                       </div>
                                     </div>
                                   );
