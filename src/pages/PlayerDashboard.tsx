@@ -436,16 +436,18 @@ export default function PlayerDashboard() {
 
       if (abilitiesError) throw abilitiesError;
 
-      // Extract character ability objects
-      const characterAbilitiesList = charAbilities?.map(ca => ({
-        ...ca.ability,
-        current_charges: ca.current_charges,
-        source: (ca.ability?.source === 'class' ? 'class' : ca.ability?.source === 'item' ? 'item' : 'character') as any
-      })) || [];
+      // Extract character ability objects - EXCLUDE item-sourced abilities (those only show when equipped)
+      const characterAbilitiesList = (charAbilities || [])
+        .filter((ca: any) => ca.source_type !== 'item')
+        .map(ca => ({
+          ...ca.ability,
+          current_charges: ca.current_charges,
+          source: (ca.ability?.source === 'class' ? 'class' : 'character') as any
+        }));
 
       // Track ability IDs already in character_abilities to avoid duplicates
       const grantedAbilityIds = new Set(
-        (charAbilities || []).map((ca: any) => ca.ability_id).filter(Boolean)
+        (charAbilities || []).filter((ca: any) => ca.source_type !== 'item').map((ca: any) => ca.ability_id).filter(Boolean)
       );
       const grantedAbilityNames = new Set(
         characterAbilitiesList.map((a: any) => a.name).filter(Boolean)
@@ -1542,96 +1544,137 @@ export default function PlayerDashboard() {
 
                     {/* EQUIPPED GEAR */}
                     {(() => {
-                      const equippedGear = inventory.filter(inv => inv.is_equipped && inv.item && (inv.item.type === 'weapon' || inv.item.type === 'armor'));
+                      const equippedGear = inventory.filter(inv => inv.is_equipped && inv.item && (inv.item.type === 'weapon' || inv.item.type === 'armor' || inv.item.type === 'cyberware'));
                       if (equippedGear.length === 0) return null;
-                      const weapons = equippedGear.filter(inv => inv.item!.type === 'weapon');
-                      const armor = equippedGear.filter(inv => inv.item!.type === 'armor');
                       return (
                         <div className="mt-6">
                           <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
                             🔧 EQUIPPED GEAR
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {weapons.map(inv => {
+                          <div className="space-y-4">
+                            {equippedGear.map(inv => {
                               const item = inv.item!;
+                              const isWeapon = item.type === 'weapon';
                               const weaponType = item.weapon_subtype?.toLowerCase() || '';
-                              const rankKey = `weapon_rank_${weaponType}` as keyof typeof selectedCharacter;
-                              const rank = (selectedCharacter?.[rankKey] as number) ?? 0;
+                              const rankKey = isWeapon ? `weapon_rank_${weaponType}` as keyof typeof selectedCharacter : null;
+                              const rank = rankKey ? (selectedCharacter?.[rankKey] as number) ?? 0 : 0;
                               const isProficient = rank > 0;
+
+                              // Collect all non-zero stat mods
+                              const statMods: {label: string, icon: string, value: number}[] = [];
+                              if (item.ac_mod !== 0) statMods.push({ label: 'AC', icon: '🛡️', value: item.ac_mod });
+                              if (item.hp_mod !== 0) statMods.push({ label: 'HP', icon: '❤️', value: item.hp_mod });
+                              if (item.str_mod !== 0) statMods.push({ label: 'STR', icon: '💪', value: item.str_mod });
+                              if (item.dex_mod !== 0) statMods.push({ label: 'DEX', icon: '🎯', value: item.dex_mod });
+                              if (item.con_mod !== 0) statMods.push({ label: 'CON', icon: '🫀', value: item.con_mod });
+                              if (item.wis_mod !== 0) statMods.push({ label: 'WIS', icon: '👁️', value: item.wis_mod });
+                              if (item.int_mod !== 0) statMods.push({ label: 'INT', icon: '🧠', value: item.int_mod });
+                              if (item.cha_mod !== 0) statMods.push({ label: 'CHA', icon: '✨', value: item.cha_mod });
+                              if (item.speed_mod !== 0) statMods.push({ label: 'SPD', icon: '👟', value: item.speed_mod });
+                              if (item.init_mod !== 0) statMods.push({ label: 'INIT', icon: '⚡', value: item.init_mod });
+
+                              // Collect skill mods
+                              const skillMods = item.skill_mods ? Object.entries(item.skill_mods).filter(([, v]) => v !== 0) : [];
+
                               return (
                                 <div key={inv.id} className="p-4 rounded" style={{ border: `1px solid ${getRarityColor(item.rarity)}`, background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)' }}>
-                                  <div className="flex items-start gap-3">
-                                    <span className="text-2xl">{getItemTypeIcon(item.type)}</span>
+                                  {/* Header */}
+                                  <div className="flex items-start gap-3 mb-3">
+                                    <span className="text-3xl">{getItemTypeIcon(item.type)}</span>
                                     <div className="flex-1 min-w-0">
-                                      <div className="font-bold truncate" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
+                                      <div className="font-bold text-lg" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
                                         {item.name}
                                       </div>
                                       <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                                        {item.weapon_subtype ? item.weapon_subtype.charAt(0).toUpperCase() + item.weapon_subtype.slice(1) : 'Weapon'} • {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
+                                        {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                                        {item.weapon_subtype && ` • ${item.weapon_subtype.charAt(0).toUpperCase() + item.weapon_subtype.slice(1)}`}
+                                        {item.armor_subtype && ` • ${item.armor_subtype.charAt(0).toUpperCase() + item.armor_subtype.slice(1)}`}
+                                        {' • '}{item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
                                       </div>
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>
-                                          🎯 To Hit: {formatToHit(rank)} {!isProficient && '(Not Prof.)'}
+                                    </div>
+                                    <span className="text-xs px-2 py-1 rounded font-bold flex-shrink-0" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>EQUIPPED</span>
+                                  </div>
+
+                                  {/* Description */}
+                                  {item.description && (
+                                    <p className="text-sm mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.85 }}>
+                                      {item.description}
+                                    </p>
+                                  )}
+
+                                  {/* Weapon To Hit */}
+                                  {isWeapon && (
+                                    <div className="mb-3">
+                                      <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>
+                                        🎯 To Hit: {formatToHit(rank)} {!isProficient && '(Not Proficient)'}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Stat Mods */}
+                                  {statMods.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                      {statMods.map(mod => (
+                                        <span key={mod.label} className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: mod.value > 0 ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                                          {mod.icon} {mod.label} {mod.value > 0 ? '+' : ''}{mod.value}
                                         </span>
-                                        {item.ac_mod !== 0 && (
-                                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                            🛡️ AC {item.ac_mod > 0 ? '+' : ''}{item.ac_mod}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {/* Item abilities (damage info) */}
-                                      {item.abilities && item.abilities.length > 0 && (
-                                        <div className="mt-2 pt-2" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-green) 20%, transparent)' }}>
-                                          {item.abilities.map((ia: any, i: number) => ia.ability && (
-                                            <div key={i} className="text-xs flex flex-wrap gap-2 mt-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                              <span style={{ color: 'var(--color-cyber-magenta)' }}>{ia.ability.name}</span>
-                                              {ia.ability.damage_dice && <span>🎲 {ia.ability.damage_dice}</span>}
-                                              {ia.ability.damage_type && <span>({ia.ability.damage_type})</span>}
-                                              {ia.ability.range_feet && <span>📏 {ia.ability.range_feet}ft</span>}
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Skill Mods */}
+                                  {skillMods.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                      {skillMods.map(([skill, value]) => (
+                                        <span key={skill} className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)', color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                                          📊 {skill} {(value as number) > 0 ? '+' : ''}{value}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* IC Cost (cyberware) */}
+                                  {item.type === 'cyberware' && item.ic_cost > 0 && (
+                                    <div className="mb-3">
+                                      <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                                        🔌 IC Cost: {item.ic_cost}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Item Abilities */}
+                                  {item.abilities && item.abilities.length > 0 && (
+                                    <div className="pt-3" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-green) 20%, transparent)' }}>
+                                      <div className="text-xs font-bold mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>GRANTED ABILITIES:</div>
+                                      {item.abilities.map((ia: any, i: number) => ia.ability && (
+                                        <div key={i} className="p-2 rounded mb-2" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' }}>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-sm font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>{ia.ability.name}</span>
+                                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 15%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                              {(ia.ability.type || 'action').toUpperCase().replace('_', ' ')}
+                                            </span>
+                                          </div>
+                                          {ia.ability.description && (
+                                            <p className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>{ia.ability.description}</p>
+                                          )}
+                                          <div className="flex flex-wrap gap-2">
+                                            {ia.ability.damage_dice && <span className="text-xs" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>🎲 {ia.ability.damage_dice}</span>}
+                                            {ia.ability.damage_type && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>({ia.ability.damage_type})</span>}
+                                            {ia.ability.range_feet && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>📏 {ia.ability.range_feet}ft</span>}
+                                            {ia.ability.area_of_effect && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>💥 {ia.ability.area_of_effect}</span>}
+                                            {ia.ability.duration && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>⏱️ {ia.ability.duration}</span>}
+                                          </div>
+                                          {ia.ability.effects && ia.ability.effects.length > 0 && (
+                                            <div className="mt-1">
+                                              {ia.ability.effects.map((effect: string, ei: number) => (
+                                                <div key={ei} className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>• {effect}</div>
+                                              ))}
                                             </div>
-                                          ))}
+                                          )}
                                         </div>
-                                      )}
+                                      ))}
                                     </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {armor.map(inv => {
-                              const item = inv.item!;
-                              return (
-                                <div key={inv.id} className="p-4 rounded" style={{ border: `1px solid ${getRarityColor(item.rarity)}`, background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)' }}>
-                                  <div className="flex items-start gap-3">
-                                    <span className="text-2xl">{getItemTypeIcon(item.type)}</span>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-bold truncate" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
-                                        {item.name}
-                                      </div>
-                                      <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                                        {item.armor_subtype ? item.armor_subtype.charAt(0).toUpperCase() + item.armor_subtype.slice(1) : 'Armor'} • {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
-                                      </div>
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        {item.ac_mod !== 0 && (
-                                          <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'var(--color-cyber-green)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>
-                                            🛡️ AC {item.ac_mod > 0 ? '+' : ''}{item.ac_mod}
-                                          </span>
-                                        )}
-                                        {item.hp_mod !== 0 && (
-                                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                            ❤️ HP {item.hp_mod > 0 ? '+' : ''}{item.hp_mod}
-                                          </span>
-                                        )}
-                                        {item.speed_mod !== 0 && (
-                                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                            👟 SPD {item.speed_mod > 0 ? '+' : ''}{item.speed_mod}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {item.description && (
-                                        <p className="text-xs mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{item.description}</p>
-                                      )}
-                                    </div>
-                                  </div>
+                                  )}
                                 </div>
                               );
                             })}
