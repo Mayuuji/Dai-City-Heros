@@ -874,11 +874,17 @@ export default function DMDashboard() {
       
       if (itemsError) throw itemsError;
       
-      // Extract item abilities as CharacterAbility-like objects
+      // Track ability IDs already present from character_abilities to avoid duplicates
+      const grantedAbilityIds = new Set(
+        (charAbilities || []).map((ca: any) => ca.ability_id).filter(Boolean)
+      );
+      
+      // Extract item abilities as CharacterAbility-like objects (skip if already granted)
       const itemAbilities: CharacterAbility[] = [];
       equippedItems?.forEach(invItem => {
         invItem.item?.abilities?.forEach((itemAbility: any) => {
-          if (itemAbility.ability) {
+          if (itemAbility.ability && !grantedAbilityIds.has(itemAbility.ability.id)) {
+            grantedAbilityIds.add(itemAbility.ability.id); // prevent cross-item duplicates too
             itemAbilities.push({
               id: `item_${invItem.item.id}_${itemAbility.ability.id}`,
               character_id: characterId,
@@ -887,17 +893,22 @@ export default function DMDashboard() {
               source_type: 'item' as const,
               source_id: invItem.item.id,
               granted_at: invItem.created_at || new Date().toISOString(),
-              ability: itemAbility.ability,
+              ability: { ...itemAbility.ability, item_name: invItem.item.name },
               displaySource: `item:${invItem.item.name}` as any
             });
           }
         });
       });
       
-      // 3. Get class features from selected character
+      // 3. Get class features from selected character (only if not already seeded in character_abilities)
+      const grantedAbilityNames = new Set(
+        (charAbilities || []).map((ca: any) => ca.ability?.name).filter(Boolean)
+      );
       const classAbilities: CharacterAbility[] = [];
       if (selectedCharacter?.class_features && Array.isArray(selectedCharacter.class_features)) {
         selectedCharacter.class_features.forEach((feature: any, index: number) => {
+          // Skip if this class feature was already seeded into character_abilities
+          if (grantedAbilityNames.has(feature.name)) return;
           classAbilities.push({
             id: `class_${index}_${feature.name}`,
             character_id: characterId,
@@ -2244,9 +2255,50 @@ export default function DMDashboard() {
         });
       });
 
+      // Fallback: load class features from character object if auto-seeding didn't cover them
+      const char2 = characters.find(c => c.id === characterId);
+      const classFeatureFallback: any[] = [];
+      if (char2?.class_features && Array.isArray(char2.class_features)) {
+        const seededNames = new Set((abilitiesData || []).map((ca: any) => ca.ability?.name).filter(Boolean));
+        // Also check item abilities we've already built
+        itemAbilities.forEach((ia: any) => seededNames.add(ia.ability?.name));
+        
+        const typeMap: Record<string, string> = {
+          'ACTION': 'action',
+          'BONUS': 'bonus_action',
+          'HIT/STEALTH': 'utility',
+          'ON HIT': 'reaction',
+          'passive': 'passive'
+        };
+        
+        char2.class_features.forEach((feature: any, index: number) => {
+          if (seededNames.has(feature.name)) return; // already in DB
+          classFeatureFallback.push({
+            id: `class_${index}_${feature.name}`,
+            character_id: characterId,
+            ability_id: `class_feature_${index}`,
+            current_charges: feature.charges || 0,
+            source_type: 'class',
+            source_id: null,
+            granted_at: new Date().toISOString(),
+            ability: {
+              id: `class_feature_${feature.name}`,
+              name: feature.name,
+              description: feature.description || '',
+              type: typeMap[feature.type] || 'action',
+              charge_type: feature.charges ? 'uses' : 'infinite',
+              max_charges: feature.charges || null,
+              effects: feature.effects || [],
+              source: 'class',
+              class_name: char2.class || '',
+            },
+          });
+        });
+      }
+
       // Only set state if this is still the current fetch
       if (combatResourcesFetchIdRef.current === characterId) {
-        setCombatPlayerAbilities([...(abilitiesData || []), ...itemAbilities]);
+        setCombatPlayerAbilities([...(abilitiesData || []), ...itemAbilities, ...classFeatureFallback]);
       }
     } catch (err: any) {
       console.error('Error fetching combat resources:', err);
