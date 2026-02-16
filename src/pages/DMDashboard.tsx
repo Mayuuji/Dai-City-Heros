@@ -71,7 +71,7 @@ interface Character {
   created_at?: string;
 }
 
-type TabId = 'players' | 'items' | 'abilities' | 'npcs' | 'map' | 'encounters' | 'missions' | 'settings';
+type TabId = 'players' | 'items' | 'abilities' | 'npcs' | 'map' | 'encounters' | 'missions' | 'effects' | 'settings';
 type PlayerSubTab = 'stats' | 'inventory' | 'abilities';
 
 export default function DMDashboard() {
@@ -381,6 +381,30 @@ export default function DMDashboard() {
     reward_mode: 'each',
     saveAsDraft: false
   });
+
+  // Effects Tab state
+  interface GameEffect {
+    id: string;
+    effect_type: 'blackout' | 'flash' | 'glitch' | 'media' | 'clear';
+    target_type: 'all' | 'select';
+    target_character_ids: string[];
+    display_mode: 'fullscreen' | 'popup';
+    media_url: string | null;
+    media_type: 'image' | 'video' | null;
+    flash_interval_ms: number;
+    flash_duration_s: number;
+    is_active: boolean;
+    created_at: string;
+  }
+  const [activeGameEffects, setActiveGameEffects] = useState<GameEffect[]>([]);
+  const [, setEffectsLoading] = useState(false);
+  const [effectTargetType, setEffectTargetType] = useState<'all' | 'select'>('all');
+  const [effectTargetIds, setEffectTargetIds] = useState<string[]>([]);
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [mediaDisplayMode, setMediaDisplayMode] = useState<'fullscreen' | 'popup'>('fullscreen');
+  const [flashInterval, setFlashInterval] = useState(200);
+  const [flashDuration, setFlashDuration] = useState(5);
 
   // Fetch player lock status on mount and subscribe to changes
   useEffect(() => {
@@ -3088,6 +3112,95 @@ export default function DMDashboard() {
     return matchesSearch && matchesType && matchesAlive;
   });
 
+  // ============ EFFECTS TAB FUNCTIONS ============
+
+  const fetchActiveEffects = async () => {
+    setEffectsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('game_effects')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      setActiveGameEffects(data || []);
+    } catch (err) {
+      console.error('Error fetching effects:', err);
+    } finally {
+      setEffectsLoading(false);
+    }
+  };
+
+  // Load effects when tab is opened
+  useEffect(() => {
+    if (activeTab === 'effects') {
+      fetchActiveEffects();
+    }
+  }, [activeTab]);
+
+  const sendEffect = async (effectType: 'blackout' | 'flash' | 'glitch' | 'media') => {
+    try {
+      const effectData: any = {
+        effect_type: effectType,
+        target_type: effectTargetType,
+        target_character_ids: effectTargetType === 'select' ? effectTargetIds : [],
+        is_active: true,
+      };
+
+      if (effectType === 'media') {
+        if (!mediaUrl.trim()) {
+          alert('Please enter a media URL');
+          return;
+        }
+        effectData.media_url = mediaUrl.trim();
+        effectData.media_type = mediaType;
+        effectData.display_mode = mediaDisplayMode;
+      }
+
+      if (effectType === 'flash') {
+        effectData.flash_interval_ms = flashInterval;
+        effectData.flash_duration_s = flashDuration;
+      }
+
+      const { error } = await supabase.from('game_effects').insert(effectData);
+      if (error) throw error;
+      
+      await fetchActiveEffects();
+    } catch (err: any) {
+      alert('Failed to send effect: ' + err.message);
+    }
+  };
+
+  const clearEffect = async (effectId: string) => {
+    try {
+      await supabase
+        .from('game_effects')
+        .update({ is_active: false })
+        .eq('id', effectId);
+      await fetchActiveEffects();
+    } catch (err: any) {
+      alert('Failed to clear effect: ' + err.message);
+    }
+  };
+
+  const clearAllEffects = async () => {
+    if (!confirm('Clear ALL active screen effects?')) return;
+    try {
+      await supabase
+        .from('game_effects')
+        .update({ is_active: false })
+        .eq('is_active', true);
+      setActiveGameEffects([]);
+    } catch (err: any) {
+      alert('Failed to clear effects: ' + err.message);
+    }
+  };
+
+  const toggleEffectTarget = (charId: string) => {
+    setEffectTargetIds(prev =>
+      prev.includes(charId) ? prev.filter(id => id !== charId) : [...prev, charId]
+    );
+  };
+
   const tabs: { id: TabId; label: string; icon: string }[] = [
     { id: 'players', label: 'PLAYERS', icon: '👥' },
     { id: 'items', label: 'ITEMS', icon: '🎒' },
@@ -3096,6 +3209,7 @@ export default function DMDashboard() {
     { id: 'map', label: 'MAP', icon: '🗺️' },
     { id: 'encounters', label: 'ENCOUNTERS', icon: '⚔️' },
     { id: 'missions', label: 'MISSIONS', icon: '📋' },
+    { id: 'effects', label: 'EFFECTS', icon: '🎬' },
     { id: 'settings', label: 'SETTINGS', icon: '⚙️' },
   ];
 
@@ -7509,6 +7623,309 @@ export default function DMDashboard() {
                   >
                     {missionSaving ? 'Saving...' : selectedMission ? 'Save Changes' : 'Create Mission'}
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ============ EFFECTS TAB ============ */}
+          {activeTab === 'effects' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-magenta)' }}>
+                  🎬 SCREEN EFFECTS
+                </h2>
+                {activeGameEffects.length > 0 && (
+                  <button
+                    onClick={clearAllEffects}
+                    className="px-4 py-2 rounded text-sm font-bold"
+                    style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                  >
+                    ⛔ CLEAR ALL EFFECTS
+                  </button>
+                )}
+              </div>
+
+              {/* Active Effects Banner */}
+              {activeGameEffects.length > 0 && (
+                <div className="glass-panel p-4" style={{ border: '2px solid var(--color-cyber-magenta)' }}>
+                  <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                    ⚡ ACTIVE EFFECTS ({activeGameEffects.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {activeGameEffects.map(effect => (
+                      <div key={effect.id} className="flex items-center justify-between p-3 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 30%, transparent)' }}>
+                        <div>
+                          <span className="font-bold text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                            {effect.effect_type === 'blackout' && '⬛ BLACKOUT'}
+                            {effect.effect_type === 'flash' && '💡 FLASH'}
+                            {effect.effect_type === 'glitch' && '📺 GLITCH'}
+                            {effect.effect_type === 'media' && `🖼️ MEDIA (${effect.display_mode})`}
+                          </span>
+                          <span className="text-xs ml-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+                            Target: {effect.target_type === 'all' ? 'ALL PLAYERS' : `${effect.target_character_ids.length} player(s)`}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => clearEffect(effect.id)}
+                          className="px-3 py-1 rounded text-xs font-bold"
+                          style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                        >
+                          STOP
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Target Selection */}
+              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-cyan)' }}>
+                <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                  🎯 TARGET
+                </h3>
+                <div className="flex gap-3 mb-3">
+                  <button
+                    onClick={() => setEffectTargetType('all')}
+                    className="px-4 py-2 rounded text-sm font-bold"
+                    style={{
+                      background: effectTargetType === 'all' ? 'var(--color-cyber-green)' : 'transparent',
+                      color: effectTargetType === 'all' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                      border: '1px solid var(--color-cyber-green)'
+                    }}
+                  >
+                    ALL PLAYERS
+                  </button>
+                  <button
+                    onClick={() => setEffectTargetType('select')}
+                    className="px-4 py-2 rounded text-sm font-bold"
+                    style={{
+                      background: effectTargetType === 'select' ? 'var(--color-cyber-yellow)' : 'transparent',
+                      color: effectTargetType === 'select' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                      border: '1px solid var(--color-cyber-yellow)'
+                    }}
+                  >
+                    SELECT PLAYERS
+                  </button>
+                </div>
+                {effectTargetType === 'select' && (
+                  <div className="flex flex-wrap gap-2">
+                    {characters.map(char => (
+                      <button
+                        key={char.id}
+                        onClick={() => toggleEffectTarget(char.id)}
+                        className="px-3 py-1.5 rounded text-xs font-bold"
+                        style={{
+                          background: effectTargetIds.includes(char.id) ? 'var(--color-cyber-cyan)' : 'transparent',
+                          color: effectTargetIds.includes(char.id) ? '#0D1117' : 'var(--color-cyber-cyan)',
+                          border: `1px solid ${effectTargetIds.includes(char.id) ? 'var(--color-cyber-cyan)' : 'color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)'}`,
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      >
+                        {char.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Effect Controls Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* BLACKOUT */}
+                <div className="glass-panel p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)' }}>
+                  <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                    ⬛ BLACKOUT
+                  </h3>
+                  <p className="text-xs mb-4" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
+                    Display solid black on player screens. Players cannot see or interact with anything.
+                  </p>
+                  <button
+                    onClick={() => sendEffect('blackout')}
+                    className="w-full px-4 py-3 rounded font-bold text-sm"
+                    style={{ background: '#333', color: '#fff', border: '2px solid var(--color-cyber-cyan)' }}
+                  >
+                    ACTIVATE BLACKOUT
+                  </button>
+                </div>
+
+                {/* GLITCH */}
+                <div className="glass-panel p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)' }}>
+                  <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                    📺 GLITCH
+                  </h3>
+                  <p className="text-xs mb-4" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
+                    Add visual noise, scanlines, and color-shift distortion to player screens.
+                  </p>
+                  <button
+                    onClick={() => sendEffect('glitch')}
+                    className="w-full px-4 py-3 rounded font-bold text-sm"
+                    style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117', border: 'none' }}
+                  >
+                    ACTIVATE GLITCH
+                  </button>
+                </div>
+
+                {/* FLASH */}
+                <div className="glass-panel p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)' }}>
+                  <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                    💡 FLASH / BLINK
+                  </h3>
+                  <p className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
+                    Rapidly flash between black and normal view. Each player sees random offsets — not synchronized.
+                  </p>
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        INTERVAL: {flashInterval}ms
+                      </label>
+                      <input
+                        type="range"
+                        min={50}
+                        max={1000}
+                        step={50}
+                        value={flashInterval}
+                        onChange={(e) => setFlashInterval(Number(e.target.value))}
+                        className="w-full"
+                        style={{ accentColor: 'var(--color-cyber-cyan)' }}
+                      />
+                      <div className="flex justify-between text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
+                        <span>50ms (Fast)</span>
+                        <span>1000ms (Slow)</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        DURATION: {flashDuration}s
+                      </label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={30}
+                        step={1}
+                        value={flashDuration}
+                        onChange={(e) => setFlashDuration(Number(e.target.value))}
+                        className="w-full"
+                        style={{ accentColor: 'var(--color-cyber-cyan)' }}
+                      />
+                      <div className="flex justify-between text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
+                        <span>1s</span>
+                        <span>30s</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => sendEffect('flash')}
+                    className="w-full px-4 py-3 rounded font-bold text-sm"
+                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', border: 'none' }}
+                  >
+                    ACTIVATE FLASH
+                  </button>
+                </div>
+
+                {/* MEDIA PROJECTION */}
+                <div className="glass-panel p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)' }}>
+                  <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                    🖼️ MEDIA PROJECTION
+                  </h3>
+                  <p className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
+                    Project an image or video on player screens. Players cannot close it.
+                  </p>
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        MEDIA URL
+                      </label>
+                      <input
+                        type="url"
+                        value={mediaUrl}
+                        onChange={(e) => setMediaUrl(e.target.value)}
+                        placeholder="https://example.com/image.png or video.mp4"
+                        className="w-full px-3 py-2 rounded text-sm"
+                        style={{
+                          background: 'var(--color-cyber-darker)',
+                          border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>TYPE</label>
+                        <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--color-cyber-green)' }}>
+                          <button
+                            onClick={() => setMediaType('image')}
+                            className="flex-1 px-3 py-1.5 text-xs font-bold"
+                            style={{
+                              background: mediaType === 'image' ? 'var(--color-cyber-green)' : 'transparent',
+                              color: mediaType === 'image' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                            }}
+                          >🖼️ IMAGE</button>
+                          <button
+                            onClick={() => setMediaType('video')}
+                            className="flex-1 px-3 py-1.5 text-xs font-bold"
+                            style={{
+                              background: mediaType === 'video' ? 'var(--color-cyber-green)' : 'transparent',
+                              color: mediaType === 'video' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                            }}
+                          >🎬 VIDEO</button>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>DISPLAY</label>
+                        <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--color-cyber-green)' }}>
+                          <button
+                            onClick={() => setMediaDisplayMode('fullscreen')}
+                            className="flex-1 px-3 py-1.5 text-xs font-bold"
+                            style={{
+                              background: mediaDisplayMode === 'fullscreen' ? 'var(--color-cyber-green)' : 'transparent',
+                              color: mediaDisplayMode === 'fullscreen' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                            }}
+                          >FULL</button>
+                          <button
+                            onClick={() => setMediaDisplayMode('popup')}
+                            className="flex-1 px-3 py-1.5 text-xs font-bold"
+                            style={{
+                              background: mediaDisplayMode === 'popup' ? 'var(--color-cyber-green)' : 'transparent',
+                              color: mediaDisplayMode === 'popup' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                            }}
+                          >POPUP</button>
+                        </div>
+                      </div>
+                    </div>
+                    {mediaUrl && (
+                      <div className="p-2 rounded" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)' }}>
+                        <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>PREVIEW:</div>
+                        {mediaType === 'image' ? (
+                          <img src={mediaUrl} alt="Preview" style={{ maxHeight: '150px', borderRadius: '4px' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <video src={mediaUrl} style={{ maxHeight: '150px', borderRadius: '4px' }} muted />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => sendEffect('media')}
+                    className="w-full px-4 py-3 rounded font-bold text-sm"
+                    style={{ background: 'var(--color-cyber-green)', color: '#0D1117', border: 'none' }}
+                    disabled={!mediaUrl.trim()}
+                  >
+                    PROJECT MEDIA
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Info box */}
+              <div className="glass-panel p-4" style={{ border: '1px dashed color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)' }}>
+                <h4 className="text-sm font-bold mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                  ℹ️ AUTOMATIC EFFECTS
+                </h4>
+                <div className="space-y-1 text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
+                  <p>• <strong style={{ color: 'var(--color-cyber-magenta)' }}>HP Damage</strong> — Red screen flash + damage number animation appears automatically when a player takes damage</p>
+                  <p>• <strong style={{ color: 'var(--color-cyber-green)' }}>HP Heal</strong> — Green screen flash + heal number animation appears automatically when a player is healed</p>
+                  <p>• <strong style={{ color: 'var(--color-cyber-yellow)' }}>Item Received</strong> — Bottom-left notification popup appears for 10 seconds when items are added/removed</p>
                 </div>
               </div>
             </div>

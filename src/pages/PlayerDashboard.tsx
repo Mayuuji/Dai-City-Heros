@@ -9,6 +9,7 @@ import type { Location } from '../types/map';
 import type { MissionWithDetails, MissionStatus } from '../types/mission';
 import type { Shop, ShopInventoryItemWithDetails } from '../types/shop';
 import { getRarityColor, getItemTypeIcon } from '../utils/stats';
+import PlayerEffectsOverlay from '../components/PlayerEffectsOverlay';
 
 // Helper to convert skill name to database column name
 const skillToColumn = (skillName: string): string => {
@@ -1088,6 +1089,8 @@ export default function PlayerDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
+      {/* Screen Effects Overlay */}
+      <PlayerEffectsOverlay characterId={selectedCharacter?.id || null} />
       {/* Header */}
       <div className="glass-panel neon-border" style={{ borderRadius: 0 }}>
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
