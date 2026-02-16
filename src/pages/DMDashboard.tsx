@@ -392,7 +392,6 @@ export default function DMDashboard() {
     media_url: string | null;
     media_type: 'image' | 'video' | null;
     flash_interval_ms: number;
-    flash_duration_s: number;
     is_active: boolean;
     created_at: string;
   }
@@ -400,11 +399,12 @@ export default function DMDashboard() {
   const [, setEffectsLoading] = useState(false);
   const [effectTargetType, setEffectTargetType] = useState<'all' | 'select'>('all');
   const [effectTargetIds, setEffectTargetIds] = useState<string[]>([]);
-  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string>('');
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [mediaDisplayMode, setMediaDisplayMode] = useState<'fullscreen' | 'popup'>('fullscreen');
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [flashInterval, setFlashInterval] = useState(200);
-  const [flashDuration, setFlashDuration] = useState(5);
 
   // Fetch player lock status on mount and subscribe to changes
   useEffect(() => {
@@ -3147,18 +3147,29 @@ export default function DMDashboard() {
       };
 
       if (effectType === 'media') {
-        if (!mediaUrl.trim()) {
-          alert('Please enter a media URL');
+        if (!mediaFile) {
+          alert('Please select or paste an image/video file');
           return;
         }
-        effectData.media_url = mediaUrl.trim();
+        setMediaUploading(true);
+        // Upload to Supabase Storage
+        const fileExt = mediaFile.name.split('.').pop() || 'png';
+        const fileName = `effect_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('effect-media')
+          .upload(fileName, mediaFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from('effect-media')
+          .getPublicUrl(fileName);
+        effectData.media_url = urlData.publicUrl;
         effectData.media_type = mediaType;
         effectData.display_mode = mediaDisplayMode;
+        setMediaUploading(false);
       }
 
       if (effectType === 'flash') {
         effectData.flash_interval_ms = flashInterval;
-        effectData.flash_duration_s = flashDuration;
       }
 
       const { error } = await supabase.from('game_effects').insert(effectData);
@@ -3166,6 +3177,7 @@ export default function DMDashboard() {
       
       await fetchActiveEffects();
     } catch (err: any) {
+      setMediaUploading(false);
       alert('Failed to send effect: ' + err.message);
     }
   };
@@ -3174,7 +3186,7 @@ export default function DMDashboard() {
     try {
       await supabase
         .from('game_effects')
-        .update({ is_active: false })
+        .delete()
         .eq('id', effectId);
       await fetchActiveEffects();
     } catch (err: any) {
@@ -3187,11 +3199,48 @@ export default function DMDashboard() {
     try {
       await supabase
         .from('game_effects')
-        .update({ is_active: false })
+        .delete()
         .eq('is_active', true);
       setActiveGameEffects([]);
     } catch (err: any) {
       alert('Failed to clear effects: ' + err.message);
+    }
+  };
+
+  const handleMediaFileSelect = (file: File) => {
+    setMediaFile(file);
+    // Auto-detect type
+    if (file.type.startsWith('video/')) {
+      setMediaType('video');
+    } else {
+      setMediaType('image');
+    }
+    // Create local preview URL
+    const url = URL.createObjectURL(file);
+    setMediaPreviewUrl(url);
+  };
+
+  const handleMediaPaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
+        const file = item.getAsFile();
+        if (file) {
+          handleMediaFileSelect(file);
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  };
+
+  const handleMediaDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+      handleMediaFileSelect(file);
     }
   };
 
@@ -7772,46 +7821,52 @@ export default function DMDashboard() {
                     💡 FLASH / BLINK
                   </h3>
                   <p className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                    Rapidly flash between black and normal view. Each player sees random offsets — not synchronized.
+                    Rapidly flash between black and normal view. Toggle on/off with the STOP button.
                   </p>
                   <div className="space-y-3 mb-4">
                     <div>
                       <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        INTERVAL: {flashInterval}ms
+                        INTERVAL: {flashInterval}ms {flashInterval <= 30 ? '⚡ EXTREME' : flashInterval <= 80 ? '🔥 FAST' : ''}
                       </label>
                       <input
                         type="range"
-                        min={50}
+                        min={16}
                         max={1000}
-                        step={50}
+                        step={1}
                         value={flashInterval}
                         onChange={(e) => setFlashInterval(Number(e.target.value))}
                         className="w-full"
                         style={{ accentColor: 'var(--color-cyber-cyan)' }}
                       />
                       <div className="flex justify-between text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
-                        <span>50ms (Fast)</span>
+                        <span>16ms (⚡)</span>
                         <span>1000ms (Slow)</span>
                       </div>
                     </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        DURATION: {flashDuration}s
-                      </label>
-                      <input
-                        type="range"
-                        min={1}
-                        max={30}
-                        step={1}
-                        value={flashDuration}
-                        onChange={(e) => setFlashDuration(Number(e.target.value))}
-                        className="w-full"
-                        style={{ accentColor: 'var(--color-cyber-cyan)' }}
-                      />
-                      <div className="flex justify-between text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
-                        <span>1s</span>
-                        <span>30s</span>
-                      </div>
+                    {/* Quick preset buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { label: '⚡ 16ms', val: 16 },
+                        { label: '🔥 30ms', val: 30 },
+                        { label: '50ms', val: 50 },
+                        { label: '100ms', val: 100 },
+                        { label: '200ms', val: 200 },
+                        { label: '500ms', val: 500 },
+                      ].map(preset => (
+                        <button
+                          key={preset.val}
+                          onClick={() => setFlashInterval(preset.val)}
+                          className="px-2 py-1 rounded text-xs font-bold"
+                          style={{
+                            background: flashInterval === preset.val ? 'var(--color-cyber-yellow)' : 'transparent',
+                            color: flashInterval === preset.val ? '#0D1117' : 'var(--color-cyber-cyan)',
+                            border: '1px solid color-mix(in srgb, var(--color-cyber-yellow) 50%, transparent)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                   <button
@@ -7824,7 +7879,13 @@ export default function DMDashboard() {
                 </div>
 
                 {/* MEDIA PROJECTION */}
-                <div className="glass-panel p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)' }}>
+                <div
+                  className="glass-panel p-4"
+                  style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)' }}
+                  onPaste={handleMediaPaste}
+                  onDrop={handleMediaDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                >
                   <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
                     🖼️ MEDIA PROJECTION
                   </h3>
@@ -7832,23 +7893,51 @@ export default function DMDashboard() {
                     Project an image or video on player screens. Players cannot close it.
                   </p>
                   <div className="space-y-3 mb-4">
+                    {/* File Upload / Paste Zone */}
                     <div>
                       <label className="text-xs block mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        MEDIA URL
+                        MEDIA FILE
                       </label>
-                      <input
-                        type="url"
-                        value={mediaUrl}
-                        onChange={(e) => setMediaUrl(e.target.value)}
-                        placeholder="https://example.com/image.png or video.mp4"
-                        className="w-full px-3 py-2 rounded text-sm"
+                      <label
+                        className="block w-full p-4 rounded text-center cursor-pointer"
                         style={{
                           background: 'var(--color-cyber-darker)',
-                          border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
+                          border: `2px dashed ${mediaFile ? 'var(--color-cyber-green)' : 'color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)'}`,
                           color: 'var(--color-cyber-cyan)',
-                          fontFamily: 'var(--font-mono)'
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '12px',
+                          transition: 'border-color 0.2s'
                         }}
-                      />
+                      >
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleMediaFileSelect(file);
+                          }}
+                        />
+                        {mediaFile ? (
+                          <span style={{ color: 'var(--color-cyber-green)' }}>
+                            ✅ {mediaFile.name} ({(mediaFile.size / 1024).toFixed(0)} KB)
+                          </span>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: '24px', marginBottom: '4px' }}>📁</div>
+                            <div>Click to upload, drag & drop, or <strong>Ctrl+V</strong> to paste</div>
+                          </>
+                        )}
+                      </label>
+                      {mediaFile && (
+                        <button
+                          onClick={() => { setMediaFile(null); setMediaPreviewUrl(''); }}
+                          className="mt-1 text-xs px-2 py-1 rounded"
+                          style={{ color: 'var(--color-cyber-magenta)', border: '1px solid var(--color-cyber-magenta)' }}
+                        >
+                          ✕ Clear
+                        </button>
+                      )}
                     </div>
                     <div className="flex gap-3">
                       <div className="flex-1">
@@ -7894,13 +7983,13 @@ export default function DMDashboard() {
                         </div>
                       </div>
                     </div>
-                    {mediaUrl && (
+                    {mediaPreviewUrl && (
                       <div className="p-2 rounded" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)' }}>
                         <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>PREVIEW:</div>
                         {mediaType === 'image' ? (
-                          <img src={mediaUrl} alt="Preview" style={{ maxHeight: '150px', borderRadius: '4px' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          <img src={mediaPreviewUrl} alt="Preview" style={{ maxHeight: '150px', borderRadius: '4px' }} />
                         ) : (
-                          <video src={mediaUrl} style={{ maxHeight: '150px', borderRadius: '4px' }} muted />
+                          <video src={mediaPreviewUrl} style={{ maxHeight: '150px', borderRadius: '4px' }} muted controls />
                         )}
                       </div>
                     )}
@@ -7908,10 +7997,14 @@ export default function DMDashboard() {
                   <button
                     onClick={() => sendEffect('media')}
                     className="w-full px-4 py-3 rounded font-bold text-sm"
-                    style={{ background: 'var(--color-cyber-green)', color: '#0D1117', border: 'none' }}
-                    disabled={!mediaUrl.trim()}
+                    style={{
+                      background: mediaUploading ? 'color-mix(in srgb, var(--color-cyber-green) 50%, transparent)' : 'var(--color-cyber-green)',
+                      color: '#0D1117',
+                      border: 'none'
+                    }}
+                    disabled={!mediaFile || mediaUploading}
                   >
-                    PROJECT MEDIA
+                    {mediaUploading ? '⏳ UPLOADING...' : 'PROJECT MEDIA'}
                   </button>
                 </div>
 

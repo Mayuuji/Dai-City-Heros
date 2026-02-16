@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS game_effects (
   
   -- Flash effect fields
   flash_interval_ms INTEGER DEFAULT 200, -- milliseconds between flashes
-  flash_duration_s INTEGER DEFAULT 5, -- how long the flash effect lasts
+  flash_duration_s INTEGER DEFAULT 5, -- legacy, not used (flash is toggle-based now)
   
   -- General
   is_active BOOLEAN DEFAULT true,
@@ -31,9 +31,34 @@ CREATE POLICY "Admin full access on game_effects" ON game_effects
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
--- Players can read active effects
-CREATE POLICY "Players can read active effects" ON game_effects
-  FOR SELECT USING (is_active = true);
+-- Players can read all effects (need to see DELETE events via realtime)
+CREATE POLICY "Players can read effects" ON game_effects
+  FOR SELECT USING (true);
 
 -- Add to realtime publication
 ALTER PUBLICATION supabase_realtime ADD TABLE game_effects;
+
+-- ============================================================
+-- Storage bucket for DM media uploads (images/videos)
+-- ============================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('effect-media', 'effect-media', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Admin can upload to the bucket
+CREATE POLICY "Admin upload effect media" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'effect-media'
+    AND EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Admin can delete from the bucket
+CREATE POLICY "Admin delete effect media" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'effect-media'
+    AND EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Anyone authenticated can read from the bucket (public bucket anyway)
+CREATE POLICY "Public read effect media" ON storage.objects
+  FOR SELECT USING (bucket_id = 'effect-media');

@@ -10,7 +10,6 @@ interface GameEffect {
   media_url: string | null;
   media_type: 'image' | 'video' | null;
   flash_interval_ms: number;
-  flash_duration_s: number;
   is_active: boolean;
 }
 
@@ -45,16 +44,12 @@ export default function PlayerEffectsOverlay({ characterId }: PlayerEffectsOverl
   // Flash state
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const flashEndRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track previous HP for change detection
   const prevHpRef = useRef<number | null>(null);
   
   // Track previous inventory for item notifications
   const prevInventoryRef = useRef<Map<string, { name: string; quantity: number }>>(new Map());
-
-  // Random flash offset per user (so flashes aren't synchronized)
-  const flashOffsetRef = useRef(Math.random() * 500);
 
   // Subscribe to game_effects table changes
   useEffect(() => {
@@ -112,38 +107,19 @@ export default function PlayerEffectsOverlay({ characterId }: PlayerEffectsOverl
     };
   }, [characterId]);
 
-  // Flash effect logic with random offset
+  // Flash effect logic — simple toggle, controlled directly by interval from DB
   useEffect(() => {
     const flashEffect = activeEffects.find(e => e.effect_type === 'flash');
     
     if (flashEffect) {
-      const interval = flashEffect.flash_interval_ms || 200;
-      const offset = flashOffsetRef.current;
+      const interval = Math.max(16, flashEffect.flash_interval_ms || 200);
       
-      // Add random jitter to each flash cycle (±30% of interval)
-      const startFlashing = () => {
-        const jitter = interval * 0.3 * (Math.random() * 2 - 1);
-        const actualInterval = Math.max(50, interval + jitter + offset * 0.1);
-        
-        flashTimerRef.current = setInterval(() => {
-          setFlashVisible(prev => !prev);
-        }, actualInterval);
-      };
-
-      // Delay start by random offset
-      setTimeout(startFlashing, offset);
-
-      // Auto-end after duration
-      if (flashEffect.flash_duration_s > 0) {
-        flashEndRef.current = setTimeout(() => {
-          if (flashTimerRef.current) clearInterval(flashTimerRef.current);
-          setFlashVisible(false);
-        }, flashEffect.flash_duration_s * 1000);
-      }
+      flashTimerRef.current = setInterval(() => {
+        setFlashVisible(prev => !prev);
+      }, interval);
 
       return () => {
         if (flashTimerRef.current) clearInterval(flashTimerRef.current);
-        if (flashEndRef.current) clearTimeout(flashEndRef.current);
         setFlashVisible(false);
       };
     } else {
