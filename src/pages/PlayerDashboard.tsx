@@ -440,8 +440,16 @@ export default function PlayerDashboard() {
       const characterAbilitiesList = charAbilities?.map(ca => ({
         ...ca.ability,
         current_charges: ca.current_charges,
-        source: 'character' as const
+        source: (ca.ability?.source === 'class' ? 'class' : ca.ability?.source === 'item' ? 'item' : 'character') as any
       })) || [];
+
+      // Track ability IDs already in character_abilities to avoid duplicates
+      const grantedAbilityIds = new Set(
+        (charAbilities || []).map((ca: any) => ca.ability_id).filter(Boolean)
+      );
+      const grantedAbilityNames = new Set(
+        characterAbilitiesList.map((a: any) => a.name).filter(Boolean)
+      );
 
       // Fetch equipped items with their abilities
       const { data: equippedItems, error: itemsError } = await supabase
@@ -461,11 +469,13 @@ export default function PlayerDashboard() {
 
       if (itemsError) throw itemsError;
 
-      // Extract item abilities (only from equipped items or items that don't require equipping)
+      // Extract item abilities (only from equipped items, skip if already in character_abilities)
       const itemAbilitiesList: Ability[] = [];
       equippedItems?.forEach(invItem => {
         invItem.item?.abilities?.forEach((itemAbility: any) => {
-          if (itemAbility.ability && (invItem.is_equipped || !itemAbility.requires_equipped)) {
+          if (itemAbility.ability && !grantedAbilityIds.has(itemAbility.ability.id)) {
+            grantedAbilityIds.add(itemAbility.ability.id);
+            grantedAbilityNames.add(itemAbility.ability.name);
             itemAbilitiesList.push({
               ...itemAbility.ability,
               source: 'item' as const,
@@ -475,10 +485,11 @@ export default function PlayerDashboard() {
         });
       });
 
-      // Get class features from character
+      // Get class features from character (only if not already seeded into character_abilities)
       const classFeatures: Ability[] = [];
       if (selectedCharacter?.class_features && Array.isArray(selectedCharacter.class_features)) {
         selectedCharacter.class_features.forEach((feature: any) => {
+          if (grantedAbilityNames.has(feature.name)) return; // already in DB
           classFeatures.push({
             id: `class_feature_${feature.name}`,
             name: feature.name,
@@ -1528,6 +1539,106 @@ export default function PlayerDashboard() {
                         ))}
                       </div>
                     )}
+
+                    {/* EQUIPPED GEAR */}
+                    {(() => {
+                      const equippedGear = inventory.filter(inv => inv.is_equipped && inv.item && (inv.item.type === 'weapon' || inv.item.type === 'armor'));
+                      if (equippedGear.length === 0) return null;
+                      const weapons = equippedGear.filter(inv => inv.item!.type === 'weapon');
+                      const armor = equippedGear.filter(inv => inv.item!.type === 'armor');
+                      return (
+                        <div className="mt-6">
+                          <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                            🔧 EQUIPPED GEAR
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {weapons.map(inv => {
+                              const item = inv.item!;
+                              const weaponType = item.weapon_subtype?.toLowerCase() || '';
+                              const rankKey = `weapon_rank_${weaponType}` as keyof typeof selectedCharacter;
+                              const rank = (selectedCharacter?.[rankKey] as number) ?? 0;
+                              const isProficient = rank > 0;
+                              return (
+                                <div key={inv.id} className="p-4 rounded" style={{ border: `1px solid ${getRarityColor(item.rarity)}`, background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)' }}>
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-2xl">{getItemTypeIcon(item.type)}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold truncate" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
+                                        {item.name}
+                                      </div>
+                                      <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+                                        {item.weapon_subtype ? item.weapon_subtype.charAt(0).toUpperCase() + item.weapon_subtype.slice(1) : 'Weapon'} • {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
+                                      </div>
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>
+                                          🎯 To Hit: {formatToHit(rank)} {!isProficient && '(Not Prof.)'}
+                                        </span>
+                                        {item.ac_mod !== 0 && (
+                                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                            🛡️ AC {item.ac_mod > 0 ? '+' : ''}{item.ac_mod}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {/* Item abilities (damage info) */}
+                                      {item.abilities && item.abilities.length > 0 && (
+                                        <div className="mt-2 pt-2" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-green) 20%, transparent)' }}>
+                                          {item.abilities.map((ia: any, i: number) => ia.ability && (
+                                            <div key={i} className="text-xs flex flex-wrap gap-2 mt-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                              <span style={{ color: 'var(--color-cyber-magenta)' }}>{ia.ability.name}</span>
+                                              {ia.ability.damage_dice && <span>🎲 {ia.ability.damage_dice}</span>}
+                                              {ia.ability.damage_type && <span>({ia.ability.damage_type})</span>}
+                                              {ia.ability.range_feet && <span>📏 {ia.ability.range_feet}ft</span>}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {armor.map(inv => {
+                              const item = inv.item!;
+                              return (
+                                <div key={inv.id} className="p-4 rounded" style={{ border: `1px solid ${getRarityColor(item.rarity)}`, background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)' }}>
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-2xl">{getItemTypeIcon(item.type)}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold truncate" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
+                                        {item.name}
+                                      </div>
+                                      <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+                                        {item.armor_subtype ? item.armor_subtype.charAt(0).toUpperCase() + item.armor_subtype.slice(1) : 'Armor'} • {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
+                                      </div>
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        {item.ac_mod !== 0 && (
+                                          <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'var(--color-cyber-green)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>
+                                            🛡️ AC {item.ac_mod > 0 ? '+' : ''}{item.ac_mod}
+                                          </span>
+                                        )}
+                                        {item.hp_mod !== 0 && (
+                                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                            ❤️ HP {item.hp_mod > 0 ? '+' : ''}{item.hp_mod}
+                                          </span>
+                                        )}
+                                        {item.speed_mod !== 0 && (
+                                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                            👟 SPD {item.speed_mod > 0 ? '+' : ''}{item.speed_mod}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {item.description && (
+                                        <p className="text-xs mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{item.description}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
