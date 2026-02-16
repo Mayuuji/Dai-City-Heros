@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS game_effects (
 -- Enable RLS
 ALTER TABLE game_effects ENABLE ROW LEVEL SECURITY;
 
+-- Drop old policies if they exist from a previous migration run
+DROP POLICY IF EXISTS "Admin full access on game_effects" ON game_effects;
+DROP POLICY IF EXISTS "Players can read active effects" ON game_effects;
+DROP POLICY IF EXISTS "Players can read effects" ON game_effects;
+
 -- Admin (DM) can do anything
 CREATE POLICY "Admin full access on game_effects" ON game_effects
   FOR ALL USING (
@@ -35,8 +40,13 @@ CREATE POLICY "Admin full access on game_effects" ON game_effects
 CREATE POLICY "Players can read effects" ON game_effects
   FOR SELECT USING (true);
 
--- Add to realtime publication
-ALTER PUBLICATION supabase_realtime ADD TABLE game_effects;
+-- Add to realtime publication (ignore if already added)
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE game_effects;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
 
 -- ============================================================
 -- Storage bucket for DM media uploads (images/videos)
@@ -44,6 +54,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE game_effects;
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('effect-media', 'effect-media', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- Drop old storage policies if they exist
+DROP POLICY IF EXISTS "Admin upload effect media" ON storage.objects;
+DROP POLICY IF EXISTS "Admin delete effect media" ON storage.objects;
+DROP POLICY IF EXISTS "Public read effect media" ON storage.objects;
 
 -- Admin can upload to the bucket
 CREATE POLICY "Admin upload effect media" ON storage.objects
