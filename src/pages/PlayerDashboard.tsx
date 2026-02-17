@@ -1648,34 +1648,14 @@ export default function PlayerDashboard() {
                                   {/* Item Abilities */}
                                   {item.abilities && item.abilities.length > 0 && (
                                     <div className="pt-3" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-green) 20%, transparent)' }}>
-                                      <div className="text-xs font-bold mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>GRANTED ABILITIES:</div>
-                                      {item.abilities.map((ia: any, i: number) => ia.ability && (
-                                        <div key={i} className="p-2 rounded mb-2" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' }}>
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-sm font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>{ia.ability.name}</span>
-                                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 15%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                              {(ia.ability.type || 'action').toUpperCase().replace('_', ' ')}
-                                            </span>
-                                          </div>
-                                          {ia.ability.description && (
-                                            <p className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>{ia.ability.description}</p>
-                                          )}
-                                          <div className="flex flex-wrap gap-2">
-                                            {ia.ability.damage_dice && <span className="text-xs" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>🎲 {ia.ability.damage_dice}</span>}
-                                            {ia.ability.damage_type && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>({ia.ability.damage_type})</span>}
-                                            {ia.ability.range_feet && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>📏 {ia.ability.range_feet}ft</span>}
-                                            {ia.ability.area_of_effect && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>💥 {ia.ability.area_of_effect}</span>}
-                                            {ia.ability.duration && <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>⏱️ {ia.ability.duration}</span>}
-                                          </div>
-                                          {ia.ability.effects && ia.ability.effects.length > 0 && (
-                                            <div className="mt-1">
-                                              {ia.ability.effects.map((effect: string, ei: number) => (
-                                                <div key={ei} className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>• {effect}</div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
+                                      <div className="text-xs font-bold mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>GRANTS ABILITIES:</div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {item.abilities.map((ia: any, i: number) => ia.ability && (
+                                          <span key={i} className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 15%, transparent)', color: 'var(--color-cyber-magenta)', border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 30%, transparent)', fontFamily: 'var(--font-mono)' }}>
+                                            ⚡ {ia.ability.name}
+                                          </span>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
