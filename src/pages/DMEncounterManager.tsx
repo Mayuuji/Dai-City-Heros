@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCampaign } from '../contexts/CampaignContext';
 import { supabase } from '../lib/supabase';
 import type { 
   Encounter, 
@@ -18,6 +19,7 @@ interface ParticipantWithAbilities extends EncounterParticipantWithDetails {
 
 export default function DMEncounterManager() {
   const navigate = useNavigate();
+  const { campaignId } = useCampaign();
   const [loading, setLoading] = useState(true);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [selectedEncounter, setSelectedEncounter] = useState<Encounter | null>(null);
@@ -70,6 +72,7 @@ export default function DMEncounterManager() {
       const { data, error } = await supabase
         .from('encounters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -87,6 +90,7 @@ export default function DMEncounterManager() {
       const { data: chars, error: charError } = await supabase
         .from('characters')
         .select('id, user_id, name, class, level, current_hp, max_hp, ac, initiative_modifier, str, dex, con, wis, int, cha')
+        .eq('campaign_id', campaignId)
         .order('name');
 
       if (charError) throw charError;
@@ -95,6 +99,7 @@ export default function DMEncounterManager() {
       const { data: npcs, error: npcError } = await supabase
         .from('npcs')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('is_active', true)
         .eq('is_alive', true)
         .order('name');
@@ -206,7 +211,8 @@ export default function DMEncounterManager() {
           name: newEncounterName,
           description: newEncounterDescription || null,
           status: 'draft',
-          created_by: profile.user?.id
+          created_by: profile.user?.id,
+          campaign_id: campaignId
         })
         .select()
         .single();
@@ -255,7 +261,8 @@ export default function DMEncounterManager() {
           participant_type: participantType,
           current_hp: currentHp,
           max_hp: maxHp,
-          is_active: true
+          is_active: true,
+          campaign_id: campaignId
         });
 
       if (error) throw error;

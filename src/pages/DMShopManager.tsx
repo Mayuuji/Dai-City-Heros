@@ -5,10 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Shop, ShopInventoryItemWithDetails, ShopWithLocation } from '../types/shop';
 import type { Location } from '../types/map';
 import type { Item } from '../types/inventory';
+import { useCampaign } from '../contexts/CampaignContext';
 
 export default function DMShopManager() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [shops, setShops] = useState<ShopWithLocation[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -50,6 +52,7 @@ export default function DMShopManager() {
           *,
           location:locations(id, name, icon, color)
         `)
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (shopsError) throw shopsError;
@@ -59,6 +62,7 @@ export default function DMShopManager() {
       const { data: locationsData, error: locationsError } = await supabase
         .from('locations')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (locationsError) throw locationsError;
@@ -68,6 +72,7 @@ export default function DMShopManager() {
       const { data: itemsData, error: itemsError } = await supabase
         .from('items')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (itemsError) throw itemsError;

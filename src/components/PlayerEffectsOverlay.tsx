@@ -29,9 +29,10 @@ interface HpChangeEffect {
 
 interface PlayerEffectsOverlayProps {
   characterId: string | null;
+  campaignId?: string;
 }
 
-export default function PlayerEffectsOverlay({ characterId }: PlayerEffectsOverlayProps) {
+export default function PlayerEffectsOverlay({ characterId, campaignId }: PlayerEffectsOverlayProps) {
   // Active screen effects
   const [activeEffects, setActiveEffects] = useState<GameEffect[]>([]);
   
@@ -57,11 +58,13 @@ export default function PlayerEffectsOverlay({ characterId }: PlayerEffectsOverl
 
     // Fetch current active effects
     const fetchActiveEffects = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('game_effects')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
+      if (campaignId) query = query.eq('campaign_id', campaignId);
+      const { data } = await query;
       
       if (data) {
         const relevant = data.filter((e: GameEffect) => 

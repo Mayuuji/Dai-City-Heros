@@ -1,4 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
@@ -76,6 +77,7 @@ type PlayerSubTab = 'stats' | 'inventory' | 'abilities';
 
 export default function DMDashboard() {
   const { profile, signOut } = useAuth();
+  const { campaignId } = useCampaign();
   const navigate = useNavigate();
   
   // Helper to capitalize types like "bonus_action" -> "Bonus Action", "cyberware" -> "Cyberware"
@@ -412,6 +414,7 @@ export default function DMDashboard() {
       const { data } = await supabase
         .from('game_settings')
         .select('value')
+        .eq('campaign_id', campaignId)
         .eq('key', 'players_locked')
         .single();
       
@@ -426,7 +429,7 @@ export default function DMDashboard() {
     // Subscribe to real-time changes
     const subscription = supabase
       .channel('game_settings_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_settings' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_settings', filter: `campaign_id=eq.${campaignId}` }, (payload) => {
         if (payload.new && (payload.new as any).key === 'players_locked') {
           const value = (payload.new as any).value;
           setPlayersLocked(value?.locked || false);
@@ -446,7 +449,8 @@ export default function DMDashboard() {
     try {
       const { error } = await supabase.rpc('toggle_players_locked', {
         is_locked: lock,
-        lock_reason: reason
+        lock_reason: reason,
+        p_campaign_id: campaignId
       });
       
       if (error) throw error;
@@ -466,6 +470,7 @@ export default function DMDashboard() {
     const { data } = await supabase
       .from('game_settings')
       .select('value')
+      .eq('campaign_id', campaignId)
       .eq('key', 'landing_subtitle')
       .single();
     
@@ -483,8 +488,9 @@ export default function DMDashboard() {
         .upsert({
           key: 'landing_subtitle',
           value: { text: landingSubtitle },
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'key' });
+          updated_at: new Date().toISOString(),
+          campaign_id: campaignId
+        }, { onConflict: 'key,campaign_id' });
       
       if (error) throw error;
       alert('Settings saved successfully!');
@@ -522,6 +528,7 @@ export default function DMDashboard() {
       const { data: chars, error } = await supabase
         .from('characters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (error) throw error;
@@ -670,7 +677,7 @@ export default function DMDashboard() {
   };
 
   const fetchAllItems = async () => {
-    const { data } = await supabase.from('items').select('*').order('name');
+    const { data } = await supabase.from('items').select('*').eq('campaign_id', campaignId).order('name');
     setAllItems(data || []);
   };
 
@@ -695,7 +702,8 @@ export default function DMDashboard() {
             character_id: selectedCharacter.id,
             item_id: selectedGiveItem.id,
             quantity: giveItemQuantity,
-            is_equipped: false
+            is_equipped: false,
+            campaign_id: campaignId
           });
         
         // Check for linked abilities and grant them
@@ -726,7 +734,8 @@ export default function DMDashboard() {
                   ability_id: link.ability_id,
                   current_charges: ability?.max_charges || 1,
                   source_type: 'item',
-                  source_id: selectedGiveItem.id
+                  source_id: selectedGiveItem.id,
+                  campaign_id: campaignId
                 });
             }
           }
@@ -1002,7 +1011,8 @@ export default function DMDashboard() {
       // Get ALL character abilities with their ability details
       const { data: abilitiesData } = await supabase
         .from('character_abilities')
-        .select('id, current_charges, ability:abilities(max_charges, charges_per_rest, charge_type)');
+        .select('id, current_charges, ability:abilities(max_charges, charges_per_rest, charge_type)')
+        .eq('campaign_id', campaignId);
       
       if (!abilitiesData) return;
       
@@ -1041,7 +1051,8 @@ export default function DMDashboard() {
     try {
       const { data: abilitiesData } = await supabase
         .from('character_abilities')
-        .select('id, current_charges, ability:abilities(max_charges, charges_per_rest, charge_type)');
+        .select('id, current_charges, ability:abilities(max_charges, charges_per_rest, charge_type)')
+        .eq('campaign_id', campaignId);
       
       if (!abilitiesData) return;
       
@@ -1127,7 +1138,7 @@ export default function DMDashboard() {
 
   const fetchAbilitiesForItems = async () => {
     try {
-      const { data } = await supabase.from('abilities').select('*').order('name');
+      const { data } = await supabase.from('abilities').select('*').eq('campaign_id', campaignId).order('name');
       setAllAbilities(data || []);
     } catch (err: any) {
       console.error('Error fetching abilities for items:', err);
@@ -1137,7 +1148,7 @@ export default function DMDashboard() {
   const fetchAllItemsForEditor = async () => {
     try {
       setItemsLoading(true);
-      const { data } = await supabase.from('items').select('*').order('name');
+      const { data } = await supabase.from('items').select('*').eq('campaign_id', campaignId).order('name');
       setAllItems(data || []);
     } catch (err: any) {
       console.error('Error fetching items:', err);
@@ -1266,6 +1277,7 @@ export default function DMDashboard() {
         skill_mods: itemSkillMods,
         is_consumable: itemIsConsumable,
         is_equippable: itemIsEquippable,
+        campaign_id: campaignId,
       };
 
       let itemId: string;
@@ -1286,7 +1298,7 @@ export default function DMDashboard() {
         // Create new item
         const { data, error } = await supabase
           .from('items')
-          .insert({ ...itemData, created_by: profile?.id })
+          .insert({ ...itemData, created_by: profile?.id, campaign_id: campaignId })
           .select()
           .single();
         
@@ -1353,7 +1365,7 @@ export default function DMDashboard() {
   const fetchAllAbilities = async () => {
     try {
       setAbilitiesLoading(true);
-      const { data } = await supabase.from('abilities').select('*').order('name');
+      const { data } = await supabase.from('abilities').select('*').eq('campaign_id', campaignId).order('name');
       setAllAbilities(data || []);
     } catch (err: any) {
       console.error('Error fetching abilities:', err);
@@ -1441,6 +1453,7 @@ export default function DMDashboard() {
         duration: abilityDuration || null,
         source: abilitySource,
         class_name: abilitySource === 'class' ? abilityClassName : null,
+        campaign_id: campaignId,
       };
 
       if (selectedEditAbility) {
@@ -1507,7 +1520,8 @@ export default function DMDashboard() {
           ability_id: selectedGiveAbility.id,
           current_charges: selectedGiveAbility.max_charges || 0,
           source_type: 'class',
-          source_id: null
+          source_id: null,
+          campaign_id: campaignId
         });
       
       if (insertError) {
@@ -1555,7 +1569,7 @@ export default function DMDashboard() {
   const fetchAllLocations = async () => {
     try {
       setMapLoading(true);
-      const { data } = await supabase.from('locations').select('*').order('name');
+      const { data } = await supabase.from('locations').select('*').eq('campaign_id', campaignId).order('name');
       setAllLocations(data || []);
     } catch (err: any) {
       console.error('Error fetching locations:', err);
@@ -1638,7 +1652,7 @@ export default function DMDashboard() {
       } else {
         const { error } = await supabase
           .from('locations')
-          .insert({ ...locationData, created_by: profile?.id });
+          .insert({ ...locationData, created_by: profile?.id, campaign_id: campaignId });
         
         if (error) throw error;
         alert(`Location "${locationName}" created successfully!`);
@@ -1716,7 +1730,8 @@ export default function DMDashboard() {
           name: newShopName,
           description: newShopDescription || null,
           is_active: true,
-          created_by: profile?.id
+          created_by: profile?.id,
+          campaign_id: campaignId
         })
         .select()
         .single();
@@ -1779,7 +1794,8 @@ export default function DMDashboard() {
         // Use 0 for credits when in trade mode (database has NOT NULL constraint)
         price_credits: addItemPriceType === 'credits' ? addItemPrice : 0,
         price_item_id: addItemPriceType === 'item' ? addItemBarterItemId : null,
-        price_item_quantity: addItemPriceType === 'item' ? addItemBarterQty : null
+        price_item_quantity: addItemPriceType === 'item' ? addItemBarterQty : null,
+        campaign_id: campaignId
       };
 
       const { data, error } = await supabase
@@ -1856,7 +1872,7 @@ export default function DMDashboard() {
   const fetchAllEncounters = async () => {
     try {
       setEncountersLoading(true);
-      const { data } = await supabase.from('encounters').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase.from('encounters').select('*').eq('campaign_id', campaignId).order('created_at', { ascending: false });
       setAllEncounters(data || []);
     } catch (err: any) {
       console.error('Error fetching encounters:', err);
@@ -1880,6 +1896,7 @@ export default function DMDashboard() {
           description: newEncounterDescription || null,
           status: 'draft',
           created_by: profile?.id,
+          campaign_id: campaignId,
         });
 
       if (error) throw error;
@@ -2001,6 +2018,7 @@ export default function DMDashboard() {
         max_hp: maxHp,
         is_active: true,
         notes: '',
+        campaign_id: campaignId,
       });
       
       if (error) throw error;
@@ -2028,6 +2046,7 @@ export default function DMDashboard() {
         max_hp: char.max_hp,
         is_active: true,
         notes: '',
+        campaign_id: campaignId,
       }));
       
       const { error } = await supabase.from('encounter_participants').insert(inserts);
@@ -2055,6 +2074,7 @@ export default function DMDashboard() {
         max_hp: npc.max_hp,
         is_active: true,
         notes: '',
+        campaign_id: campaignId,
       }));
       
       const { error } = await supabase.from('encounter_participants').insert(inserts);
@@ -2187,6 +2207,7 @@ export default function DMDashboard() {
               .eq('name', feat.name)
               .eq('source', 'class')
               .eq('class_name', charClass.name)
+              .eq('campaign_id', campaignId)
               .maybeSingle();
             
             let abilityId = existingAbility?.id;
@@ -2204,6 +2225,7 @@ export default function DMDashboard() {
                   effects: feat.effects || [],
                   source: 'class',
                   class_name: charClass.name,
+                  campaign_id: campaignId,
                 })
                 .select('id')
                 .single();
@@ -2220,6 +2242,7 @@ export default function DMDashboard() {
                   current_charges: feat.charges || 0,
                   source_type: 'class',
                   source_id: charClass.id,
+                  campaign_id: campaignId,
                 });
             }
           }
@@ -2622,6 +2645,7 @@ export default function DMDashboard() {
       const { data: missionsData, error } = await supabase
         .from('missions')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -2698,7 +2722,8 @@ export default function DMDashboard() {
           reward_credits: missionForm.reward_credits || 0,
           reward_mode: missionForm.reward_mode,
           status: missionForm.saveAsDraft ? 'draft' : 'active',
-          created_by: profile?.id || null
+          created_by: profile?.id || null,
+          campaign_id: campaignId
         });
       
       if (error) throw error;
@@ -2765,7 +2790,8 @@ export default function DMDashboard() {
               character_id: charId,
               item_id: itemId,
               quantity: 1,
-              equipped: false
+              equipped: false,
+              campaign_id: campaignId
             });
           }
         }
@@ -2799,7 +2825,8 @@ export default function DMDashboard() {
             character_id: charId,
             item_id: itemId,
             quantity: 1,
-            equipped: false
+            equipped: false,
+            campaign_id: campaignId
           });
         }
       }
@@ -2957,7 +2984,7 @@ export default function DMDashboard() {
   const fetchAllNPCs = async () => {
     try {
       setNpcsLoading(true);
-      const { data } = await supabase.from('npcs').select('*').order('name');
+      const { data } = await supabase.from('npcs').select('*').eq('campaign_id', campaignId).order('name');
       setAllNPCs(data || []);
     } catch (err: any) {
       console.error('Error fetching NPCs:', err);
@@ -3040,6 +3067,7 @@ export default function DMDashboard() {
         is_alive: npcIsAlive,
         is_active: true,
         created_by: profile?.id,
+        campaign_id: campaignId,
       };
 
       if (selectedEditNPC) {
@@ -3120,6 +3148,7 @@ export default function DMDashboard() {
       const { data } = await supabase
         .from('game_effects')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
       setActiveGameEffects(data || []);
@@ -3144,6 +3173,7 @@ export default function DMDashboard() {
         target_type: effectTargetType,
         target_character_ids: effectTargetType === 'select' ? effectTargetIds : [],
         is_active: true,
+        campaign_id: campaignId,
       };
 
       if (effectType === 'media') {
@@ -3200,8 +3230,8 @@ export default function DMDashboard() {
       await supabase
         .from('game_effects')
         .delete()
+        .eq('campaign_id', campaignId)
         .eq('is_active', true);
-      setActiveGameEffects([]);
     } catch (err: any) {
       alert('Failed to clear effects: ' + err.message);
     }

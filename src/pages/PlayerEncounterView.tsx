@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import type { Encounter, EncounterParticipantWithDetails, PlayerEncounterNote } from '../types/encounter';
 import type { Character } from '../types/encounter';
 
 export default function PlayerEncounterView() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { campaignId } = useCampaign();
   const [loading, setLoading] = useState(true);
   const [activeEncounter, setActiveEncounter] = useState<Encounter | null>(null);
   const [participants, setParticipants] = useState<EncounterParticipantWithDetails[]>([]);
@@ -76,6 +78,7 @@ export default function PlayerEncounterView() {
       const { data: charactersData, error: charError } = await supabase
         .from('characters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('user_id', user.id);
 
       if (charError) throw charError;
@@ -105,6 +108,7 @@ export default function PlayerEncounterView() {
       const { data: encounters, error: encounterError } = await supabase
         .from('encounters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('status', 'active')
         .order('started_at', { ascending: false })
         .limit(1);

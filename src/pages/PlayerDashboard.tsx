@@ -1,4 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -71,6 +72,7 @@ interface Character {
 
 export default function PlayerDashboard() {
   const { user, profile, signOut } = useAuth();
+  const { campaignId } = useCampaign();
   const navigate = useNavigate();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -257,6 +259,7 @@ export default function PlayerDashboard() {
       const { data } = await supabase
         .from('game_settings')
         .select('value')
+        .eq('campaign_id', campaignId)
         .eq('key', 'players_locked')
         .single();
       
@@ -271,7 +274,7 @@ export default function PlayerDashboard() {
     // Subscribe to real-time changes
     const subscription = supabase
       .channel('player_lock_status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_settings' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_settings', filter: `campaign_id=eq.${campaignId}` }, (payload) => {
         if (payload.new && (payload.new as any).key === 'players_locked') {
           const value = (payload.new as any).value;
           setPlayersLocked(value?.locked || false);
@@ -732,6 +735,7 @@ export default function PlayerDashboard() {
       const { data, error: fetchError } = await supabase
         .from('characters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
@@ -754,6 +758,7 @@ export default function PlayerDashboard() {
       const { data, error } = await supabase
         .from('locations')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('is_visible', true)
         .order('name');
       
@@ -894,7 +899,8 @@ export default function PlayerDashboard() {
             character_id: selectedCharacter.id,
             item_id: shopItem.item_id,
             quantity: 1,
-            is_equipped: false
+            is_equipped: false,
+            campaign_id: campaignId
           });
       }
       
@@ -941,6 +947,7 @@ export default function PlayerDashboard() {
       const { data: missionsData, error: missionsError } = await supabase
         .from('missions')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('created_at', { ascending: false });
       
       if (missionsError) throw missionsError;
@@ -1090,7 +1097,7 @@ export default function PlayerDashboard() {
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
       {/* Screen Effects Overlay */}
-      <PlayerEffectsOverlay characterId={selectedCharacter?.id || null} />
+      <PlayerEffectsOverlay characterId={selectedCharacter?.id || null} campaignId={campaignId ?? undefined} />
       {/* Header */}
       <div className="glass-panel neon-border" style={{ borderRadius: 0 }}>
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">

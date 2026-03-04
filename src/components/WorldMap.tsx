@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
 import type { MapSettings, Location } from '../types/map';
 import { getLocationIcon, getLocationColor, LOCATION_ZOOM_THRESHOLD } from '../utils/mapUtils';
+import { useCampaign } from '../contexts/CampaignContext';
 
 // Fix Leaflet's default icon issue with Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -223,6 +224,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
   const [loading, setLoading] = useState(true);
   const [currentZoom, setCurrentZoom] = useState<number>(3);
   const mapRef = useRef<L.Map | null>(null);
+  const { campaignId } = useCampaign();
 
   // Expose the map instance to parent components
   useImperativeHandle(ref, () => ({
@@ -248,6 +250,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
       const { data: settingsData, error: settingsError } = await supabase
         .from('map_settings')
         .select('*')
+        .eq('campaign_id', campaignId)
         .single();
 
       if (settingsError) {
@@ -261,7 +264,8 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
         // Fetch locations (DMs see all, players see only visible)
         const locationsQuery = supabase
           .from('locations')
-          .select('*');
+          .select('*')
+          .eq('campaign_id', campaignId);
 
         if (!isDM) {
           locationsQuery.eq('is_visible', true);

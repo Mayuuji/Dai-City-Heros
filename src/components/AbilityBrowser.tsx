@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useCampaign } from '../contexts/CampaignContext';
 import type { Ability } from '../types/inventory';
 import { getAbilityTypeIcon } from '../utils/stats';
 
@@ -19,6 +20,7 @@ export default function AbilityBrowser({
   const [filterType, setFilterType] = useState<string>('all');
   const [filterChargeType, setFilterChargeType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const { campaignId } = useCampaign();
 
   useEffect(() => {
     loadAbilities();
@@ -30,6 +32,7 @@ export default function AbilityBrowser({
       const { data, error } = await supabase
         .from('abilities')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
 
       if (error) throw error;

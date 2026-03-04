@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import WorldMap from '../components/WorldMap';
 import type { Location } from '../types/map';
 import type { Shop } from '../types/shop';
@@ -10,6 +11,7 @@ import { getLocationColor, ALL_LOCATION_ICONS } from '../utils/mapUtils';
 export default function PlayerMapView() {
   const navigate = useNavigate();
   const { profile: _profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [locations, setLocations] = useState<Location[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -65,6 +67,7 @@ export default function PlayerMapView() {
       const { data, error } = await supabase
         .from('locations')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('is_visible', true)
         .order('name');
       
@@ -85,6 +88,7 @@ export default function PlayerMapView() {
       const { data, error } = await supabase
         .from('shops')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('is_active', true);
       
       if (error) throw error;

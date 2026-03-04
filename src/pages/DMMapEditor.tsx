@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import WorldMap, { type WorldMapHandle } from '../components/WorldMap';
 import type { Location, MapSettings, LocationIcon, LocationColor } from '../types/map';
 import type { Shop, ShopInventoryItemWithDetails } from '../types/shop';
@@ -14,6 +15,7 @@ type RightPanelTab = 'details' | 'shops';
 export default function DMMapEditor() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   const worldMapRef = useRef<WorldMapHandle>(null);
   
   const [mode, setMode] = useState<EditorMode>('list');
@@ -76,7 +78,7 @@ export default function DMMapEditor() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data: settingsData, error: settingsError } = await supabase.from('map_settings').select('*').single();
+      const { data: settingsData, error: settingsError } = await supabase.from('map_settings').select('*').eq('campaign_id', campaignId).single();
       if (settingsError) throw settingsError;
       
       setSettings(settingsData);
@@ -91,11 +93,11 @@ export default function DMMapEditor() {
       setSettingsCenterLng(settingsData.center_lng);
       setSettingsLockBounds(settingsData.lock_bounds);
       
-      const { data: locationsData, error: locationsError } = await supabase.from('locations').select('*').order('name');
+      const { data: locationsData, error: locationsError } = await supabase.from('locations').select('*').eq('campaign_id', campaignId).order('name');
       if (locationsError) throw locationsError;
       setLocations(locationsData || []);
 
-      const { data: itemsData } = await supabase.from('items').select('*').order('name');
+      const { data: itemsData } = await supabase.from('items').select('*').eq('campaign_id', campaignId).order('name');
       setAllItems(itemsData || []);
     } catch (err: any) {
       console.error('Error fetching data:', err);
@@ -157,7 +159,8 @@ export default function DMMapEditor() {
       const { error } = await supabase.from('locations').insert({
         name: formName, description: formDescription || null, lore: formLore || null,
         lat: formLat, lng: formLng, icon: formIcon, color: formColor, tags,
-        is_visible: formVisible, is_discovered: formDiscovered, created_by: profile?.id
+        is_visible: formVisible, is_discovered: formDiscovered, created_by: profile?.id,
+        campaign_id: campaignId
       });
       if (error) throw error;
       alert(`Location "${formName}" created!`);
@@ -254,7 +257,8 @@ export default function DMMapEditor() {
       setSaving(true);
       const { error } = await supabase.from('shops').insert({
         location_id: selectedLocation.id, name: newShopName,
-        description: newShopDescription || null, is_active: true, created_by: profile?.id
+        description: newShopDescription || null, is_active: true, created_by: profile?.id,
+        campaign_id: campaignId
       });
       if (error) throw error;
       setShowCreateShopModal(false);
@@ -293,7 +297,8 @@ export default function DMMapEditor() {
       setSaving(true);
       const { error } = await supabase.from('shop_inventory').insert({
         shop_id: selectedShop.id, item_id: addItemId,
-        stock_quantity: addItemStock, price_credits: addItemPrice
+        stock_quantity: addItemStock, price_credits: addItemPrice,
+        campaign_id: campaignId
       });
       if (error) throw error;
       setShowAddItemModal(false);

@@ -6,10 +6,12 @@ import type { ItemType, ItemRarity } from '../types/inventory';
 import { ALL_SKILLS } from '../data/characterClasses';
 import { formatModifier, getRarityColor, getItemTypeIcon } from '../utils/stats';
 import AbilityBrowser from '../components/AbilityBrowser';
+import { useCampaign } from '../contexts/CampaignContext';
 
 export default function DMItemCreator() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
 
   const [itemName, setItemName] = useState('');
   const [description, setDescription] = useState('');
@@ -92,7 +94,8 @@ export default function DMItemCreator() {
           is_consumable: isConsumable,
           is_equippable: isEquippable,
           stack_size: stackSize,
-          created_by: profile?.id
+          created_by: profile?.id,
+          campaign_id: campaignId
         })
         .select()
         .single();

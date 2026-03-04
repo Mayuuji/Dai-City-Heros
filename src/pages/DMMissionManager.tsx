@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus, RewardDistribution } from '../types/mission';
+import { useCampaign } from '../contexts/CampaignContext';
 
 interface Character {
   id: string;
@@ -21,6 +22,7 @@ interface Item {
 export default function DMMissionManager() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [missions, setMissions] = useState<MissionWithDetails[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -63,6 +65,7 @@ export default function DMMissionManager() {
       const { data: missionsData, error: missionsError } = await supabase
         .from('missions')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('created_at', { ascending: false });
       
       if (missionsError) throw missionsError;
@@ -70,7 +73,8 @@ export default function DMMissionManager() {
       // Fetch characters
       const { data: charsData, error: charsError } = await supabase
         .from('characters')
-        .select('id, name, class, user_id');
+        .select('id, name, class, user_id')
+        .eq('campaign_id', campaignId);
       
       if (charsError) throw charsError;
       setCharacters(charsData || []);
@@ -78,7 +82,8 @@ export default function DMMissionManager() {
       // Fetch items
       const { data: itemsData, error: itemsError } = await supabase
         .from('items')
-        .select('id, name, rarity, type');
+        .select('id, name, rarity, type')
+        .eq('campaign_id', campaignId);
       
       if (itemsError) throw itemsError;
       setItems(itemsData || []);
@@ -135,7 +140,8 @@ export default function DMMissionManager() {
           status: 'active',
           assigned_to: isPartyWide ? null : (newAssignedTo.length > 0 ? newAssignedTo : null),
           reward_item_ids: newRewardIds.length > 0 ? newRewardIds : null,
-          created_by: profile?.id
+          created_by: profile?.id,
+          campaign_id: campaignId
         });
       
       if (error) throw error;

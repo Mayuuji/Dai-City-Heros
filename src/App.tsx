@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CampaignProvider, useCampaign } from './contexts/CampaignContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import CampaignSelect from './pages/CampaignSelect';
 import PlayerDashboard from './pages/PlayerDashboard';
 import DMDashboard from './pages/DMDashboard';
 import CharacterCreation from './pages/CharacterCreation';
@@ -57,32 +59,74 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Role-based dashboard router
 function DashboardRouter() {
   const { profile } = useAuth();
+  const { campaignRole } = useCampaign();
 
   if (!profile) {
     return <Navigate to="/login" replace />;
   }
 
-  // Route to appropriate dashboard based on role
-  // Admin role is for DMs/Game Masters
-  if (profile.role === 'admin') {
+  // Use campaign-level role; fall back to profile role for the default campaign
+  const role = campaignRole || profile.role;
+
+  if (role === 'admin') {
     return <DMDashboard />;
   }
 
   return <PlayerDashboard />;
 }
 
+// Campaign gate - redirects to campaign selection if no campaign is chosen
+function CampaignGate({ children }: { children: React.ReactNode }) {
+  const { campaignId, campaignsLoading } = useCampaign();
+
+  if (campaignsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-cyber-darker)' }}>
+        <div className="glass-panel p-8 text-center">
+          <div className="animate-spin w-12 h-12 border-4 rounded-full mx-auto mb-4"
+               style={{
+                 borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
+                 borderTopColor: 'var(--color-cyber-cyan)'
+               }}>
+          </div>
+          <p style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+            Loading campaigns...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!campaignId) {
+    return <CampaignSelect />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <CampaignProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route 
+            path="/campaigns" 
+            element={
+              <ProtectedRoute>
+                <CampaignSelect />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/character/create" 
             element={
               <ProtectedRoute>
-                <CharacterCreation />
+                <CampaignGate>
+                  <CharacterCreation />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -94,7 +138,9 @@ function App() {
             path="/character/:id/inventory" 
             element={
               <ProtectedRoute>
-                <Inventory />
+                <CampaignGate>
+                  <Inventory />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -102,7 +148,9 @@ function App() {
             path="/character/:id/abilities" 
             element={
               <ProtectedRoute>
-                <Abilities />
+                <CampaignGate>
+                  <Abilities />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -110,7 +158,9 @@ function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <DashboardRouter />
+                <CampaignGate>
+                  <DashboardRouter />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -118,7 +168,9 @@ function App() {
             path="/dm" 
             element={
               <ProtectedRoute>
-                <DMDashboard />
+                <CampaignGate>
+                  <DMDashboard />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -126,7 +178,9 @@ function App() {
             path="/dm/god-mode" 
             element={
               <ProtectedRoute>
-                <DMGodMode />
+                <CampaignGate>
+                  <DMGodMode />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -134,7 +188,9 @@ function App() {
             path="/dm/item-creator" 
             element={
               <ProtectedRoute>
-                <DMItemCreator />
+                <CampaignGate>
+                  <DMItemCreator />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -142,7 +198,9 @@ function App() {
             path="/dm/ability-creator" 
             element={
               <ProtectedRoute>
-                <DMAbilityCreator />
+                <CampaignGate>
+                  <DMAbilityCreator />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -150,7 +208,9 @@ function App() {
             path="/dm/give-item" 
             element={
               <ProtectedRoute>
-                <DMGiveItem />
+                <CampaignGate>
+                  <DMGiveItem />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -158,7 +218,9 @@ function App() {
             path="/dm/ability-manager" 
             element={
               <ProtectedRoute>
-                <DMAbilityManager />
+                <CampaignGate>
+                  <DMAbilityManager />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -166,7 +228,9 @@ function App() {
             path="/dm/item-editor" 
             element={
               <ProtectedRoute>
-                <DMItemEditor />
+                <CampaignGate>
+                  <DMItemEditor />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -174,7 +238,9 @@ function App() {
             path="/dm/map-editor" 
             element={
               <ProtectedRoute>
-                <DMMapEditor />
+                <CampaignGate>
+                  <DMMapEditor />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -182,7 +248,9 @@ function App() {
             path="/dm/shops" 
             element={
               <ProtectedRoute>
-                <DMShopManager />
+                <CampaignGate>
+                  <DMShopManager />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -190,7 +258,9 @@ function App() {
             path="/dm/missions" 
             element={
               <ProtectedRoute>
-                <DMMissionManager />
+                <CampaignGate>
+                  <DMMissionManager />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -198,7 +268,9 @@ function App() {
             path="/dm/npcs" 
             element={
               <ProtectedRoute>
-                <DMNPCManager />
+                <CampaignGate>
+                  <DMNPCManager />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -206,7 +278,9 @@ function App() {
             path="/dm/encounters" 
             element={
               <ProtectedRoute>
-                <DMEncounterManager />
+                <CampaignGate>
+                  <DMEncounterManager />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -214,7 +288,9 @@ function App() {
             path="/map" 
             element={
               <ProtectedRoute>
-                <PlayerMapView />
+                <CampaignGate>
+                  <PlayerMapView />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -222,7 +298,9 @@ function App() {
             path="/shop/:shopId" 
             element={
               <ProtectedRoute>
-                <PlayerShop />
+                <CampaignGate>
+                  <PlayerShop />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -230,7 +308,9 @@ function App() {
             path="/missions" 
             element={
               <ProtectedRoute>
-                <PlayerMissionLog />
+                <CampaignGate>
+                  <PlayerMissionLog />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -238,7 +318,9 @@ function App() {
             path="/encounter" 
             element={
               <ProtectedRoute>
-                <PlayerEncounterView />
+                <CampaignGate>
+                  <PlayerEncounterView />
+                </CampaignGate>
               </ProtectedRoute>
             } 
           />
@@ -252,6 +334,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </CampaignProvider>
       </AuthProvider>
     </BrowserRouter>
   );

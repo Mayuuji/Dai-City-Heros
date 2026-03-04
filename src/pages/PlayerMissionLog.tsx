@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus } from '../types/mission';
 
 interface Character {
@@ -13,6 +14,7 @@ interface Character {
 export default function PlayerMissionLog() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [missions, setMissions] = useState<MissionWithDetails[]>([]);
   const [_characters, setCharacters] = useState<Character[]>([]);
@@ -54,6 +56,7 @@ export default function PlayerMissionLog() {
       const { data: charsData, error: charsError } = await supabase
         .from('characters')
         .select('id, name, class')
+        .eq('campaign_id', campaignId)
         .eq('user_id', profile?.id);
       
       if (charsError) throw charsError;
@@ -65,6 +68,7 @@ export default function PlayerMissionLog() {
       const { data: missionsData, error: missionsError } = await supabase
         .from('missions')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('created_at', { ascending: false });
       
       if (missionsError) throw missionsError;

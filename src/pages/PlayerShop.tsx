@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
 import type { Shop, ShopInventoryItemWithDetails } from '../types/shop';
 
 interface Character {
@@ -26,6 +27,7 @@ export default function PlayerShop() {
   const { shopId } = useParams<{ shopId: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [shop, setShop] = useState<Shop | null>(null);
   const [inventory, setInventory] = useState<ShopInventoryItemWithDetails[]>([]);
@@ -131,6 +133,7 @@ export default function PlayerShop() {
       const { data: charData, error: charError } = await supabase
         .from('characters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .eq('user_id', profile?.id)
         .single();
       

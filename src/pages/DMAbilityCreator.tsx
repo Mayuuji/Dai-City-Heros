@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { AbilityType, ChargeType } from '../types/inventory';
 import { getAbilityTypeIcon } from '../utils/stats';
+import { useCampaign } from '../contexts/CampaignContext';
 
 export default function DMAbilityCreator() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
 
   const [abilityName, setAbilityName] = useState('');
   const [description, setDescription] = useState('');
@@ -77,7 +79,8 @@ export default function DMAbilityCreator() {
           damage_type: damageType || null,
           range_feet: rangeFeet,
           area_of_effect: areaOfEffect || null,
-          duration: duration || null
+          duration: duration || null,
+          campaign_id: campaignId
         })
         .select()
         .single();

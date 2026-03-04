@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { getAbilityTypeIcon } from '../utils/stats';
 import type { Ability } from '../types/inventory';
+import { useCampaign } from '../contexts/CampaignContext';
 
 interface AbilityWithLinks {
   ability: Ability;
@@ -16,6 +17,7 @@ interface AbilityWithLinks {
 export default function DMAbilityManager() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [abilities, setAbilities] = useState<AbilityWithLinks[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,7 @@ export default function DMAbilityManager() {
       const { data: abilitiesData, error: abilitiesError } = await supabase
         .from('abilities')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (abilitiesError) throw abilitiesError;

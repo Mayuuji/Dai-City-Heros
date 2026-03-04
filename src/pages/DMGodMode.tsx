@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { InventoryItem } from '../types/inventory';
+import { useCampaign } from '../contexts/CampaignContext';
 
 interface Character {
   id: string;
@@ -31,6 +32,7 @@ interface Profile {
 export default function DMGodMode() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [characters, setCharacters] = useState<Character[]>([]);
   const [profiles, setProfiles] = useState<{ [key: string]: Profile }>({});
@@ -57,6 +59,7 @@ export default function DMGodMode() {
       const { data: chars, error: charError } = await supabase
         .from('characters')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (charError) throw charError;

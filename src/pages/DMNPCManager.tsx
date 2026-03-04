@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { NPC, NPCType, NPCDisposition, NPCAbility } from '../types/npc';
+import { useCampaign } from '../contexts/CampaignContext';
 
 interface Location {
   id: string;
@@ -12,6 +13,7 @@ interface Location {
 export default function DMNPCManager() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [npcs, setNpcs] = useState<NPC[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -79,6 +81,7 @@ export default function DMNPCManager() {
       const { data: npcsData, error: npcsError } = await supabase
         .from('npcs')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (npcsError) throw npcsError;
@@ -88,6 +91,7 @@ export default function DMNPCManager() {
       const { data: locationsData, error: locationsError } = await supabase
         .from('locations')
         .select('id, name')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (locationsError) throw locationsError;
@@ -197,7 +201,8 @@ export default function DMNPCManager() {
         abilities,
         drops_on_defeat: { usd: dropUsd, items: dropItems },
         location_id: locationId || null,
-        dm_notes: dmNotes || null
+        dm_notes: dmNotes || null,
+        campaign_id: campaignId
       };
 
       if (editing) {

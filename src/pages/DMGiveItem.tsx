@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Item } from '../types/inventory';
 import { getRarityColor, getItemTypeIcon } from '../utils/stats';
+import { useCampaign } from '../contexts/CampaignContext';
 
 interface Character {
   id: string;
@@ -18,6 +19,7 @@ interface Character {
 export default function DMGiveItem() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -49,6 +51,7 @@ export default function DMGiveItem() {
       const { data: charactersData, error: charError } = await supabase
         .from('characters')
         .select('id, name, level, class, user_id')
+        .eq('campaign_id', campaignId)
         .order('name');
 
       if (charError) throw charError;
@@ -77,6 +80,7 @@ export default function DMGiveItem() {
       const { data: itemsData, error: itemError } = await supabase
         .from('items')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
 
       if (itemError) throw itemError;

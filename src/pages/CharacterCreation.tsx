@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { CHARACTER_CLASSES, type CharacterClass } from '../data/characterClasses';
+import { useCampaign } from '../contexts/CampaignContext';
 
 export default function CharacterCreation() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { campaignId } = useCampaign();
   const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
   const [characterName, setCharacterName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,6 +79,7 @@ export default function CharacterCreation() {
             ...weaponRanks,
             save_proficiencies: selectedClass.saves,
             tools: selectedClass.tools.map(t => t.name),
+            campaign_id: campaignId,
             class_features: selectedClass.classFeatures
           }
         ])
@@ -92,6 +95,7 @@ export default function CharacterCreation() {
           .from('items')
           .select('id')
           .eq('name', tool.name)
+          .eq('campaign_id', campaignId)
           .single();
 
         let itemId: string;
@@ -119,7 +123,8 @@ export default function CharacterCreation() {
                 hp_mod: 0,
                 ac_mod: 0,
                 skill_mods: {},
-                created_by: user.id
+                created_by: user.id,
+                campaign_id: campaignId
               }
             ])
             .select('id')

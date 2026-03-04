@@ -10,10 +10,12 @@ import {
 import { ALL_SKILLS } from '../data/characterClasses';
 import AbilityBrowser from '../components/AbilityBrowser';
 import type { Item } from '../types/inventory';
+import { useCampaign } from '../contexts/CampaignContext';
 
 export default function DMItemEditor() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
   
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -61,6 +63,7 @@ export default function DMItemEditor() {
       const { data, error } = await supabase
         .from('items')
         .select('*')
+        .eq('campaign_id', campaignId)
         .order('name');
       
       if (error) throw error;
