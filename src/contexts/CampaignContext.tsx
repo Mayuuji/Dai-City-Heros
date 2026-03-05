@@ -275,7 +275,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     refreshCampaigns();
   }, [refreshCampaigns]);
 
-  // ── Auto-select campaign from localStorage or if there's only one ──
+  // ── Auto-restore last selected campaign from localStorage ──
   useEffect(() => {
     if (campaignsLoading || campaigns.length === 0) return;
     if (campaign) return; // Already selected
@@ -285,9 +285,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
     if (stored) {
       selectCampaign(stored.id);
-    } else if (campaigns.length === 1) {
-      selectCampaign(campaigns[0].id);
     }
+    // Otherwise, always show the campaign selection screen
   }, [campaigns, campaignsLoading, campaign]);
 
   // ── Select a campaign ──
