@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CampaignProvider, useCampaign } from './contexts/CampaignContext';
@@ -33,15 +34,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-cyber-darker)' }}>
-        <div className="glass-panel p-8 text-center">
-          <div className="animate-spin w-12 h-12 border-4 rounded-full mx-auto mb-4" 
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f0f14 0%, #1a1a2e 40%, #16213e 70%, #0f0f14 100%)' }}>
+        <div className="text-center">
+          <div className="animate-spin w-10 h-10 border-2 rounded-full mx-auto mb-4" 
                style={{ 
-                 borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                 borderTopColor: 'var(--color-cyber-cyan)'
+                 borderColor: 'rgba(200, 170, 110, 0.2)',
+                 borderTopColor: 'rgba(200, 170, 110, 0.7)'
                }}>
           </div>
-          <p style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+          <p style={{ color: 'rgba(200, 170, 110, 0.5)', fontFamily: "'Segoe UI', sans-serif", fontSize: '14px' }}>
             Loading...
           </p>
         </div>
@@ -77,19 +78,16 @@ function DashboardRouter() {
 
 // Campaign gate - redirects to campaign selection if no campaign is chosen
 function CampaignGate({ children }: { children: React.ReactNode }) {
-  const { campaignId, campaignsLoading } = useCampaign();
+  const { campaignId, campaignsLoading, campaign, showingSplash } = useCampaign();
 
   if (campaignsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-cyber-darker)' }}>
-        <div className="glass-panel p-8 text-center">
-          <div className="animate-spin w-12 h-12 border-4 rounded-full mx-auto mb-4"
-               style={{
-                 borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                 borderTopColor: 'var(--color-cyber-cyan)'
-               }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f0f14 0%, #1a1a2e 40%, #16213e 70%, #0f0f14 100%)' }}>
+        <div className="text-center">
+          <div className="animate-spin w-10 h-10 border-2 rounded-full mx-auto mb-4"
+               style={{ borderColor: 'rgba(200, 170, 110, 0.2)', borderTopColor: 'rgba(200, 170, 110, 0.7)' }}>
           </div>
-          <p style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+          <p style={{ color: 'rgba(200, 170, 110, 0.5)', fontFamily: "'Segoe UI', sans-serif", fontSize: '14px' }}>
             Loading campaigns...
           </p>
         </div>
@@ -101,7 +99,83 @@ function CampaignGate({ children }: { children: React.ReactNode }) {
     return <CampaignSelect />;
   }
 
+  // Campaign splash screen
+  if (showingSplash && campaign) {
+    return <CampaignSplash campaignName={campaign.name} />;
+  }
+
   return <>{children}</>;
+}
+
+// Campaign title card splash screen
+function CampaignSplash({ campaignName }: { campaignName: string }) {
+  const [phase, setPhase] = useState<'enter' | 'hold' | 'exit'>('enter');
+
+  useEffect(() => {
+    // Fade in
+    const holdTimer = setTimeout(() => setPhase('hold'), 600);
+    // Fade out
+    const exitTimer = setTimeout(() => setPhase('exit'), 1800);
+    return () => { clearTimeout(holdTimer); clearTimeout(exitTimer); };
+  }, []);
+
+  const opacity = phase === 'enter' ? 0 : phase === 'hold' ? 1 : 0;
+  const scale = phase === 'enter' ? 0.95 : phase === 'hold' ? 1 : 1.02;
+
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, #0f0f14 0%, #1a1a2e 40%, #16213e 70%, #0f0f14 100%)' }}
+    >
+      {/* Warm glow behind title */}
+      <div
+        className="absolute rounded-full blur-3xl"
+        style={{
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(200, 170, 110, 0.08) 0%, transparent 70%)',
+          opacity: phase === 'hold' ? 1 : 0,
+          transition: 'opacity 0.8s ease'
+        }}
+      />
+
+      <div
+        style={{
+          opacity,
+          transform: `scale(${scale})`,
+          transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+          textAlign: 'center'
+        }}
+      >
+        <div className="text-4xl mb-6" style={{ filter: 'drop-shadow(0 0 20px rgba(200, 170, 110, 0.3))' }}>
+          🎲
+        </div>
+
+        <h1
+          className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4"
+          style={{
+            fontFamily: "'Georgia', 'Times New Roman', serif",
+            color: '#e8dcc8',
+            textShadow: '0 0 40px rgba(200, 170, 110, 0.15)',
+            letterSpacing: '0.02em'
+          }}
+        >
+          {campaignName}
+        </h1>
+
+        <div
+          className="mx-auto"
+          style={{
+            width: '80px',
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(200, 170, 110, 0.4), transparent)',
+            opacity: phase === 'hold' ? 1 : 0,
+            transition: 'opacity 0.6s ease 0.2s'
+          }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function App() {

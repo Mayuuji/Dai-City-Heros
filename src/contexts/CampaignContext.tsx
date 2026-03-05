@@ -16,6 +16,8 @@ export interface CampaignTheme {
   color_danger: string;
   color_bg_dark: string;
   color_bg_darker: string;
+  color_text: string;
+  color_text_muted: string;
   font_heading: string;
   font_body: string;
   shadow_primary: string;
@@ -57,6 +59,9 @@ interface CampaignContextType {
   campaigns: Campaign[];
   campaignsLoading: boolean;
 
+  // Splash screen state
+  showingSplash: boolean;
+
   // Actions
   selectCampaign: (campaignId: string) => Promise<void>;
   leaveCampaign: () => void;
@@ -79,6 +84,8 @@ export const DEFAULT_THEME: CampaignTheme = {
   color_danger: '#FF003C',
   color_bg_dark: '#0D1117',
   color_bg_darker: '#010409',
+  color_text: '#E6EDF3',
+  color_text_muted: '#8B949E',
   font_heading: "'Orbitron', sans-serif",
   font_body: "'Courier New', monospace",
   shadow_primary: '0 0 5px #40E0D0, 0 0 20px rgba(64, 224, 208, 0.3)',
@@ -101,6 +108,8 @@ export const THEME_PRESETS: Record<string, Partial<CampaignTheme>> = {
     color_danger: '#FF003C',
     color_bg_dark: '#0D1117',
     color_bg_darker: '#010409',
+    color_text: '#E6EDF3',
+    color_text_muted: '#8B949E',
     font_heading: "'Orbitron', sans-serif",
     font_body: "'Courier New', monospace",
   },
@@ -113,6 +122,8 @@ export const THEME_PRESETS: Record<string, Partial<CampaignTheme>> = {
     color_danger: '#8B0000',
     color_bg_dark: '#1A1108',
     color_bg_darker: '#0D0A04',
+    color_text: '#E8DCC8',
+    color_text_muted: '#A09080',
     font_heading: "'Georgia', serif",
     font_body: "'Palatino Linotype', serif",
   },
@@ -125,6 +136,8 @@ export const THEME_PRESETS: Record<string, Partial<CampaignTheme>> = {
     color_danger: '#EF233C',
     color_bg_dark: '#0B132B',
     color_bg_darker: '#040810',
+    color_text: '#E0F0FF',
+    color_text_muted: '#7A8BA0',
     font_heading: "'Segoe UI', sans-serif",
     font_body: "'Consolas', monospace",
   },
@@ -137,6 +150,8 @@ export const THEME_PRESETS: Record<string, Partial<CampaignTheme>> = {
     color_danger: '#CC0000',
     color_bg_dark: '#0A0A0A',
     color_bg_darker: '#000000',
+    color_text: '#D0D0D0',
+    color_text_muted: '#707070',
     font_heading: "'Times New Roman', serif",
     font_body: "'Courier New', monospace",
   },
@@ -149,20 +164,24 @@ export const THEME_PRESETS: Record<string, Partial<CampaignTheme>> = {
     color_danger: '#B22222',
     color_bg_dark: '#1C1410',
     color_bg_darker: '#0E0A08',
+    color_text: '#E8D8C0',
+    color_text_muted: '#A09080',
     font_heading: "'Georgia', serif",
     font_body: "'Courier New', monospace",
   },
   modern: {
     name: 'Modern/Urban',
-    color_primary: '#6C63FF',
-    color_secondary: '#FF6584',
-    color_tertiary: '#43AA8B',
-    color_success: '#2D6A4F',
-    color_danger: '#D62828',
-    color_bg_dark: '#121212',
-    color_bg_darker: '#080808',
+    color_primary: '#4F46E5',
+    color_secondary: '#E11D48',
+    color_tertiary: '#0D9488',
+    color_success: '#16A34A',
+    color_danger: '#DC2626',
+    color_bg_dark: '#F5F5F5',
+    color_bg_darker: '#FFFFFF',
+    color_text: '#1F2937',
+    color_text_muted: '#6B7280',
     font_heading: "'Segoe UI', sans-serif",
-    font_body: "'Roboto Mono', monospace",
+    font_body: "'Inter', 'Segoe UI', sans-serif",
   },
 };
 
@@ -183,6 +202,8 @@ export function applyTheme(theme: CampaignTheme) {
   root.style.setProperty('--color-cyber-red', theme.color_danger);
   root.style.setProperty('--color-cyber-dark', theme.color_bg_dark);
   root.style.setProperty('--color-cyber-darker', theme.color_bg_darker);
+  root.style.setProperty('--color-text', theme.color_text || '#E6EDF3');
+  root.style.setProperty('--color-text-muted', theme.color_text_muted || '#8B949E');
 
   root.style.setProperty('--font-cyber', theme.font_heading);
   root.style.setProperty('--font-mono', theme.font_body);
@@ -281,11 +302,15 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   }, [refreshCampaigns]);
 
   // Campaign is only set when user explicitly calls selectCampaign()
+  const [showingSplash, setShowingSplash] = useState(false);
 
   // ── Select a campaign ──
   const selectCampaign = async (id: string) => {
     const selected = campaigns.find(c => c.id === id);
     if (!selected || !user) return;
+
+    // Show splash screen
+    setShowingSplash(true);
 
     setCampaign(selected);
     localStorage.setItem(CAMPAIGN_STORAGE_KEY, id);
@@ -306,6 +331,9 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       : DEFAULT_THEME;
     setTheme(campaignTheme);
     applyTheme(campaignTheme);
+
+    // Auto-dismiss splash after 2.5s
+    setTimeout(() => setShowingSplash(false), 2500);
   };
 
   // ── Leave campaign (go back to selection) ──
@@ -455,6 +483,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     theme,
     campaigns,
     campaignsLoading,
+    showingSplash,
     selectCampaign,
     leaveCampaign,
     createCampaign,

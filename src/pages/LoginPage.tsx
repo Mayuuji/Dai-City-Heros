@@ -2,6 +2,19 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '12px 16px',
+  borderRadius: '6px',
+  border: '1px solid rgba(200, 170, 110, 0.2)',
+  background: 'rgba(255, 255, 255, 0.04)',
+  color: '#e8dcc8',
+  fontFamily: "'Segoe UI', sans-serif",
+  fontSize: '14px',
+  outline: 'none',
+  transition: 'border-color 0.2s, box-shadow 0.2s'
+};
+
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
@@ -10,7 +23,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [hoverToggle, setHoverToggle] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const { signIn, signUp, user, profile } = useAuth();
   const navigate = useNavigate();
@@ -29,6 +42,10 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    setTimeout(() => setShowForm(true), 100);
+  }, []);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -45,9 +62,7 @@ export default function LoginPage() {
         }
         const { error } = await signUp(email, password, username);
         if (error) throw error;
-        // Show success message - user should check email OR they'll be auto-logged in
         setError('Account created! Check your email to confirm, or you may be logged in automatically.');
-        // Don't auto-navigate - let the auth state change handle it if user is confirmed
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -57,117 +72,255 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid-bg flex items-center justify-center p-4" style={{ backgroundColor: 'var(--color-cyber-darker)' }}>
-      <div className="glass-panel neon-border p-8 w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl neon-text mb-2 glitch" style={{ fontFamily: 'var(--font-cyber)' }}>
-            {isLogin ? 'ACCESS TERMINAL' : 'NEW USER REGISTRATION'}
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-            {isLogin ? 'Enter credentials to proceed' : 'Create your account'}
-          </p>
-        </div>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, #0f0f14 0%, #1a1a2e 40%, #16213e 70%, #0f0f14 100%)' }}
+    >
+      {/* Subtle grid */}
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: 0.06,
+          backgroundImage: `
+            linear-gradient(rgba(200, 170, 110, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(200, 170, 110, 0.3) 1px, transparent 1px)
+          `,
+          backgroundSize: '60px 60px'
+        }}
+      />
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                USERNAME
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="terminal-input w-full"
-                placeholder="Enter username..."
-                required={!isLogin}
-              />
-            </div>
-          )}
+      {/* Ambient glows */}
+      <div
+        className="absolute rounded-full blur-3xl"
+        style={{
+          width: '400px', height: '400px',
+          background: 'radial-gradient(circle, rgba(200, 170, 110, 0.06) 0%, transparent 70%)',
+          top: '10%', left: '10%'
+        }}
+      />
+      <div
+        className="absolute rounded-full blur-3xl"
+        style={{
+          width: '400px', height: '400px',
+          background: 'radial-gradient(circle, rgba(160, 180, 220, 0.04) 0%, transparent 70%)',
+          bottom: '10%', right: '10%'
+        }}
+      />
 
-          <div>
-            <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-              EMAIL
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="terminal-input w-full"
-              placeholder="user@example.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-              PASSWORD
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="terminal-input w-full"
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
-          </div>
-
-          {error && (
-            <div
-              className="p-3 rounded text-sm"
+      {/* Form card */}
+      <div
+        className="relative z-10 w-full max-w-md"
+        style={{
+          opacity: showForm ? 1 : 0,
+          transform: showForm ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'all 0.8s ease-out'
+        }}
+      >
+        <div
+          className="rounded-xl p-8"
+          style={{
+            background: 'rgba(15, 15, 20, 0.7)',
+            border: '1px solid rgba(200, 170, 110, 0.12)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)'
+          }}
+        >
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="text-3xl mb-3" style={{ filter: 'drop-shadow(0 0 12px rgba(200, 170, 110, 0.2))' }}>🎲</div>
+            <h1
+              className="text-2xl font-bold mb-1"
               style={{
-                backgroundColor: error.includes('Check your email') ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255, 0, 110, 0.1)',
-                border: `1px solid ${error.includes('Check your email') ? 'var(--color-cyber-green)' : 'var(--color-cyber-pink)'}`,
-                color: error.includes('Check your email') ? 'var(--color-cyber-green)' : 'var(--color-cyber-pink)',
-                fontFamily: 'var(--font-mono)'
+                fontFamily: "'Georgia', 'Times New Roman', serif",
+                color: '#e8dcc8',
+                letterSpacing: '0.02em'
               }}
             >
-              {error}
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </h1>
+            <p
+              className="text-sm"
+              style={{
+                fontFamily: "'Segoe UI', sans-serif",
+                color: 'rgba(160, 180, 220, 0.5)'
+              }}
+            >
+              {isLogin ? 'Sign in to your adventure' : 'Begin your journey'}
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <div>
+                <label
+                  className="block text-xs mb-2 tracking-wider uppercase"
+                  style={{ color: 'rgba(200, 170, 110, 0.6)', fontFamily: "'Segoe UI', sans-serif" }}
+                >
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Choose a username"
+                  required={!isLogin}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(200, 170, 110, 0.4)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(200, 170, 110, 0.08)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(200, 170, 110, 0.2)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+            )}
+
+            <div>
+              <label
+                className="block text-xs mb-2 tracking-wider uppercase"
+                style={{ color: 'rgba(200, 170, 110, 0.6)', fontFamily: "'Segoe UI', sans-serif" }}
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={inputStyle}
+                placeholder="you@example.com"
+                required
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(200, 170, 110, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(200, 170, 110, 0.08)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(200, 170, 110, 0.2)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="neon-button w-full"
-            style={{ fontFamily: 'var(--font-cyber)', opacity: loading ? 0.5 : 1 }}
-          >
-            {loading ? 'PROCESSING...' : isLogin ? 'LOGIN' : 'REGISTER'}
-          </button>
-        </form>
+            <div>
+              <label
+                className="block text-xs mb-2 tracking-wider uppercase"
+                style={{ color: 'rgba(200, 170, 110, 0.6)', fontFamily: "'Segoe UI', sans-serif" }}
+              >
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(200, 170, 110, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(200, 170, 110, 0.08)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(200, 170, 110, 0.2)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
 
-        {/* Toggle */}
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-            }}
-            onMouseEnter={() => setHoverToggle(true)}
-            onMouseLeave={() => setHoverToggle(false)}
-            className="text-sm transition-all"
-            style={{ 
-              color: hoverToggle ? '#ff3333' : 'var(--color-cyber-cyan)', 
-              opacity: hoverToggle ? 1 : 0.7, 
-              fontFamily: 'var(--font-mono)',
-              textDecoration: hoverToggle ? 'underline' : 'none',
-              fontWeight: hoverToggle ? 'bold' : 'normal'
-            }}
-          >
-            {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'}
-          </button>
-        </div>
+            {error && (
+              <div
+                className="p-3 rounded-lg text-sm"
+                style={{
+                  backgroundColor: error.includes('Check your email') ? 'rgba(100, 180, 100, 0.1)' : 'rgba(200, 80, 80, 0.1)',
+                  border: `1px solid ${error.includes('Check your email') ? 'rgba(100, 180, 100, 0.3)' : 'rgba(200, 80, 80, 0.3)'}`,
+                  color: error.includes('Check your email') ? '#8fbc8f' : '#d48a8a',
+                  fontFamily: "'Segoe UI', sans-serif"
+                }}
+              >
+                {error}
+              </div>
+            )}
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.4, fontFamily: 'var(--font-mono)' }}>
-            // SECURE CONNECTION ESTABLISHED //
-          </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-lg text-sm font-semibold tracking-wider transition-all duration-300"
+              style={{
+                fontFamily: "'Segoe UI', sans-serif",
+                background: loading
+                  ? 'rgba(200, 170, 110, 0.1)'
+                  : 'linear-gradient(135deg, rgba(200, 170, 110, 0.2) 0%, rgba(200, 170, 110, 0.1) 100%)',
+                border: '1px solid rgba(200, 170, 110, 0.4)',
+                color: loading ? 'rgba(232, 220, 200, 0.4)' : '#e8dcc8',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.15em'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.background = 'rgba(200, 170, 110, 0.25)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(200, 170, 110, 0.1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(200, 170, 110, 0.2) 0%, rgba(200, 170, 110, 0.1) 100%)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
+            >
+              {loading ? 'PROCESSING...' : isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'}
+            </button>
+          </form>
+
+          {/* Toggle */}
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+              className="text-sm transition-all duration-200"
+              style={{
+                fontFamily: "'Segoe UI', sans-serif",
+                color: 'rgba(160, 180, 220, 0.5)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'rgba(160, 180, 220, 0.8)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(160, 180, 220, 0.5)';
+              }}
+            >
+              {isLogin ? "Don't have an account? Create one" : 'Already have an account? Sign in'}
+            </button>
+          </div>
+
+          {/* Back link */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="text-xs transition-all duration-200"
+              style={{
+                fontFamily: "'Segoe UI', sans-serif",
+                color: 'rgba(200, 200, 200, 0.25)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                letterSpacing: '0.1em'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(200, 200, 200, 0.5)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(200, 200, 200, 0.25)'; }}
+            >
+              ← Back to home
+            </button>
+          </div>
         </div>
       </div>
     </div>
