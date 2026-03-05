@@ -39,7 +39,7 @@
   body {
     background: linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%);
     background-attachment: fixed;
-    color: var(--color-cyber-cyan);
+    color: var(--color-text, var(--color-cyber-cyan));
     font-family: var(--font-mono);
     min-height: 100vh;
   }

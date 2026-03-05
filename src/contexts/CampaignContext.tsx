@@ -332,8 +332,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     setTheme(campaignTheme);
     applyTheme(campaignTheme);
 
-    // Auto-dismiss splash after 2.5s
-    setTimeout(() => setShowingSplash(false), 2500);
+    // Auto-dismiss splash after 5s
+    setTimeout(() => setShowingSplash(false), 5000);
   };
 
   // ── Leave campaign (go back to selection) ──

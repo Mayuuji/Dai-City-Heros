@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { CampaignProvider, useCampaign } from './contexts/CampaignContext';
+import { CampaignProvider, useCampaign, CampaignTheme, DEFAULT_THEME } from './contexts/CampaignContext';
+import { supabase } from './lib/supabase';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import CampaignSelect from './pages/CampaignSelect';
@@ -101,41 +102,77 @@ function CampaignGate({ children }: { children: React.ReactNode }) {
 
   // Campaign splash screen
   if (showingSplash && campaign) {
-    return <CampaignSplash campaignName={campaign.name} />;
+    const splashTheme: CampaignTheme = campaign.theme
+      ? { ...DEFAULT_THEME, ...campaign.theme }
+      : DEFAULT_THEME;
+    return <CampaignSplash campaign={campaign} theme={splashTheme} />;
   }
 
   return <>{children}</>;
 }
 
 // Campaign title card splash screen
-function CampaignSplash({ campaignName }: { campaignName: string }) {
+function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: string }; theme: CampaignTheme }) {
   const [phase, setPhase] = useState<'enter' | 'hold' | 'exit'>('enter');
+  const [subtitle, setSubtitle] = useState('');
 
   useEffect(() => {
-    // Fade in
-    const holdTimer = setTimeout(() => setPhase('hold'), 600);
-    // Fade out
-    const exitTimer = setTimeout(() => setPhase('exit'), 1800);
+    // Fetch DM-configured subtitle from game_settings
+    const fetchSubtitle = async () => {
+      const { data } = await supabase
+        .from('game_settings')
+        .select('value')
+        .eq('campaign_id', campaign.id)
+        .eq('key', 'landing_subtitle')
+        .single();
+      if (data?.value?.text) {
+        setSubtitle(data.value.text);
+      }
+    };
+    fetchSubtitle();
+  }, [campaign.id]);
+
+  useEffect(() => {
+    // Fade in after 200ms
+    const holdTimer = setTimeout(() => setPhase('hold'), 400);
+    // Fade out at 4s (giving full 5s total with exit transition)
+    const exitTimer = setTimeout(() => setPhase('exit'), 4000);
     return () => { clearTimeout(holdTimer); clearTimeout(exitTimer); };
   }, []);
 
   const opacity = phase === 'enter' ? 0 : phase === 'hold' ? 1 : 0;
   const scale = phase === 'enter' ? 0.95 : phase === 'hold' ? 1 : 1.02;
 
+  // Use theme colors
+  const primaryColor = theme.color_primary;
+  const bgDark = theme.color_bg_dark;
+  const bgDarker = theme.color_bg_darker;
+  const textColor = theme.color_text || '#E6EDF3';
+  const mutedColor = theme.color_text_muted || '#8B949E';
+  const headingFont = theme.font_heading;
+
+  // Build a subtle glow from primary color
+  const toRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #0f0f14 0%, #1a1a2e 40%, #16213e 70%, #0f0f14 100%)' }}
+      style={{ background: `linear-gradient(160deg, ${bgDarker} 0%, ${bgDark} 40%, ${bgDarker} 100%)` }}
     >
-      {/* Warm glow behind title */}
+      {/* Glow behind title using primary color */}
       <div
         className="absolute rounded-full blur-3xl"
         style={{
           width: '600px',
           height: '600px',
-          background: 'radial-gradient(circle, rgba(200, 170, 110, 0.08) 0%, transparent 70%)',
+          background: `radial-gradient(circle, ${toRgba(primaryColor, 0.1)} 0%, transparent 70%)`,
           opacity: phase === 'hold' ? 1 : 0,
-          transition: 'opacity 0.8s ease'
+          transition: 'opacity 1s ease'
         }}
       />
 
@@ -143,34 +180,48 @@ function CampaignSplash({ campaignName }: { campaignName: string }) {
         style={{
           opacity,
           transform: `scale(${scale})`,
-          transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-          textAlign: 'center'
+          transition: 'all 1s cubic-bezier(0.16, 1, 0.3, 1)',
+          textAlign: 'center',
+          padding: '0 2rem'
         }}
       >
-        <div className="text-4xl mb-6" style={{ filter: 'drop-shadow(0 0 20px rgba(200, 170, 110, 0.3))' }}>
-          🎲
-        </div>
-
+        {/* Title — uses landing_title if set, otherwise campaign name */}
         <h1
           className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4"
           style={{
-            fontFamily: "'Georgia', 'Times New Roman', serif",
-            color: '#e8dcc8',
-            textShadow: '0 0 40px rgba(200, 170, 110, 0.15)',
+            fontFamily: headingFont,
+            color: textColor,
+            textShadow: `0 0 40px ${toRgba(primaryColor, 0.2)}`,
             letterSpacing: '0.02em'
           }}
         >
-          {campaignName}
+          {theme.landing_title || campaign.name}
         </h1>
 
+        {/* Subtitle if configured */}
+        {subtitle && (
+          <p
+            className="text-lg md:text-xl mb-4 tracking-wider"
+            style={{
+              fontFamily: theme.font_body,
+              color: mutedColor,
+              opacity: phase === 'hold' ? 1 : 0,
+              transition: 'opacity 0.8s ease 0.3s'
+            }}
+          >
+            {subtitle}
+          </p>
+        )}
+
+        {/* Divider using primary color */}
         <div
           className="mx-auto"
           style={{
             width: '80px',
             height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(200, 170, 110, 0.4), transparent)',
+            background: `linear-gradient(90deg, transparent, ${toRgba(primaryColor, 0.5)}, transparent)`,
             opacity: phase === 'hold' ? 1 : 0,
-            transition: 'opacity 0.6s ease 0.2s'
+            transition: 'opacity 0.6s ease 0.4s'
           }}
         />
       </div>
