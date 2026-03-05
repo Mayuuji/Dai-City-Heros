@@ -27,6 +27,7 @@ import DMNPCManager from './pages/DMNPCManager';
 import DMEncounterManager from './pages/DMEncounterManager';
 import PlayerEncounterView from './pages/PlayerEncounterView';
 import RulesPage from './pages/RulesPage';
+import ChatBox from './components/ChatBox';
 import './index.css';
 
 // Protected route wrapper
@@ -108,7 +109,10 @@ function CampaignGate({ children }: { children: React.ReactNode }) {
     return <CampaignSplash campaign={campaign} theme={splashTheme} />;
   }
 
-  return <>{children}</>;
+  return <>
+    {children}
+    <ChatBox />
+  </>;
 }
 
 // Campaign title card splash screen

@@ -14,6 +14,7 @@ interface Character {
   level: number;
   current_hp: number;
   max_hp: number;
+  temp_hp: number;
   ac: number;
   str: number;
   dex: number;
@@ -122,6 +123,7 @@ export default function DMGodMode() {
           level: selectedCharacter.level,
           current_hp: selectedCharacter.current_hp,
           max_hp: selectedCharacter.max_hp,
+          temp_hp: selectedCharacter.temp_hp || 0,
           ac: selectedCharacter.ac,
           str: selectedCharacter.str,
           dex: selectedCharacter.dex,
@@ -463,6 +465,29 @@ export default function DMGodMode() {
                           ) : (
                             <span className="text-lg" style={{ color: 'var(--color-cyber-pink)', fontFamily: 'var(--font-mono)' }}>
                               {selectedCharacter.max_hp}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                            🛡️ Temp HP
+                          </span>
+                          {editMode ? (
+                            <NumberInput
+                              value={selectedCharacter.temp_hp || 0}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, temp_hp: val })}
+                              className="w-20 px-2 py-1 rounded text-center"
+                              style={{
+                                backgroundColor: 'color-mix(in srgb, var(--color-cyber-yellow) 10%, transparent)',
+                                border: '1px solid var(--color-cyber-yellow)',
+                                color: 'var(--color-cyber-yellow)',
+                                fontFamily: 'var(--font-mono)'
+                              }}
+                            />
+                          ) : (
+                            <span className="text-lg" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                              {selectedCharacter.temp_hp || 0}
                             </span>
                           )}
                         </div>

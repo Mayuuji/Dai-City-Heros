@@ -32,6 +32,7 @@ interface Character {
   level: number;
   current_hp: number;
   max_hp: number;
+  temp_hp: number;
   ac: number;
   str: number;
   dex: number;
@@ -720,6 +721,31 @@ export default function DMDashboard() {
     if (!error) {
       setSelectedCharacter({ ...selectedCharacter, current_hp: selectedCharacter.max_hp });
       setCharacters(chars => chars.map(c => c.id === selectedCharacter.id ? { ...c, current_hp: selectedCharacter.max_hp } : c));
+    }
+  };
+
+  const handleSetTempHp = async (amount: number) => {
+    if (!selectedCharacter) return;
+    const newTempHp = Math.max((selectedCharacter.temp_hp || 0) + amount, 0);
+    const { error } = await supabase
+      .from('characters')
+      .update({ temp_hp: newTempHp })
+      .eq('id', selectedCharacter.id);
+    if (!error) {
+      setSelectedCharacter({ ...selectedCharacter, temp_hp: newTempHp });
+      setCharacters(chars => chars.map(c => c.id === selectedCharacter.id ? { ...c, temp_hp: newTempHp } : c));
+    }
+  };
+
+  const handleClearTempHp = async () => {
+    if (!selectedCharacter) return;
+    const { error } = await supabase
+      .from('characters')
+      .update({ temp_hp: 0 })
+      .eq('id', selectedCharacter.id);
+    if (!error) {
+      setSelectedCharacter({ ...selectedCharacter, temp_hp: 0 });
+      setCharacters(chars => chars.map(c => c.id === selectedCharacter.id ? { ...c, temp_hp: 0 } : c));
     }
   };
 
@@ -3674,6 +3700,9 @@ export default function DMDashboard() {
                               ) : (
                                 <div>
                                   <div className="text-2xl" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>{selectedCharacter.current_hp} / {selectedCharacter.max_hp + itemHpBonus}</div>
+                                  {(selectedCharacter.temp_hp || 0) > 0 && (
+                                    <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>🛡️ +{selectedCharacter.temp_hp} Temp HP</div>
+                                  )}
                                   {itemHpBonus !== 0 && (
                                     <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>Base: {selectedCharacter.max_hp} + {itemHpBonus} gear</div>
                                   )}
@@ -3860,6 +3889,16 @@ export default function DMDashboard() {
                             <button onClick={() => handleQuickHeal(10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-cyan)', color: 'white', fontFamily: 'var(--font-mono)' }}>+10 HP</button>
                             <button onClick={() => handleQuickHeal(-10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>-10 HP</button>
                             <button onClick={handleFullHeal} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-green)', color: 'var(--color-cyber-cyan)', border: '1px solid var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>FULL HEAL</button>
+                          </div>
+                          {/* Temp HP / Overshield */}
+                          <div className="text-xs mt-4 mb-2" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                            🛡️ TEMP HP (OVERSHIELD): <span style={{ color: 'var(--color-cyber-cyan)' }}>{selectedCharacter.temp_hp || 0}</span>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button onClick={() => handleSetTempHp(5)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-mono)' }}>+5 THP</button>
+                            <button onClick={() => handleSetTempHp(10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-mono)' }}>+10 THP</button>
+                            <button onClick={() => handleSetTempHp(-5)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>-5 THP</button>
+                            <button onClick={handleClearTempHp} className="px-3 py-1 rounded text-sm" style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>CLEAR THP</button>
                           </div>
                         </div>
 

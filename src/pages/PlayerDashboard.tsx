@@ -27,6 +27,7 @@ interface Character {
   level: number;
   current_hp: number;
   max_hp: number;
+  temp_hp: number;
   ac: number;
   cdd: string;
   str: number;
@@ -1233,15 +1234,31 @@ export default function PlayerDashboard() {
                     </span>
                   )}
                 </div>
-                <div className="h-3 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' }}>
+                <div className="h-3 rounded relative" style={{ backgroundColor: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' }}>
                   <div
                     className="h-full rounded"
                     style={{
-                      width: `${(Math.min(selectedCharacter.current_hp, computedStats.hp) / computedStats.hp) * 100}%`,
+                      width: `${(Math.min(selectedCharacter.current_hp, computedStats.hp) / (computedStats.hp + (selectedCharacter.temp_hp || 0))) * 100}%`,
                       backgroundColor: 'var(--color-cyber-magenta)'
                     }}
                   ></div>
+                  {(selectedCharacter.temp_hp || 0) > 0 && (
+                    <div
+                      className="h-full rounded absolute top-0"
+                      style={{
+                        left: `${(Math.min(selectedCharacter.current_hp, computedStats.hp) / (computedStats.hp + selectedCharacter.temp_hp)) * 100}%`,
+                        width: `${(selectedCharacter.temp_hp / (computedStats.hp + selectedCharacter.temp_hp)) * 100}%`,
+                        backgroundColor: 'var(--color-cyber-yellow)',
+                        opacity: 0.7,
+                      }}
+                    ></div>
+                  )}
                 </div>
+                {(selectedCharacter.temp_hp || 0) > 0 && (
+                  <div className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                    🛡️ +{selectedCharacter.temp_hp} OVERSHIELD
+                  </div>
+                )}
               </div>
 
               {/* AC, CDD, Credits */}
