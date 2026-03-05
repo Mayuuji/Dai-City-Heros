@@ -8,6 +8,7 @@ import {
   formatModifier
 } from '../utils/stats';
 import { ALL_SKILLS } from '../data/characterClasses';
+import NumberInput from '../components/NumberInput';
 import AbilityBrowser from '../components/AbilityBrowser';
 import type { Item } from '../types/inventory';
 import { useCampaign } from '../contexts/CampaignContext';
@@ -498,11 +499,10 @@ export default function DMItemEditor() {
                       <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                         Price ($)
                       </label>
-                      <input
-                        type="number"
-                        min="0"
+                      <NumberInput
+                        min={0}
                         value={price}
-                        onChange={(e) => setPrice(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value)))}
+                        onChange={(val) => setPrice(Math.max(0, val))}
                         className="w-full px-4 py-2 rounded"
                         style={{
                           backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -577,10 +577,9 @@ export default function DMItemEditor() {
                         >
                           −
                         </button>
-                        <input
-                          type="number"
+                        <NumberInput
                           value={stat.value}
-                          onChange={(e) => stat.setter(parseInt(e.target.value) || 0)}
+                          onChange={(val) => stat.setter(val)}
                           className="w-20 px-2 py-1 rounded text-center"
                           style={{
                             backgroundColor: 'color-mix(in srgb, var(--color-cyber-purple) 10%, transparent)',

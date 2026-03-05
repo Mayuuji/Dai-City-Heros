@@ -445,3 +445,36 @@
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: #9CA3AF;
 }
+
+/* ============================================================
+   Non-neon theme overrides (Modern, Fantasy, Horror, etc.)
+   Strip glow / text-shadow effects – keep colors functional
+   ============================================================ */
+[data-neon="false"] .neon-text {
+  text-shadow: none;
+}
+
+[data-neon="false"] .neon-border {
+  box-shadow: none;
+}
+
+[data-neon="false"] .neon-button {
+  border-width: 1px;
+}
+
+[data-neon="false"] .neon-button:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-neon="false"] .neon-button-magenta {
+  border-width: 1px;
+}
+
+[data-neon="false"] .neon-button-magenta:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-neon="false"] .glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}

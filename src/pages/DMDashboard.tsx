@@ -12,6 +12,7 @@ import { getRarityColor, getRarityBgColor, getItemTypeIcon, formatModifier, getA
 import { ALL_SKILLS, CHARACTER_CLASSES, formatToHit, WeaponType } from '../data/characterClasses';
 import { getLocationIcon, getLocationColor, ALL_LOCATION_ICONS, ALL_LOCATION_COLORS } from '../utils/mapUtils';
 import { useClassAliases } from '../utils/useClassAliases';
+import NumberInput from '../components/NumberInput';
 import WorldMap from '../components/WorldMap';
 
 // Weapon types for rank editing
@@ -1591,6 +1592,37 @@ export default function DMDashboard() {
           .eq('id', selectedEditAbility.id);
         
         if (error) throw error;
+
+        // Propagate charge changes to all characters who have this ability
+        const newMax = abilityData.max_charges;
+        if (newMax === null) {
+          // Charges removed (infinite) — reset current_charges to 0
+          await supabase
+            .from('character_abilities')
+            .update({ current_charges: 0 })
+            .eq('ability_id', selectedEditAbility.id);
+        } else if (
+          selectedEditAbility.max_charges !== null &&
+          newMax !== selectedEditAbility.max_charges
+        ) {
+          // max_charges changed — clamp existing current_charges
+          const { data: charAbilities } = await supabase
+            .from('character_abilities')
+            .select('id, current_charges')
+            .eq('ability_id', selectedEditAbility.id);
+          if (charAbilities) {
+            for (const ca of charAbilities) {
+              const clamped = Math.min(ca.current_charges, newMax);
+              if (clamped !== ca.current_charges) {
+                await supabase
+                  .from('character_abilities')
+                  .update({ current_charges: clamped })
+                  .eq('id', ca.id);
+              }
+            }
+          }
+        }
+
         alert(`Ability "${abilityName}" updated successfully!`);
       } else {
         const { error } = await supabase
@@ -3631,9 +3663,9 @@ export default function DMDashboard() {
                               return editingStats ? (
                                 <div>
                                   <div className="flex gap-2 items-center">
-                                    <input type="number" value={statEdits.current_hp ?? 0} onChange={e => setStatEdits({ ...statEdits, current_hp: parseInt(e.target.value) || 0 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                    <NumberInput value={statEdits.current_hp ?? 0} onChange={v => setStatEdits({ ...statEdits, current_hp: v })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                     <span style={{ color: 'var(--color-cyber-cyan)' }}>/</span>
-                                    <input type="number" value={statEdits.max_hp ?? 0} onChange={e => setStatEdits({ ...statEdits, max_hp: parseInt(e.target.value) || 0 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                    <NumberInput value={statEdits.max_hp ?? 0} onChange={v => setStatEdits({ ...statEdits, max_hp: v })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                   </div>
                                   {itemHpBonus !== 0 && (
                                     <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>+{itemHpBonus} from gear</div>
@@ -3656,7 +3688,7 @@ export default function DMDashboard() {
                               const itemAcBonus = equippedItems.reduce((sum, inv) => sum + (inv.item?.ac_mod || 0), 0);
                               return editingStats ? (
                                 <div>
-                                  <input type="number" value={statEdits.ac ?? 0} onChange={e => setStatEdits({ ...statEdits, ac: parseInt(e.target.value) || 0 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                  <NumberInput value={statEdits.ac ?? 0} onChange={v => setStatEdits({ ...statEdits, ac: v })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                   {itemAcBonus !== 0 && (
                                     <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>+{itemAcBonus} from gear</div>
                                   )}
@@ -3674,7 +3706,7 @@ export default function DMDashboard() {
                           <div className="p-4 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
                             <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>LEVEL</div>
                             {editingStats ? (
-                              <input type="number" value={statEdits.level ?? 1} onChange={e => setStatEdits({ ...statEdits, level: parseInt(e.target.value) || 1 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                              <NumberInput value={statEdits.level ?? 1} onChange={v => setStatEdits({ ...statEdits, level: v })} defaultValue={1} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                             ) : (
                               <div className="text-2xl" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>{selectedCharacter.level}</div>
                             )}
@@ -3682,7 +3714,7 @@ export default function DMDashboard() {
                           <div className="p-4 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
                             <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>CREDITS</div>
                             {editingStats ? (
-                              <input type="number" value={statEdits.usd ?? 0} onChange={e => setStatEdits({ ...statEdits, usd: parseInt(e.target.value) || 0 })} className="w-28 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                              <NumberInput value={statEdits.usd ?? 0} onChange={v => setStatEdits({ ...statEdits, usd: v })} className="w-28 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                             ) : (
                               <div className="text-2xl" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>${selectedCharacter.usd.toLocaleString()}</div>
                             )}
@@ -3719,7 +3751,7 @@ export default function DMDashboard() {
                               const totalInit = baseInit + itemInitBonus;
                               return editingStats ? (
                                 <div>
-                                  <input type="number" value={statEdits.initiative_modifier ?? 0} onChange={e => setStatEdits({ ...statEdits, initiative_modifier: parseInt(e.target.value) || 0 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                  <NumberInput value={statEdits.initiative_modifier ?? 0} onChange={v => setStatEdits({ ...statEdits, initiative_modifier: v })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                   {itemInitBonus !== 0 && (
                                     <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>+{itemInitBonus} from gear</div>
                                   )}
@@ -3743,7 +3775,7 @@ export default function DMDashboard() {
                               const totalSpeed = baseSpeed + itemSpeedBonus;
                               return editingStats ? (
                                 <div>
-                                  <input type="number" value={statEdits.speed ?? 30} onChange={e => setStatEdits({ ...statEdits, speed: parseInt(e.target.value) || 30 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                  <NumberInput value={statEdits.speed ?? 30} onChange={v => setStatEdits({ ...statEdits, speed: v })} defaultValue={30} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                   {itemSpeedBonus !== 0 && (
                                     <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>+{itemSpeedBonus} from gear</div>
                                   )}
@@ -3767,7 +3799,7 @@ export default function DMDashboard() {
                               const totalIc = baseIc + itemIcBonus;
                               return editingStats ? (
                                 <div>
-                                  <input type="number" value={statEdits.implant_capacity ?? 3} onChange={e => setStatEdits({ ...statEdits, implant_capacity: parseInt(e.target.value) || 3 })} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                  <NumberInput value={statEdits.implant_capacity ?? 3} onChange={v => setStatEdits({ ...statEdits, implant_capacity: v })} defaultValue={3} className="w-20 px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                   {itemIcBonus !== 0 && (
                                     <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>+{itemIcBonus} from gear</div>
                                   )}
@@ -3799,7 +3831,7 @@ export default function DMDashboard() {
                                   <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{stat.toUpperCase()}</div>
                                   {editingStats ? (
                                     <div>
-                                      <input type="number" value={statEdits[stat] ?? 0} onChange={e => setStatEdits({ ...statEdits, [stat]: parseInt(e.target.value) || 0 })} className="w-full px-1 py-1 rounded text-center text-lg" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                                      <NumberInput value={statEdits[stat] ?? 0} onChange={v => setStatEdits({ ...statEdits, [stat]: v })} className="w-full px-1 py-1 rounded text-center text-lg" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                       {itemBonus !== 0 && (
                                         <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-yellow)' }}>
                                           {itemBonus > 0 ? '+' : ''}{itemBonus} gear
@@ -4368,11 +4400,11 @@ export default function DMDashboard() {
                           className="w-7 h-7 rounded flex items-center justify-center"
                           style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
                         >−</button>
-                        <input
-                          type="number"
-                          min="1"
+                        <NumberInput
+                          min={1}
                           value={giveItemQuantity}
-                          onChange={e => setGiveItemQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                          onChange={v => setGiveItemQuantity(Math.max(1, v))}
+                          defaultValue={1}
                           className="w-16 px-2 py-1 rounded text-center"
                           style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
                         />
@@ -4446,12 +4478,11 @@ export default function DMDashboard() {
                       className="px-3 py-1 rounded"
                       style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
                     >−</button>
-                    <input
-                      type="number"
-                      min="1"
-                      max={removeItemTarget.quantity}
+                    <NumberInput
+                      min={1}
                       value={removeItemQuantity}
-                      onChange={e => setRemoveItemQuantity(Math.min(removeItemTarget.quantity, Math.max(1, parseInt(e.target.value) || 1)))}
+                      onChange={v => setRemoveItemQuantity(Math.min(removeItemTarget.quantity, Math.max(1, v)))}
+                      defaultValue={1}
                       className="w-16 px-2 py-1 rounded text-center"
                       style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-cyan)' }}
                     />
@@ -4675,11 +4706,10 @@ export default function DMDashboard() {
                         </div>
                         <div>
                           <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>Price ($)</label>
-                          <input
-                            type="number"
-                            min="0"
+                          <NumberInput
+                            min={0}
                             value={itemPrice}
-                            onChange={e => setItemPrice(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value)))}
+                            onChange={v => setItemPrice(Math.max(0, v))}
                             className="w-full px-3 py-2 rounded"
                             style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
                           />
@@ -4728,10 +4758,9 @@ export default function DMDashboard() {
                       {itemType === 'cyberware' && (
                         <div>
                           <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-purple)' }}>IC Cost (Implant Capacity)</label>
-                          <input
-                            type="number"
+                          <NumberInput
                             value={itemIcCost}
-                            onChange={e => setItemIcCost(parseInt(e.target.value) || 0)}
+                            onChange={v => setItemIcCost(v)}
                             className="w-full px-3 py-2 rounded"
                             style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }}
                             placeholder="How much IC this cyberware uses"
@@ -5941,10 +5970,9 @@ export default function DMDashboard() {
                                       </button>
                                       
                                       {addItemPriceType === 'credits' ? (
-                                        <input
-                                          type="number"
+                                        <NumberInput
                                           value={addItemPrice}
-                                          onChange={e => setAddItemPrice(parseInt(e.target.value) || 0)}
+                                          onChange={v => setAddItemPrice(v)}
                                           placeholder="Price"
                                           className="w-20 px-2 py-1 rounded text-xs"
                                           style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }}
@@ -5971,10 +5999,10 @@ export default function DMDashboard() {
                                             />
                                           )}
                                           <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)' }}>x</span>
-                                          <input
-                                            type="number"
+                                          <NumberInput
                                             value={addItemBarterQty}
-                                            onChange={e => setAddItemBarterQty(parseInt(e.target.value) || 1)}
+                                            onChange={v => setAddItemBarterQty(Math.max(1, v))}
+                                            defaultValue={1}
                                             min={1}
                                             className="w-10 px-1 py-1 rounded text-xs text-center"
                                             style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
@@ -5983,13 +6011,9 @@ export default function DMDashboard() {
                                       )}
                                       
                                       <span className="text-xs" style={{ color: 'var(--color-cyber-green)' }}>Stock:</span>
-                                      <input
-                                        type="number"
+                                      <NumberInput
                                         value={addItemStock}
-                                        onChange={e => {
-                                          const val = e.target.value;
-                                          setAddItemStock(val === '' ? 0 : parseInt(val) || 0);
-                                        }}
+                                        onChange={v => setAddItemStock(v)}
                                         className="w-20 px-1 py-1 rounded text-xs"
                                         style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-green)', color: 'var(--color-cyber-green)' }}
                                       />
@@ -6085,10 +6109,9 @@ export default function DMDashboard() {
                                             ) : null}
                                           </div>
                                           <div className="flex items-center gap-1">
-                                            <input
-                                              type="number"
+                                            <NumberInput
                                               value={invItem.stock_quantity}
-                                              onChange={e => handleUpdateShopItemStock(invItem.id, parseInt(e.target.value) || 0)}
+                                              onChange={v => handleUpdateShopItemStock(invItem.id, v)}
                                               className="w-16 px-1 py-0.5 rounded text-center text-xs"
                                               style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)', color: 'var(--color-cyber-green)' }}
                                             />
@@ -6307,19 +6330,19 @@ export default function DMDashboard() {
                       <div className="grid grid-cols-4 gap-2">
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>Max HP</label>
-                          <input type="number" value={npcMaxHp} onChange={e => setNpcMaxHp(parseInt(e.target.value) || 0)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }} />
+                          <NumberInput value={npcMaxHp} onChange={v => setNpcMaxHp(v)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }} />
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>Current HP</label>
-                          <input type="number" value={npcCurrentHp} onChange={e => setNpcCurrentHp(parseInt(e.target.value) || 0)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }} />
+                          <NumberInput value={npcCurrentHp} onChange={v => setNpcCurrentHp(v)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }} />
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>AC</label>
-                          <input type="number" value={npcAc} onChange={e => setNpcAc(parseInt(e.target.value) || 0)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                          <NumberInput value={npcAc} onChange={v => setNpcAc(v)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>Init Mod</label>
-                          <input type="number" value={npcInitMod} onChange={e => setNpcInitMod(parseInt(e.target.value) || 0)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
+                          <NumberInput value={npcInitMod} onChange={v => setNpcInitMod(v)} className="w-full px-2 py-1 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                         </div>
                       </div>
                     </div>
@@ -6338,7 +6361,7 @@ export default function DMDashboard() {
                         ].map(stat => (
                           <div key={stat.label} className="text-center">
                             <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-purple)' }}>{stat.label}</label>
-                            <input type="number" value={stat.value} onChange={e => stat.setter(parseInt(e.target.value) || 0)} className="w-full px-1 py-1 rounded text-center text-sm" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }} />
+                            <NumberInput value={stat.value} onChange={v => stat.setter(v)} className="w-full px-1 py-1 rounded text-center text-sm" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }} />
                           </div>
                         ))}
                       </div>
@@ -6749,10 +6772,9 @@ export default function DMDashboard() {
                             {/* Initiative */}
                             <div className="p-4 rounded text-center" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-purple)' }}>
                               <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-purple)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>INITIATIVE</div>
-                              <input
-                                type="number"
-                                value={selectedP.initiative ?? ''}
-                                onChange={e => updateParticipantInitiative(selectedP.id, parseInt(e.target.value) || 0)}
+                              <NumberInput
+                                value={selectedP.initiative ?? 0}
+                                onChange={v => updateParticipantInitiative(selectedP.id, v)}
                                 className="w-16 text-center text-3xl font-bold rounded mx-auto block"
                                 style={{ background: 'transparent', color: 'var(--color-cyber-purple)', fontFamily: 'var(--font-cyber)', border: 'none' }}
                                 placeholder="?"
@@ -7739,11 +7761,10 @@ export default function DMDashboard() {
                     <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>
                       Credit Reward 💰
                     </label>
-                    <input
-                      type="number"
-                      min="0"
+                    <NumberInput
+                      min={0}
                       value={missionForm.reward_credits}
-                      onChange={e => setMissionForm(f => ({ ...f, reward_credits: parseInt(e.target.value) || 0 }))}
+                      onChange={v => setMissionForm(f => ({ ...f, reward_credits: v }))}
                       placeholder="0"
                       className="w-full px-3 py-2 rounded"
                       style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }}
@@ -8430,12 +8451,10 @@ export default function DMDashboard() {
                       {(selectedMission.assigned_characters?.length ? selectedMission.assigned_characters : characters).map(char => (
                         <div key={char.id} className="flex items-center gap-3 p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)' }}>
                           <span className="flex-1 font-bold" style={{ color: 'var(--color-cyber-cyan)' }}>{char.name}</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max={selectedMission.reward_credits}
+                          <NumberInput
+                            min={0}
                             value={creditDistribution[char.id] || 0}
-                            onChange={e => setCreditDistribution(prev => ({ ...prev, [char.id]: parseInt(e.target.value) || 0 }))}
+                            onChange={v => setCreditDistribution(prev => ({ ...prev, [char.id]: v }))}
                             className="w-32 px-3 py-1 rounded text-right"
                             style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }}
                           />

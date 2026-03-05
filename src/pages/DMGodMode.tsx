@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { InventoryItem } from '../types/inventory';
 import { useCampaign } from '../contexts/CampaignContext';
+import NumberInput from '../components/NumberInput';
 
 interface Character {
   id: string;
@@ -360,10 +361,10 @@ export default function DMGodMode() {
                             Level
                           </span>
                           {editMode ? (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={selectedCharacter.level}
-                              onChange={(e) => setSelectedCharacter({ ...selectedCharacter, level: parseInt(e.target.value) || 1 })}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, level: val })}
+                              defaultValue={1}
                               className="w-20 px-2 py-1 rounded text-center"
                               style={{
                                 backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -393,10 +394,9 @@ export default function DMGodMode() {
                             USD
                           </span>
                           {editMode ? (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={selectedCharacter.usd}
-                              onChange={(e) => setSelectedCharacter({ ...selectedCharacter, usd: parseInt(e.target.value) || 0 })}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, usd: val })}
                               className="w-32 px-2 py-1 rounded text-right"
                               style={{
                                 backgroundColor: 'color-mix(in srgb, var(--color-cyber-green) 10%, transparent)',
@@ -425,10 +425,9 @@ export default function DMGodMode() {
                             Current HP
                           </span>
                           {editMode ? (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={selectedCharacter.current_hp}
-                              onChange={(e) => setSelectedCharacter({ ...selectedCharacter, current_hp: parseInt(e.target.value) || 0 })}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, current_hp: val })}
                               className="w-20 px-2 py-1 rounded text-center"
                               style={{
                                 backgroundColor: 'color-mix(in srgb, var(--color-cyber-pink) 10%, transparent)',
@@ -449,10 +448,10 @@ export default function DMGodMode() {
                             Max HP
                           </span>
                           {editMode ? (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={selectedCharacter.max_hp}
-                              onChange={(e) => setSelectedCharacter({ ...selectedCharacter, max_hp: parseInt(e.target.value) || 1 })}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, max_hp: val })}
+                              defaultValue={1}
                               className="w-20 px-2 py-1 rounded text-center"
                               style={{
                                 backgroundColor: 'color-mix(in srgb, var(--color-cyber-pink) 10%, transparent)',
@@ -473,10 +472,10 @@ export default function DMGodMode() {
                             AC
                           </span>
                           {editMode ? (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={selectedCharacter.ac}
-                              onChange={(e) => setSelectedCharacter({ ...selectedCharacter, ac: parseInt(e.target.value) || 10 })}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, ac: val })}
+                              defaultValue={10}
                               className="w-20 px-2 py-1 rounded text-center"
                               style={{
                                 backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -514,10 +513,10 @@ export default function DMGodMode() {
                             {stat.label}
                           </span>
                           {editMode ? (
-                            <input
-                              type="number"
+                            <NumberInput
                               value={selectedCharacter[stat.key] as number}
-                              onChange={(e) => setSelectedCharacter({ ...selectedCharacter, [stat.key]: parseInt(e.target.value) || 10 })}
+                              onChange={(val) => setSelectedCharacter({ ...selectedCharacter, [stat.key]: val })}
+                              defaultValue={10}
                               className="w-16 px-2 py-1 rounded text-center"
                               style={{
                                 backgroundColor: 'color-mix(in srgb, var(--color-cyber-purple) 10%, transparent)',

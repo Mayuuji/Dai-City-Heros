@@ -6,6 +6,7 @@ import type { ItemType, ItemRarity } from '../types/inventory';
 import { ALL_SKILLS } from '../data/characterClasses';
 import { formatModifier, getRarityColor, getItemTypeIcon } from '../utils/stats';
 import AbilityBrowser from '../components/AbilityBrowser';
+import NumberInput from '../components/NumberInput';
 import { useCampaign } from '../contexts/CampaignContext';
 
 export default function DMItemCreator() {
@@ -279,11 +280,10 @@ export default function DMItemCreator() {
                   <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                     Price ($)
                   </label>
-                  <input
-                    type="number"
-                    min="0"
+                  <NumberInput
+                    min={0}
                     value={price}
-                    onChange={(e) => setPrice(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value)))}
+                    onChange={(val) => setPrice(Math.max(0, val))}
                     className="w-full px-4 py-2 rounded"
                     style={{
                       backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',

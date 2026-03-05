@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Item } from '../types/inventory';
 import { getRarityColor, getItemTypeIcon } from '../utils/stats';
 import { useCampaign } from '../contexts/CampaignContext';
+import NumberInput from '../components/NumberInput';
 
 interface Character {
   id: string;
@@ -374,10 +375,10 @@ export default function DMGiveItem() {
                     −
                   </button>
                   
-                  <input
-                    type="number"
+                  <NumberInput
                     value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(val) => setQuantity(Math.max(1, val))}
+                    defaultValue={1}
                     min={1}
                     className="flex-1 px-4 py-2 rounded text-center text-xl"
                     style={{

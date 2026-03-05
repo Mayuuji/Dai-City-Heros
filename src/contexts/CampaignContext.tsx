@@ -227,6 +227,10 @@ export function applyTheme(theme: CampaignTheme) {
   // Detect light theme and set data attribute for CSS overrides
   const isLight = isLightColor(theme.color_bg_darker) || isLightColor(theme.color_bg_dark);
   document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+
+  // Only cyberpunk theme gets neon glow effects
+  const isNeon = theme.name.toLowerCase().includes('cyberpunk');
+  document.documentElement.setAttribute('data-neon', isNeon ? 'true' : 'false');
 }
 
 function isLightColor(hex: string): boolean {

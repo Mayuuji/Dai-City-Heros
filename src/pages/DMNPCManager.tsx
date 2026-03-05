@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { NPC, NPCType, NPCDisposition, NPCAbility } from '../types/npc';
 import { useCampaign } from '../contexts/CampaignContext';
+import NumberInput from '../components/NumberInput';
 
 interface Location {
   id: string;
@@ -513,11 +514,9 @@ export default function DMNPCManager() {
                 <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                   Max HP
                 </label>
-                <input
-                  type="number"
+                <NumberInput
                   value={maxHp}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 0;
+                  onChange={(val) => {
                     setMaxHp(val);
                     setCurrentHp(val);
                   }}
@@ -535,10 +534,9 @@ export default function DMNPCManager() {
                 <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                   Current HP
                 </label>
-                <input
-                  type="number"
+                <NumberInput
                   value={currentHp}
-                  onChange={(e) => setCurrentHp(parseInt(e.target.value) || 0)}
+                  onChange={(val) => setCurrentHp(val)}
                   className="w-full px-4 py-2 rounded"
                   style={{
                     backgroundColor: 'color-mix(in srgb, var(--color-cyber-red) 10%, transparent)',
@@ -553,10 +551,9 @@ export default function DMNPCManager() {
                 <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                   AC
                 </label>
-                <input
-                  type="number"
+                <NumberInput
                   value={ac}
-                  onChange={(e) => setAc(parseInt(e.target.value) || 0)}
+                  onChange={(val) => setAc(val)}
                   className="w-full px-4 py-2 rounded"
                   style={{
                     backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -582,10 +579,9 @@ export default function DMNPCManager() {
                   <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                     {stat.label}
                   </label>
-                  <input
-                    type="number"
+                  <NumberInput
                     value={stat.value}
-                    onChange={(e) => stat.setter(parseInt(e.target.value) || 0)}
+                    onChange={(val) => stat.setter(val)}
                     className="w-full px-3 py-1 rounded text-center"
                     style={{
                       backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -687,10 +683,9 @@ export default function DMNPCManager() {
               <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                 USD $
               </label>
-              <input
-                type="number"
+              <NumberInput
                 value={dropUsd}
-                onChange={(e) => setDropUsd(parseInt(e.target.value) || 0)}
+                onChange={(val) => setDropUsd(val)}
                 className="w-full px-4 py-2 rounded"
                 style={{
                   backgroundColor: 'color-mix(in srgb, var(--color-cyber-yellow) 10%, transparent)',

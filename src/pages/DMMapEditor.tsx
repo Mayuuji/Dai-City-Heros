@@ -8,6 +8,7 @@ import type { Location, MapSettings, LocationIcon, LocationColor } from '../type
 import type { Shop, ShopInventoryItemWithDetails } from '../types/shop';
 import type { Item } from '../types/inventory';
 import { ALL_LOCATION_ICONS, ALL_LOCATION_COLORS, getLocationColor } from '../utils/mapUtils';
+import NumberInput from '../components/NumberInput';
 
 type EditorMode = 'list' | 'create' | 'edit' | 'settings';
 type RightPanelTab = 'details' | 'shops';
@@ -602,11 +603,11 @@ export default function DMMapEditor() {
                                       <div key={inv.id} className="flex items-center gap-2 p-2 rounded text-xs"
                                         style={{ background: 'color-mix(in srgb, var(--color-cyber-darker) 50%, transparent)' }}>
                                         <span className="flex-1" style={{ color: getRarityColor(inv.item.rarity) }}>{inv.item.name}</span>
-                                        <input type="number" value={inv.stock_quantity} onChange={(e) => handleUpdateStock(inv.id, parseInt(e.target.value))}
+                                        <NumberInput value={inv.stock_quantity} onChange={(val) => handleUpdateStock(inv.id, val)}
                                           className="w-12 px-1 py-0.5 rounded text-center" title="Stock (-1 = unlimited)"
                                           style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                         <span style={{ color: 'var(--color-cyber-yellow)' }}>$</span>
-                                        <input type="number" value={inv.price_credits} onChange={(e) => handleUpdatePrice(inv.id, parseInt(e.target.value))}
+                                        <NumberInput value={inv.price_credits} onChange={(val) => handleUpdatePrice(inv.id, val)}
                                           className="w-16 px-1 py-0.5 rounded" title="Price"
                                           style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }} />
                                         <button onClick={() => handleRemoveItemFromShop(inv.id)} style={{ color: 'var(--color-cyber-red)' }}>×</button>
@@ -668,12 +669,12 @@ export default function DMMapEditor() {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)' }}>Stock (-1 = unlimited)</label>
-                <input type="number" value={addItemStock} onChange={(e) => setAddItemStock(parseInt(e.target.value))}
+                <NumberInput value={addItemStock} onChange={(val) => setAddItemStock(val)}
                   className="w-full px-3 py-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-yellow)' }}>Price ($)</label>
-                <input type="number" value={addItemPrice} onChange={(e) => setAddItemPrice(parseInt(e.target.value))}
+                <NumberInput value={addItemPrice} onChange={(val) => setAddItemPrice(val)}
                   className="w-full px-3 py-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }} />
               </div>
             </div>

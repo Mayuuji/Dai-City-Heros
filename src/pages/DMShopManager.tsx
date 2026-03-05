@@ -6,6 +6,7 @@ import type { Shop, ShopInventoryItemWithDetails, ShopWithLocation } from '../ty
 import type { Location } from '../types/map';
 import type { Item } from '../types/inventory';
 import { useCampaign } from '../contexts/CampaignContext';
+import NumberInput from '../components/NumberInput';
 
 export default function DMShopManager() {
   const navigate = useNavigate();
@@ -454,10 +455,9 @@ export default function DMShopManager() {
                           <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                             STOCK (-1 = Unlimited)
                           </label>
-                          <input
-                            type="number"
+                          <NumberInput
                             value={invItem.stock_quantity}
-                            onChange={(e) => handleUpdateInventoryItem(invItem, { stock_quantity: parseInt(e.target.value) })}
+                            onChange={(val) => handleUpdateInventoryItem(invItem, { stock_quantity: val })}
                             className="w-full px-3 py-2 rounded"
                             style={{
                               backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -472,10 +472,9 @@ export default function DMShopManager() {
                           <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                             PRICE (USD $)
                           </label>
-                          <input
-                            type="number"
+                          <NumberInput
                             value={invItem.price_credits}
-                            onChange={(e) => handleUpdateInventoryItem(invItem, { price_credits: parseInt(e.target.value) })}
+                            onChange={(val) => handleUpdateInventoryItem(invItem, { price_credits: val })}
                             className="w-full px-3 py-2 rounded"
                             style={{
                               backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
@@ -682,11 +681,9 @@ export default function DMShopManager() {
                 <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                   STOCK QUANTITY (-1 for unlimited)
                 </label>
-                <input
-                  required
-                  type="number"
+                <NumberInput
                   value={addStock}
-                  onChange={(e) => setAddStock(parseInt(e.target.value))}
+                  onChange={(val) => setAddStock(val)}
                   min={-1}
                   className="w-full px-3 py-2 rounded"
                   style={{
@@ -702,11 +699,9 @@ export default function DMShopManager() {
                 <label className="block text-sm mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                   PRICE (USD $)
                 </label>
-                <input
-                  required
-                  type="number"
+                <NumberInput
                   value={addPrice}
-                  onChange={(e) => setAddPrice(parseInt(e.target.value))}
+                  onChange={(val) => setAddPrice(val)}
                   min={0}
                   className="w-full px-3 py-2 rounded"
                   style={{
