@@ -23,7 +23,7 @@ interface CampaignMember {
 
 export default function ChatBox() {
   const { user } = useAuth();
-  const { campaignId, campaignRole } = useCampaign();
+  const { campaignId } = useCampaign();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [members, setMembers] = useState<CampaignMember[]>([]);
