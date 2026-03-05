@@ -134,7 +134,7 @@ export default function RulesPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
       {/* Header */}
       <div className="glass-panel" style={{ borderRadius: 0, borderBottom: '2px solid var(--color-cyber-cyan)' }}>
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -173,7 +173,7 @@ export default function RulesPage() {
                 style={{
                   fontFamily: 'var(--font-mono)',
                   backgroundColor: activeSection === section.id ? 'var(--color-cyber-cyan)' : 'transparent',
-                  color: activeSection === section.id ? '#0D1117' : 'var(--color-cyber-cyan)',
+                  color: activeSection === section.id ? 'white' : 'var(--color-cyber-cyan)',
                   border: `1px solid ${activeSection === section.id ? 'var(--color-cyber-cyan)' : 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)'}`,
                   fontWeight: activeSection === section.id ? 'bold' : 'normal'
                 }}

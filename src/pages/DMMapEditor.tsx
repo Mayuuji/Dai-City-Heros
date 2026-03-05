@@ -374,7 +374,7 @@ export default function DMMapEditor() {
         <div className="flex items-center gap-2">
           <button onClick={() => setMode('settings')} className="px-3 py-1.5 rounded text-sm"
             style={{ backgroundColor: mode === 'settings' ? 'var(--color-cyber-purple)' : 'transparent',
-              border: '1px solid var(--color-cyber-purple)', color: mode === 'settings' ? '#0D1117' : 'var(--color-cyber-purple)' }}>
+              border: '1px solid var(--color-cyber-purple)', color: mode === 'settings' ? 'white' : 'var(--color-cyber-purple)' }}>
             ⚙️ Settings
           </button>
           <button onClick={() => navigate('/dm/dashboard')} className="neon-button px-4 py-1.5 text-sm">← Back</button>
@@ -404,7 +404,7 @@ export default function DMMapEditor() {
                 {ALL_LOCATION_ICONS.map(i => <option key={i.value} value={i.value}>{i.emoji} {i.label}</option>)}
               </select>
               <button onClick={() => { resetForm(); setMode('create'); }} className="px-3 py-1 rounded text-sm"
-                style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>+ New</button>
+                style={{ background: 'var(--color-cyber-green)', color: 'white' }}>+ New</button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {filteredLocations.map(loc => (
@@ -427,7 +427,7 @@ export default function DMMapEditor() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 <h3 className="text-lg" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-purple)' }}>⚙️ MAP SETTINGS</h3>
                 <button onClick={handleSetCurrentView} className="w-full py-2 rounded"
-                  style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117' }}>📸 Capture Current View</button>
+                  style={{ background: 'var(--color-cyber-cyan)', color: 'white' }}>📸 Capture Current View</button>
                 <div className="grid grid-cols-2 gap-2 text-xs" style={{ color: 'var(--color-cyber-cyan)' }}>
                   <div>SW: {settingsMinLat.toFixed(2)}, {settingsMinLng.toFixed(2)}</div>
                   <div>NE: {settingsMaxLat.toFixed(2)}, {settingsMaxLng.toFixed(2)}</div>
@@ -438,7 +438,7 @@ export default function DMMapEditor() {
                 </label>
                 <div className="flex gap-2">
                   <button onClick={handleSaveSettings} disabled={saving} className="flex-1 py-2 rounded"
-                    style={{ background: 'var(--color-cyber-purple)', color: '#0D1117', opacity: saving ? 0.5 : 1 }}>
+                    style={{ background: 'var(--color-cyber-purple)', color: 'white', opacity: saving ? 0.5 : 1 }}>
                     {saving ? 'Saving...' : 'Save Settings'}
                   </button>
                   <button onClick={() => setMode('list')} className="px-4 py-2 rounded"
@@ -464,7 +464,7 @@ export default function DMMapEditor() {
                   {ALL_LOCATION_ICONS.map(icon => (
                     <button key={icon.value} onClick={() => setFormIcon(icon.value)} className="px-2 py-1 rounded text-xs"
                       style={{ background: formIcon === icon.value ? 'var(--color-cyber-cyan)' : 'transparent',
-                        border: '1px solid var(--color-cyber-cyan)', color: formIcon === icon.value ? '#0D1117' : 'var(--color-cyber-cyan)' }}>
+                        border: '1px solid var(--color-cyber-cyan)', color: formIcon === icon.value ? 'white' : 'var(--color-cyber-cyan)' }}>
                       {icon.emoji}
                     </button>
                   ))}
@@ -485,7 +485,7 @@ export default function DMMapEditor() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={handleCreateLocation} disabled={saving || !formName.trim()} className="flex-1 py-2 rounded"
-                    style={{ background: 'var(--color-cyber-green)', color: '#0D1117', opacity: saving || !formName.trim() ? 0.5 : 1 }}>
+                    style={{ background: 'var(--color-cyber-green)', color: 'white', opacity: saving || !formName.trim() ? 0.5 : 1 }}>
                     {saving ? 'Creating...' : 'Create'}
                   </button>
                   <button onClick={resetForm} className="px-4 py-2 rounded"
@@ -499,10 +499,10 @@ export default function DMMapEditor() {
                 <div className="flex border-b" style={{ borderColor: 'var(--color-cyber-orange)' }}>
                   <button onClick={() => setRightPanelTab('details')} className="flex-1 py-2 text-sm"
                     style={{ background: rightPanelTab === 'details' ? 'var(--color-cyber-orange)' : 'transparent',
-                      color: rightPanelTab === 'details' ? '#0D1117' : 'var(--color-cyber-orange)' }}>📝 Details</button>
+                      color: rightPanelTab === 'details' ? 'white' : 'var(--color-cyber-orange)' }}>📝 Details</button>
                   <button onClick={() => setRightPanelTab('shops')} className="flex-1 py-2 text-sm"
                     style={{ background: rightPanelTab === 'shops' ? 'var(--color-cyber-green)' : 'transparent',
-                      color: rightPanelTab === 'shops' ? '#0D1117' : 'var(--color-cyber-green)' }}>🛒 Shops ({locationShops.length})</button>
+                      color: rightPanelTab === 'shops' ? 'white' : 'var(--color-cyber-green)' }}>🛒 Shops ({locationShops.length})</button>
                 </div>
                 
                 {rightPanelTab === 'details' ? (
@@ -528,7 +528,7 @@ export default function DMMapEditor() {
                       {ALL_LOCATION_ICONS.map(icon => (
                         <button key={icon.value} onClick={() => setFormIcon(icon.value)} className="px-2 py-1 rounded text-xs"
                           style={{ background: formIcon === icon.value ? 'var(--color-cyber-cyan)' : 'transparent',
-                            border: '1px solid var(--color-cyber-cyan)', color: formIcon === icon.value ? '#0D1117' : 'var(--color-cyber-cyan)' }}>
+                            border: '1px solid var(--color-cyber-cyan)', color: formIcon === icon.value ? 'white' : 'var(--color-cyber-cyan)' }}>
                           {icon.emoji}
                         </button>
                       ))}
@@ -549,7 +549,7 @@ export default function DMMapEditor() {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={handleUpdateLocation} disabled={saving} className="flex-1 py-2 rounded"
-                        style={{ background: 'var(--color-cyber-orange)', color: '#0D1117', opacity: saving ? 0.5 : 1 }}>
+                        style={{ background: 'var(--color-cyber-orange)', color: 'white', opacity: saving ? 0.5 : 1 }}>
                         {saving ? 'Saving...' : 'Save Changes'}
                       </button>
                       <button onClick={resetForm} className="px-4 py-2 rounded"
@@ -562,7 +562,7 @@ export default function DMMapEditor() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-green)' }}>🛒 SHOPS</h3>
                       <button onClick={() => setShowCreateShopModal(true)} className="text-xs px-2 py-1 rounded"
-                        style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>+ Add Shop</button>
+                        style={{ background: 'var(--color-cyber-green)', color: 'white' }}>+ Add Shop</button>
                     </div>
                     
                     {locationShops.length === 0 ? (
@@ -575,7 +575,7 @@ export default function DMMapEditor() {
                               <span className="font-bold" style={{ color: 'var(--color-cyber-green)' }}>{shop.name}</span>
                               <div className="flex gap-1">
                                 <button onClick={() => handleToggleShopActive(shop)} className="text-xs px-2 py-0.5 rounded"
-                                  style={{ background: shop.is_active ? 'var(--color-cyber-green)' : 'var(--color-cyber-red)', color: '#0D1117' }}>
+                                  style={{ background: shop.is_active ? 'var(--color-cyber-green)' : 'var(--color-cyber-red)', color: 'white' }}>
                                   {shop.is_active ? 'Open' : 'Closed'}
                                 </button>
                                 <button onClick={() => handleDeleteShop(shop.id)} className="text-xs px-2 py-0.5 rounded"
@@ -592,7 +592,7 @@ export default function DMMapEditor() {
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>Inventory ({shopInventory.length})</span>
                                   <button onClick={() => setShowAddItemModal(true)} className="text-xs px-2 py-0.5 rounded"
-                                    style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117' }}>+ Add Item</button>
+                                    style={{ background: 'var(--color-cyber-cyan)', color: 'white' }}>+ Add Item</button>
                                 </div>
                                 {shopInventory.length === 0 ? (
                                   <p className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>No items in inventory</p>
@@ -643,7 +643,7 @@ export default function DMMapEditor() {
               className="w-full px-3 py-2 rounded mb-4" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
             <div className="flex gap-2">
               <button onClick={handleCreateShop} disabled={saving || !newShopName.trim()} className="flex-1 py-2 rounded"
-                style={{ background: 'var(--color-cyber-green)', color: '#0D1117', opacity: saving || !newShopName.trim() ? 0.5 : 1 }}>
+                style={{ background: 'var(--color-cyber-green)', color: 'white', opacity: saving || !newShopName.trim() ? 0.5 : 1 }}>
                 {saving ? 'Creating...' : 'Create Shop'}
               </button>
               <button onClick={() => setShowCreateShopModal(false)} className="px-4 py-2 rounded"
@@ -679,7 +679,7 @@ export default function DMMapEditor() {
             </div>
             <div className="flex gap-2">
               <button onClick={handleAddItemToShop} disabled={saving || !addItemId} className="flex-1 py-2 rounded"
-                style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117', opacity: saving || !addItemId ? 0.5 : 1 }}>
+                style={{ background: 'var(--color-cyber-cyan)', color: 'white', opacity: saving || !addItemId ? 0.5 : 1 }}>
                 {saving ? 'Adding...' : 'Add Item'}
               </button>
               <button onClick={() => setShowAddItemModal(false)} className="px-4 py-2 rounded"

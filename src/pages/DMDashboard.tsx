@@ -3293,7 +3293,7 @@ export default function DMDashboard() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
       <div className="glass-panel" style={{ borderRadius: 0, borderBottom: '2px solid var(--color-cyber-yellow)' }}>
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
@@ -3355,7 +3355,7 @@ export default function DMDashboard() {
                 style={{
                   fontFamily: 'var(--font-mono)',
                   backgroundColor: activeTab === tab.id ? 'var(--color-cyber-yellow)' : 'transparent',
-                  color: activeTab === tab.id ? '#0D1117' : 'var(--color-cyber-cyan)',
+                  color: activeTab === tab.id ? 'white' : 'var(--color-cyber-cyan)',
                   border: `1px solid ${activeTab === tab.id ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'}`,
                   fontWeight: activeTab === tab.id ? 'bold' : 'normal'
                 }}
@@ -3391,7 +3391,7 @@ export default function DMDashboard() {
                   <button
                     onClick={handleLongRestAll}
                     className="px-5 py-2.5 rounded text-sm flex items-center gap-2"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}
+                    style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}
                   >
                     🛏️ LONG REST
                   </button>
@@ -3483,12 +3483,12 @@ export default function DMDashboard() {
                       <div className="space-y-4">
                         <div className="flex justify-end">
                           {!editingStats ? (
-                            <button onClick={handleStartEditing} className="px-4 py-2 rounded text-sm" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
+                            <button onClick={handleStartEditing} className="px-4 py-2 rounded text-sm" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
                               ✏️ EDIT STATS
                             </button>
                           ) : (
                             <div className="flex gap-2">
-                              <button onClick={handleSaveStats} className="px-4 py-2 rounded text-sm" style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>✓ SAVE</button>
+                              <button onClick={handleSaveStats} className="px-4 py-2 rounded text-sm" style={{ background: 'var(--color-cyber-cyan)', color: 'white', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>✓ SAVE</button>
                               <button onClick={handleCancelEdit} className="px-4 py-2 rounded text-sm" style={{ background: 'transparent', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>✕ CANCEL</button>
                             </div>
                           )}
@@ -3697,8 +3697,8 @@ export default function DMDashboard() {
                         <div className="p-4 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
                           <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>QUICK ACTIONS</div>
                           <div className="flex gap-2 flex-wrap">
-                            <button onClick={() => handleQuickHeal(10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>+10 HP</button>
-                            <button onClick={() => handleQuickHeal(-10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>-10 HP</button>
+                            <button onClick={() => handleQuickHeal(10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-cyan)', color: 'white', fontFamily: 'var(--font-mono)' }}>+10 HP</button>
+                            <button onClick={() => handleQuickHeal(-10)} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>-10 HP</button>
                             <button onClick={handleFullHeal} className="px-3 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-green)', color: 'var(--color-cyber-cyan)', border: '1px solid var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>FULL HEAL</button>
                           </div>
                         </div>
@@ -3847,7 +3847,7 @@ export default function DMDashboard() {
                           <button
                             onClick={() => setShowGiveItemModal(true)}
                             className="px-4 py-2 rounded text-sm"
-                            style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}
+                            style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}
                           >
                             + GIVE ITEM
                           </button>
@@ -3876,7 +3876,7 @@ export default function DMDashboard() {
                                           {inv.item.name}
                                         </span>
                                         {inv.is_equipped && (
-                                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontWeight: 'bold' }}>EQUIPPED</span>
+                                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>EQUIPPED</span>
                                         )}
                                       </div>
                                       <div className="text-xs flex items-center gap-2 mt-1">
@@ -4027,7 +4027,7 @@ export default function DMDashboard() {
                                         className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold"
                                         style={{
                                           background: charAbility.current_charges <= 0 ? 'var(--color-cyber-dark)' : 'var(--color-cyber-magenta)',
-                                          color: charAbility.current_charges <= 0 ? 'var(--color-cyber-green)' : '#0D1117',
+                                          color: charAbility.current_charges <= 0 ? 'var(--color-cyber-green)' : 'white',
                                           opacity: charAbility.current_charges <= 0 ? 0.3 : 1
                                         }}
                                       >
@@ -4042,7 +4042,7 @@ export default function DMDashboard() {
                                         className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold"
                                         style={{
                                           background: charAbility.current_charges >= (charAbility.ability.max_charges || 0) ? 'var(--color-cyber-dark)' : 'var(--color-cyber-green)',
-                                          color: charAbility.current_charges >= (charAbility.ability.max_charges || 0) ? 'var(--color-cyber-green)' : '#0D1117',
+                                          color: charAbility.current_charges >= (charAbility.ability.max_charges || 0) ? 'var(--color-cyber-green)' : 'white',
                                           opacity: charAbility.current_charges >= (charAbility.ability.max_charges || 0) ? 0.3 : 1
                                         }}
                                       >
@@ -4143,7 +4143,7 @@ export default function DMDashboard() {
                       style={{
                         background: giveItemSortBy === sortOption ? 'var(--color-cyber-purple)' : 'var(--color-cyber-darker)',
                         border: `1px solid ${giveItemSortBy === sortOption ? 'var(--color-cyber-purple)' : 'var(--color-cyber-dark)'}`,
-                        color: giveItemSortBy === sortOption ? '#0D1117' : 'var(--color-cyber-cyan)'
+                        color: giveItemSortBy === sortOption ? 'white' : 'var(--color-cyber-cyan)'
                       }}
                     >
                       {sortOption.toUpperCase()} {giveItemSortBy === sortOption && (giveItemSortOrder === 'asc' ? '↑' : '↓')}
@@ -4194,12 +4194,12 @@ export default function DMDashboard() {
                             )}
                             {hasStatMods && (
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {item.hp_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}>HP {item.hp_mod > 0 ? '+' : ''}{item.hp_mod}</span>}
-                                {item.ac_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117' }}>AC {item.ac_mod > 0 ? '+' : ''}{item.ac_mod}</span>}
-                                {item.str_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-purple)', color: '#0D1117' }}>STR {item.str_mod > 0 ? '+' : ''}{item.str_mod}</span>}
-                                {item.dex_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-purple)', color: '#0D1117' }}>DEX {item.dex_mod > 0 ? '+' : ''}{item.dex_mod}</span>}
-                                {item.con_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-purple)', color: '#0D1117' }}>CON {item.con_mod > 0 ? '+' : ''}{item.con_mod}</span>}
-                                {item.speed_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>SPD {item.speed_mod > 0 ? '+' : ''}{item.speed_mod}</span>}
+                                {item.hp_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}>HP {item.hp_mod > 0 ? '+' : ''}{item.hp_mod}</span>}
+                                {item.ac_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-cyan)', color: 'white' }}>AC {item.ac_mod > 0 ? '+' : ''}{item.ac_mod}</span>}
+                                {item.str_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>STR {item.str_mod > 0 ? '+' : ''}{item.str_mod}</span>}
+                                {item.dex_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>DEX {item.dex_mod > 0 ? '+' : ''}{item.dex_mod}</span>}
+                                {item.con_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-purple)', color: 'white' }}>CON {item.con_mod > 0 ? '+' : ''}{item.con_mod}</span>}
+                                {item.speed_mod !== 0 && <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-green)', color: 'white' }}>SPD {item.speed_mod > 0 ? '+' : ''}{item.speed_mod}</span>}
                               </div>
                             )}
                           </div>
@@ -4276,7 +4276,7 @@ export default function DMDashboard() {
                       className="px-4 py-2 rounded text-sm font-bold"
                       style={{
                         background: selectedGiveItem ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                        color: '#0D1117',
+                        color: 'white',
                         opacity: selectedGiveItem ? 1 : 0.5
                       }}
                     >
@@ -4357,7 +4357,7 @@ export default function DMDashboard() {
                   <button
                     onClick={handleRemoveItem}
                     className="px-4 py-2 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                    style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}
                   >
                     REMOVE {removeItemQuantity}
                   </button>
@@ -4379,7 +4379,7 @@ export default function DMDashboard() {
                   <button
                     onClick={() => { resetItemForm(); setSelectedEditItem(null); setItemsSubTab('create'); }}
                     className="ml-auto px-4 py-2 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                    style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
                   >
                     ➕ CREATE NEW
                   </button>
@@ -4756,7 +4756,7 @@ export default function DMDashboard() {
                         <button
                           onClick={() => setShowLinkAbilityModal(true)}
                           className="px-3 py-1 rounded text-xs"
-                          style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}
+                          style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}
                         >
                           + ADD ABILITY
                         </button>
@@ -4823,7 +4823,7 @@ export default function DMDashboard() {
                         className="flex-1 px-4 py-2 rounded"
                         style={{
                           background: itemName.trim() ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                          color: '#0D1117',
+                          color: 'white',
                           fontFamily: 'var(--font-cyber)',
                           opacity: itemName.trim() ? 1 : 0.5
                         }}
@@ -4928,7 +4928,7 @@ export default function DMDashboard() {
                   <button
                     onClick={() => { resetAbilityForm(); setSelectedEditAbility(null); setAbilitiesSubTab('create'); }}
                     className="ml-auto px-4 py-2 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                    style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
                   >
                     ➕ CREATE NEW
                   </button>
@@ -5265,7 +5265,7 @@ export default function DMDashboard() {
                         className="flex-1 px-4 py-2 rounded"
                         style={{
                           background: abilityName.trim() ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                          color: '#0D1117',
+                          color: 'white',
                           fontFamily: 'var(--font-cyber)',
                           opacity: abilityName.trim() ? 1 : 0.5
                         }}
@@ -5361,7 +5361,7 @@ export default function DMDashboard() {
                     className="px-4 py-2 rounded text-sm"
                     style={{
                       background: (giveAbilityCharacter && selectedGiveAbility) ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                      color: '#0D1117',
+                      color: 'white',
                       opacity: (giveAbilityCharacter && selectedGiveAbility) ? 1 : 0.5
                     }}
                   >
@@ -5407,7 +5407,7 @@ export default function DMDashboard() {
                       <button
                         onClick={() => { setMapSubTab('create'); resetLocationForm(); }}
                         className="px-3 py-1 rounded text-xs"
-                        style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                        style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
                       >
                         + NEW
                       </button>
@@ -5492,7 +5492,7 @@ export default function DMDashboard() {
                                   className="px-3 py-1 rounded text-sm"
                                   style={{
                                     background: editSubTab === 'details' ? 'var(--color-cyber-cyan)' : 'transparent',
-                                    color: editSubTab === 'details' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                                    color: editSubTab === 'details' ? 'white' : 'var(--color-cyber-cyan)',
                                     border: '1px solid var(--color-cyber-cyan)'
                                   }}
                                 >
@@ -5503,7 +5503,7 @@ export default function DMDashboard() {
                                   className="px-3 py-1 rounded text-sm"
                                   style={{
                                     background: editSubTab === 'shops' ? 'var(--color-cyber-green)' : 'transparent',
-                                    color: editSubTab === 'shops' ? '#0D1117' : 'var(--color-cyber-green)',
+                                    color: editSubTab === 'shops' ? 'white' : 'var(--color-cyber-green)',
                                     border: '1px solid var(--color-cyber-green)'
                                   }}
                                 >
@@ -5663,7 +5663,7 @@ export default function DMDashboard() {
                                 className="w-full px-4 py-2 rounded"
                                 style={{
                                   background: locationName.trim() ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                                  color: '#0D1117',
+                                  color: 'white',
                                   fontFamily: 'var(--font-cyber)',
                                   opacity: locationName.trim() ? 1 : 0.5
                                 }}
@@ -5690,7 +5690,7 @@ export default function DMDashboard() {
                                     onClick={handleCreateShop}
                                     disabled={!newShopName.trim()}
                                     className="px-4 py-2 rounded"
-                                    style={{ background: 'var(--color-cyber-green)', color: '#0D1117', opacity: newShopName.trim() ? 1 : 0.5 }}
+                                    style={{ background: 'var(--color-cyber-green)', color: 'white', opacity: newShopName.trim() ? 1 : 0.5 }}
                                   >
                                     Create
                                   </button>
@@ -5716,7 +5716,7 @@ export default function DMDashboard() {
                                             {shop.name}
                                           </span>
                                           {!shop.is_active && (
-                                            <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}>CLOSED</span>
+                                            <span className="text-xs px-1 rounded" style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}>CLOSED</span>
                                           )}
                                         </div>
                                         <div className="flex gap-1">
@@ -5741,7 +5741,7 @@ export default function DMDashboard() {
                                             className="px-2 py-1 rounded text-xs font-bold"
                                             style={{ 
                                               background: selectedShop?.id === shop.id ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)', 
-                                              color: '#0D1117' 
+                                              color: 'white' 
                                             }}
                                           >
                                             {selectedShop?.id === shop.id ? '✕ Close' : '📦 Inventory'}
@@ -5770,7 +5770,7 @@ export default function DMDashboard() {
                                     <button
                                       onClick={() => { setSelectedShop(null); setShopInventory([]); setAddItemSearch(''); }}
                                       className="text-xs px-2 py-1 rounded"
-                                      style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                                      style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}
                                     >
                                       ✕
                                     </button>
@@ -5794,7 +5794,7 @@ export default function DMDashboard() {
                                         className="px-2 py-1 rounded text-xs"
                                         style={{ 
                                           background: addItemPriceType === 'credits' ? 'var(--color-cyber-yellow)' : 'transparent',
-                                          color: addItemPriceType === 'credits' ? '#0D1117' : 'var(--color-cyber-yellow)',
+                                          color: addItemPriceType === 'credits' ? 'white' : 'var(--color-cyber-yellow)',
                                           border: '1px solid var(--color-cyber-yellow)'
                                         }}
                                       >
@@ -5805,7 +5805,7 @@ export default function DMDashboard() {
                                         className="px-2 py-1 rounded text-xs"
                                         style={{ 
                                           background: addItemPriceType === 'item' ? 'var(--color-cyber-magenta)' : 'transparent',
-                                          color: addItemPriceType === 'item' ? '#0D1117' : 'var(--color-cyber-magenta)',
+                                          color: addItemPriceType === 'item' ? 'white' : 'var(--color-cyber-magenta)',
                                           border: '1px solid var(--color-cyber-magenta)'
                                         }}
                                       >
@@ -5826,7 +5826,7 @@ export default function DMDashboard() {
                                           {addItemBarterItemId ? (
                                             <div 
                                               className="flex-1 flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer"
-                                              style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                                              style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}
                                               onClick={() => { setAddItemBarterItemId(null); setBarterItemSearch(''); }}
                                             >
                                               <span>🔄 {barterItemSearch}</span>
@@ -5890,7 +5890,7 @@ export default function DMDashboard() {
 
                                     {/* Selected Item Display */}
                                     {selectedItemToAdd && (
-                                      <div className="mb-2 p-2 rounded flex items-center justify-between" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>
+                                      <div className="mb-2 p-2 rounded flex items-center justify-between" style={{ background: 'var(--color-cyber-green)', color: 'white' }}>
                                         <div className="flex items-center gap-2">
                                           <span className="font-bold">{selectedItemToAdd.name}</span>
                                           <span className="text-xs opacity-75">({toTitleCase(selectedItemToAdd.type)})</span>
@@ -5905,7 +5905,7 @@ export default function DMDashboard() {
                                               handleAddItemToShop(selectedItemToAdd.id);
                                             }}
                                             className="px-3 py-1 rounded text-xs font-bold"
-                                            style={{ background: '#0D1117', color: 'var(--color-cyber-green)' }}
+                                            style={{ background: 'var(--color-cyber-darker)', color: 'var(--color-cyber-green)' }}
                                           >
                                             ✓ ADD TO SHOP
                                           </button>
@@ -5951,9 +5951,9 @@ export default function DMDashboard() {
                                           <div className="flex items-center gap-2">
                                             <span style={{ color: getRarityColor(invItem.item.rarity) }}>{invItem.item.name}</span>
                                             {invItem.price_credits ? (
-                                              <span className="px-1 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}>${invItem.price_credits}</span>
+                                              <span className="px-1 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white' }}>${invItem.price_credits}</span>
                                             ) : invItem.price_item ? (
-                                              <span className="px-1 rounded" style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}>{invItem.price_item_quantity}x {invItem.price_item.name}</span>
+                                              <span className="px-1 rounded" style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}>{invItem.price_item_quantity}x {invItem.price_item.name}</span>
                                             ) : null}
                                           </div>
                                           <div className="flex items-center gap-1">
@@ -6002,7 +6002,7 @@ export default function DMDashboard() {
                   <button
                     onClick={() => { resetNpcForm(); setSelectedEditNPC(null); setNpcsSubTab('create'); }}
                     className="ml-auto px-4 py-2 rounded text-sm"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                    style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
                   >
                     ➕ CREATE NEW
                   </button>
@@ -6274,7 +6274,7 @@ export default function DMDashboard() {
                         className="flex-1 px-4 py-2 rounded"
                         style={{
                           background: npcName.trim() ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                          color: '#0D1117',
+                          color: 'white',
                           fontFamily: 'var(--font-cyber)',
                           opacity: npcName.trim() ? 1 : 0.5
                         }}
@@ -6321,7 +6321,7 @@ export default function DMDashboard() {
                 <button
                   onClick={() => setShowCreateEncounterModal(true)}
                   className="px-3 py-1.5 rounded text-sm"
-                  style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontFamily: 'var(--font-cyber)' }}
+                  style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
                 >
                   ➕ NEW
                 </button>
@@ -6343,7 +6343,7 @@ export default function DMDashboard() {
                   <>
                     <span className="text-sm font-bold px-2 py-1 rounded" style={{ 
                       background: getStatusColor(activeEncounter.status), 
-                      color: '#0D1117',
+                      color: 'white',
                       fontFamily: 'var(--font-mono)' 
                     }}>
                       {activeEncounter.status.toUpperCase()}
@@ -6371,7 +6371,7 @@ export default function DMDashboard() {
                     <button onClick={sortParticipantsByInitiative} className="px-3 py-1.5 rounded text-xs" style={{ border: '1px solid var(--color-cyber-purple)', color: 'var(--color-cyber-purple)' }}>
                       ⬇️ SORT INIT
                     </button>
-                    <button onClick={startEncounter} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>
+                    <button onClick={startEncounter} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-green)', color: 'white' }}>
                       ▶️ START
                     </button>
                   </div>
@@ -6382,7 +6382,7 @@ export default function DMDashboard() {
                       ➕ ADD
                     </button>
                     <button onClick={prevTurn} className="px-3 py-1.5 rounded text-xs" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>◀</button>
-                    <button onClick={nextTurn} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}>⏩ NEXT TURN</button>
+                    <button onClick={nextTurn} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-yellow)', color: 'white' }}>⏩ NEXT TURN</button>
                     <button onClick={endEncounter} className="px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-cyber-magenta)', color: '#fff' }}>⏹️ END</button>
                   </div>
                 )}
@@ -6450,7 +6450,7 @@ export default function DMDashboard() {
                                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" 
                                     style={{ 
                                       background: isCurrentTurn ? 'var(--color-cyber-yellow)' : 'color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)',
-                                      color: isCurrentTurn ? '#0D1117' : 'var(--color-cyber-purple)',
+                                      color: isCurrentTurn ? 'white' : 'var(--color-cyber-purple)',
                                       fontFamily: 'var(--font-mono)',
                                       border: `1px solid ${isCurrentTurn ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-purple)'}`
                                     }}>
@@ -6597,7 +6597,7 @@ export default function DMDashboard() {
                                     if (val > 0) applyHpChange(selectedP, val);
                                   }}
                                   className="px-3 py-1 rounded text-xs"
-                                  style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}
+                                  style={{ background: 'var(--color-cyber-green)', color: 'white' }}
                                 >+ HEAL</button>
                                 <button
                                   onClick={() => {
@@ -6745,7 +6745,7 @@ export default function DMDashboard() {
                                               className="px-2 py-0.5 rounded text-xs font-bold"
                                               style={{ 
                                                 background: ca.current_charges > 0 ? 'var(--color-cyber-green)' : 'transparent',
-                                                color: ca.current_charges > 0 ? '#0D1117' : 'var(--color-cyber-cyan)',
+                                                color: ca.current_charges > 0 ? 'white' : 'var(--color-cyber-cyan)',
                                                 border: ca.current_charges > 0 ? 'none' : '1px solid var(--color-cyber-cyan)',
                                                 opacity: ca.current_charges > 0 ? 1 : 0.4
                                               }}
@@ -6781,7 +6781,7 @@ export default function DMDashboard() {
                                     <button
                                       onClick={() => useCombatConsumable(inv.id, inv.item, selectedP.entityId)}
                                       className="px-3 py-1 rounded text-xs font-bold"
-                                      style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}
+                                      style={{ background: 'var(--color-cyber-yellow)', color: 'white' }}
                                     >USE</button>
                                   </div>
                                 ))}
@@ -6939,7 +6939,7 @@ export default function DMDashboard() {
                     className="px-4 py-2 rounded text-sm"
                     style={{
                       background: newEncounterName.trim() ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                      color: '#0D1117',
+                      color: 'white',
                       opacity: newEncounterName.trim() ? 1 : 0.5
                     }}
                   >
@@ -6993,7 +6993,7 @@ export default function DMDashboard() {
                           <button
                             onClick={addAllPlayersToEncounter}
                             className="px-3 py-1 rounded text-xs font-bold"
-                            style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117' }}
+                            style={{ background: 'var(--color-cyber-cyan)', color: 'white' }}
                           >
                             ⚡ ADD ALL PLAYERS
                           </button>
@@ -7057,7 +7057,7 @@ export default function DMDashboard() {
                                   <div className="font-bold flex items-center gap-2" style={{ color: getNpcTypeColor(npc.type) }}>
                                     {npc.name}
                                     {currentCount > 0 && (
-                                      <span className="text-xs px-2 py-0.5 rounded" style={{ background: getNpcTypeColor(npc.type), color: '#0D1117' }}>
+                                      <span className="text-xs px-2 py-0.5 rounded" style={{ background: getNpcTypeColor(npc.type), color: 'white' }}>
                                         {currentCount} in combat
                                       </span>
                                     )}
@@ -7070,7 +7070,7 @@ export default function DMDashboard() {
                                   <button onClick={() => setNpcQuantities(q => ({ ...q, [npc.id]: Math.max(1, qty - 1) }))} className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>−</button>
                                   <input type="number" min={1} max={20} value={qty} onChange={e => setNpcQuantities(q => ({ ...q, [npc.id]: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) }))} className="w-12 text-center px-1 py-1 rounded text-sm" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }} />
                                   <button onClick={() => setNpcQuantities(q => ({ ...q, [npc.id]: Math.min(20, qty + 1) }))} className="w-7 h-7 rounded flex items-center justify-center text-sm font-bold" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}>+</button>
-                                  <button onClick={() => addMultipleNpcsToEncounter(npc.id, qty)} className="px-3 py-1 rounded text-xs font-bold" style={{ background: getNpcTypeColor(npc.type), color: '#0D1117' }}>
+                                  <button onClick={() => addMultipleNpcsToEncounter(npc.id, qty)} className="px-3 py-1 rounded text-xs font-bold" style={{ background: getNpcTypeColor(npc.type), color: 'white' }}>
                                     ADD {qty > 1 ? `(${qty})` : ''}
                                   </button>
                                 </div>
@@ -7109,7 +7109,7 @@ export default function DMDashboard() {
                       setShowCreateMissionModal(true);
                     }}
                     className="px-4 py-2 rounded font-bold"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}
+                    style={{ background: 'var(--color-cyber-yellow)', color: 'white' }}
                   >
                     + NEW MISSION
                   </button>
@@ -7176,7 +7176,7 @@ export default function DMDashboard() {
                             <span className="font-bold text-sm" style={{ color: getMissionTypeColor(mission.type), fontFamily: 'var(--font-cyber)' }}>
                               {mission.title}
                             </span>
-                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: getMissionStatusColor(mission.status), color: '#0D1117' }}>
+                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: getMissionStatusColor(mission.status), color: 'white' }}>
                               {mission.status.toUpperCase()}
                             </span>
                           </div>
@@ -7214,7 +7214,7 @@ export default function DMDashboard() {
                             {selectedMission.title}
                           </h2>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm px-2 py-0.5 rounded" style={{ background: getMissionStatusColor(selectedMission.status), color: '#0D1117', fontWeight: 'bold' }}>
+                            <span className="text-sm px-2 py-0.5 rounded" style={{ background: getMissionStatusColor(selectedMission.status), color: 'white', fontWeight: 'bold' }}>
                               {selectedMission.status.toUpperCase()}
                             </span>
                             <span className="text-sm" style={{ color: getMissionTypeColor(selectedMission.type) }}>{selectedMission.type}</span>
@@ -7260,7 +7260,7 @@ export default function DMDashboard() {
                           <button
                             onClick={() => handleUpdateMissionStatus(selectedMission.id, 'active')}
                             className="px-3 py-1 rounded text-sm font-bold"
-                            style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117' }}
+                            style={{ background: 'var(--color-cyber-yellow)', color: 'white' }}
                           >
                             Set Active
                           </button>
@@ -7269,7 +7269,7 @@ export default function DMDashboard() {
                           <button
                             onClick={() => handleUpdateMissionStatus(selectedMission.id, 'completed')}
                             className="px-3 py-1 rounded text-sm font-bold"
-                            style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}
+                            style={{ background: 'var(--color-cyber-green)', color: 'white' }}
                           >
                             Mark Complete
                           </button>
@@ -7297,7 +7297,7 @@ export default function DMDashboard() {
                         <div className="space-y-2">
                           {selectedMission.objectives.map((obj, idx) => (
                             <div key={idx} className="flex items-start gap-3 p-2 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-darker) 80%, transparent)' }}>
-                              <span className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>
+                              <span className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold" style={{ background: 'var(--color-cyber-green)', color: 'white' }}>
                                 {idx + 1}
                               </span>
                               <span className="flex-1 text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>{obj}</span>
@@ -7336,7 +7336,7 @@ export default function DMDashboard() {
                         {/* Reward Mode Indicator */}
                         <div className="mb-3 px-2 py-1 rounded text-xs inline-block" style={{ 
                           background: selectedMission.reward_mode === 'each' ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)',
-                          color: '#0D1117'
+                          color: 'white'
                         }}>
                           {selectedMission.reward_mode === 'each' ? '👥 Each Member Gets:' : '🎯 Single Recipient:'}
                         </div>
@@ -7390,7 +7390,7 @@ export default function DMDashboard() {
           {/* Create/Edit Mission Modal */}
           {showCreateMissionModal && (
             <div className="fixed inset-0 bg-black flex items-center justify-center z-50" onClick={() => { setShowCreateMissionModal(false); resetMissionForm(); setSelectedMission(null); setRewardItemSearch(''); }}>
-              <div className="p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg" style={{ background: '#0D1117', border: '2px solid var(--color-cyber-yellow)' }} onClick={e => e.stopPropagation()}>
+              <div className="p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg" style={{ background: 'var(--color-cyber-darker)', border: '2px solid var(--color-cyber-yellow)' }} onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
                   {selectedMission ? '✏️ EDIT MISSION' : '📋 CREATE NEW MISSION'}
                 </h3>
@@ -7459,7 +7459,7 @@ export default function DMDashboard() {
                       <button
                         onClick={() => setMissionForm(f => ({ ...f, objectives: [...f.objectives, ''] }))}
                         className="ml-2 px-2 py-0.5 rounded text-xs"
-                        style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}
+                        style={{ background: 'var(--color-cyber-green)', color: 'white' }}
                       >
                         + Add
                       </button>
@@ -7513,7 +7513,7 @@ export default function DMDashboard() {
                           className="px-2 py-1 rounded text-sm"
                           style={{
                             background: missionForm.assigned_to.includes(char.id) ? 'var(--color-cyber-cyan)' : 'transparent',
-                            color: missionForm.assigned_to.includes(char.id) ? '#0D1117' : 'var(--color-cyber-cyan)',
+                            color: missionForm.assigned_to.includes(char.id) ? 'white' : 'var(--color-cyber-cyan)',
                             border: '1px solid var(--color-cyber-cyan)'
                           }}
                         >
@@ -7539,7 +7539,7 @@ export default function DMDashboard() {
                           const item = allItems.find(i => i.id === itemId);
                           if (!item) return null;
                           return (
-                            <div key={itemId} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: getRarityColor(item.rarity), color: '#0D1117' }}>
+                            <div key={itemId} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: getRarityColor(item.rarity), color: 'white' }}>
                               <span>{getItemTypeIcon(item.type)}</span>
                               <span className="font-bold">{item.name}</span>
                               <button
@@ -7567,7 +7567,7 @@ export default function DMDashboard() {
                       
                       {/* Search Results Dropdown */}
                       {rewardItemSearch.trim() && (
-                        <div className="absolute z-10 w-full mt-1 rounded max-h-48 overflow-y-auto" style={{ background: '#0D1117', border: '1px solid var(--color-cyber-yellow)' }}>
+                        <div className="absolute z-10 w-full mt-1 rounded max-h-48 overflow-y-auto" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-yellow)' }}>
                           {allItems
                             .filter(item => 
                               item.name.toLowerCase().includes(rewardItemSearch.toLowerCase()) &&
@@ -7633,7 +7633,7 @@ export default function DMDashboard() {
                         className="flex-1 px-3 py-2 rounded text-sm"
                         style={{
                           background: missionForm.reward_mode === 'each' ? 'var(--color-cyber-green)' : 'transparent',
-                          color: missionForm.reward_mode === 'each' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                          color: missionForm.reward_mode === 'each' ? 'white' : 'var(--color-cyber-cyan)',
                           border: '1px solid var(--color-cyber-green)'
                         }}
                       >
@@ -7645,7 +7645,7 @@ export default function DMDashboard() {
                         className="flex-1 px-3 py-2 rounded text-sm"
                         style={{
                           background: missionForm.reward_mode === 'single' ? 'var(--color-cyber-magenta)' : 'transparent',
-                          color: missionForm.reward_mode === 'single' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                          color: missionForm.reward_mode === 'single' ? 'white' : 'var(--color-cyber-cyan)',
                           border: '1px solid var(--color-cyber-magenta)'
                         }}
                       >
@@ -7696,7 +7696,7 @@ export default function DMDashboard() {
                     className="px-6 py-2 rounded font-bold"
                     style={{
                       background: missionForm.title.trim() ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-dark)',
-                      color: missionForm.title.trim() ? '#0D1117' : 'var(--color-cyber-cyan)',
+                      color: missionForm.title.trim() ? 'white' : 'var(--color-cyber-cyan)',
                       opacity: missionForm.title.trim() ? 1 : 0.5
                     }}
                   >
@@ -7718,7 +7718,7 @@ export default function DMDashboard() {
                   <button
                     onClick={clearAllEffects}
                     className="px-4 py-2 rounded text-sm font-bold"
-                    style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                    style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}
                   >
                     ⛔ CLEAR ALL EFFECTS
                   </button>
@@ -7748,7 +7748,7 @@ export default function DMDashboard() {
                         <button
                           onClick={() => clearEffect(effect.id)}
                           className="px-3 py-1 rounded text-xs font-bold"
-                          style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117' }}
+                          style={{ background: 'var(--color-cyber-magenta)', color: 'white' }}
                         >
                           STOP
                         </button>
@@ -7769,7 +7769,7 @@ export default function DMDashboard() {
                     className="px-4 py-2 rounded text-sm font-bold"
                     style={{
                       background: effectTargetType === 'all' ? 'var(--color-cyber-green)' : 'transparent',
-                      color: effectTargetType === 'all' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                      color: effectTargetType === 'all' ? 'white' : 'var(--color-cyber-cyan)',
                       border: '1px solid var(--color-cyber-green)'
                     }}
                   >
@@ -7780,7 +7780,7 @@ export default function DMDashboard() {
                     className="px-4 py-2 rounded text-sm font-bold"
                     style={{
                       background: effectTargetType === 'select' ? 'var(--color-cyber-yellow)' : 'transparent',
-                      color: effectTargetType === 'select' ? '#0D1117' : 'var(--color-cyber-cyan)',
+                      color: effectTargetType === 'select' ? 'white' : 'var(--color-cyber-cyan)',
                       border: '1px solid var(--color-cyber-yellow)'
                     }}
                   >
@@ -7796,7 +7796,7 @@ export default function DMDashboard() {
                         className="px-3 py-1.5 rounded text-xs font-bold"
                         style={{
                           background: effectTargetIds.includes(char.id) ? 'var(--color-cyber-cyan)' : 'transparent',
-                          color: effectTargetIds.includes(char.id) ? '#0D1117' : 'var(--color-cyber-cyan)',
+                          color: effectTargetIds.includes(char.id) ? 'white' : 'var(--color-cyber-cyan)',
                           border: `1px solid ${effectTargetIds.includes(char.id) ? 'var(--color-cyber-cyan)' : 'color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)'}`,
                           fontFamily: 'var(--font-mono)'
                         }}
@@ -7839,7 +7839,7 @@ export default function DMDashboard() {
                   <button
                     onClick={() => sendEffect('glitch')}
                     className="w-full px-4 py-3 rounded font-bold text-sm"
-                    style={{ background: 'var(--color-cyber-magenta)', color: '#0D1117', border: 'none' }}
+                    style={{ background: 'var(--color-cyber-magenta)', color: 'white', border: 'none' }}
                   >
                     ACTIVATE GLITCH
                   </button>
@@ -7889,7 +7889,7 @@ export default function DMDashboard() {
                           className="px-2 py-1 rounded text-xs font-bold"
                           style={{
                             background: flashInterval === preset.val ? 'var(--color-cyber-yellow)' : 'transparent',
-                            color: flashInterval === preset.val ? '#0D1117' : 'var(--color-cyber-cyan)',
+                            color: flashInterval === preset.val ? 'white' : 'var(--color-cyber-cyan)',
                             border: '1px solid color-mix(in srgb, var(--color-cyber-yellow) 50%, transparent)',
                             fontFamily: 'var(--font-mono)'
                           }}
@@ -7902,7 +7902,7 @@ export default function DMDashboard() {
                   <button
                     onClick={() => sendEffect('flash')}
                     className="w-full px-4 py-3 rounded font-bold text-sm"
-                    style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', border: 'none' }}
+                    style={{ background: 'var(--color-cyber-yellow)', color: 'white', border: 'none' }}
                   >
                     ACTIVATE FLASH
                   </button>
@@ -7978,7 +7978,7 @@ export default function DMDashboard() {
                             className="flex-1 px-3 py-1.5 text-xs font-bold"
                             style={{
                               background: mediaType === 'image' ? 'var(--color-cyber-green)' : 'transparent',
-                              color: mediaType === 'image' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                              color: mediaType === 'image' ? 'white' : 'var(--color-cyber-cyan)'
                             }}
                           >🖼️ IMAGE</button>
                           <button
@@ -7986,7 +7986,7 @@ export default function DMDashboard() {
                             className="flex-1 px-3 py-1.5 text-xs font-bold"
                             style={{
                               background: mediaType === 'video' ? 'var(--color-cyber-green)' : 'transparent',
-                              color: mediaType === 'video' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                              color: mediaType === 'video' ? 'white' : 'var(--color-cyber-cyan)'
                             }}
                           >🎬 VIDEO</button>
                         </div>
@@ -7999,7 +7999,7 @@ export default function DMDashboard() {
                             className="flex-1 px-3 py-1.5 text-xs font-bold"
                             style={{
                               background: mediaDisplayMode === 'fullscreen' ? 'var(--color-cyber-green)' : 'transparent',
-                              color: mediaDisplayMode === 'fullscreen' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                              color: mediaDisplayMode === 'fullscreen' ? 'white' : 'var(--color-cyber-cyan)'
                             }}
                           >FULL</button>
                           <button
@@ -8007,7 +8007,7 @@ export default function DMDashboard() {
                             className="flex-1 px-3 py-1.5 text-xs font-bold"
                             style={{
                               background: mediaDisplayMode === 'popup' ? 'var(--color-cyber-green)' : 'transparent',
-                              color: mediaDisplayMode === 'popup' ? '#0D1117' : 'var(--color-cyber-cyan)'
+                              color: mediaDisplayMode === 'popup' ? 'white' : 'var(--color-cyber-cyan)'
                             }}
                           >POPUP</button>
                         </div>
@@ -8029,7 +8029,7 @@ export default function DMDashboard() {
                     className="w-full px-4 py-3 rounded font-bold text-sm"
                     style={{
                       background: mediaUploading ? 'color-mix(in srgb, var(--color-cyber-green) 50%, transparent)' : 'var(--color-cyber-green)',
-                      color: '#0D1117',
+                      color: 'white',
                       border: 'none'
                     }}
                     disabled={!mediaFile || mediaUploading}
@@ -8096,7 +8096,7 @@ export default function DMDashboard() {
                     className="px-6 py-3 rounded font-bold text-lg"
                     style={{
                       background: settingsSaving ? 'var(--color-cyber-dark)' : 'var(--color-cyber-cyan)',
-                      color: settingsSaving ? 'var(--color-cyber-cyan)' : '#0D1117',
+                      color: settingsSaving ? 'var(--color-cyber-cyan)' : 'white',
                       fontFamily: 'var(--font-cyber)',
                       opacity: settingsSaving ? 0.5 : 1
                     }}
@@ -8121,7 +8121,7 @@ export default function DMDashboard() {
           {/* Reward Distribution Modal */}
           {showRewardDistributionModal && selectedMission && (
             <div className="fixed inset-0 bg-black flex items-center justify-center z-50" onClick={() => setShowRewardDistributionModal(false)}>
-              <div className="p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg" style={{ background: '#0D1117', border: '2px solid var(--color-cyber-green)' }} onClick={e => e.stopPropagation()}>
+              <div className="p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg" style={{ background: 'var(--color-cyber-darker)', border: '2px solid var(--color-cyber-green)' }} onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-green)' }}>
                   🎁 DISTRIBUTE REWARDS
                 </h3>
@@ -8207,7 +8207,7 @@ export default function DMDashboard() {
                   <button
                     onClick={handleCompleteWithDistribution}
                     className="px-6 py-2 rounded font-bold"
-                    style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}
+                    style={{ background: 'var(--color-cyber-green)', color: 'white' }}
                   >
                     ✅ Complete Mission & Distribute
                   </button>

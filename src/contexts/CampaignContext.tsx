@@ -171,7 +171,7 @@ export const THEME_PRESETS: Record<string, Partial<CampaignTheme>> = {
   },
   modern: {
     name: 'Modern/Urban',
-    color_primary: '#4F46E5',
+    color_primary: '#2563EB',
     color_secondary: '#E11D48',
     color_tertiary: '#0D9488',
     color_success: '#16A34A',
@@ -223,6 +223,19 @@ export function applyTheme(theme: CampaignTheme) {
   // Update body background
   document.body.style.background = `linear-gradient(180deg, ${theme.color_bg_dark} 0%, ${theme.color_bg_darker} 50%, ${theme.color_bg_dark} 100%)`;
   document.body.style.backgroundAttachment = 'fixed';
+
+  // Detect light theme and set data attribute for CSS overrides
+  const isLight = isLightColor(theme.color_bg_darker) || isLightColor(theme.color_bg_dark);
+  document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+}
+
+function isLightColor(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Perceived luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6;
 }
 
 // ============================================================

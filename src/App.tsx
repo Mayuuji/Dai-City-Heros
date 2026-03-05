@@ -147,8 +147,8 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
   const primaryColor = theme.color_primary;
   const bgDark = theme.color_bg_dark;
   const bgDarker = theme.color_bg_darker;
-  const textColor = theme.color_text || '#E6EDF3';
-  const mutedColor = theme.color_text_muted || '#8B949E';
+  const textColor = theme.color_text || 'var(--color-text)';
+  const mutedColor = theme.color_text_muted || 'var(--color-text-muted)';
   const headingFont = theme.font_heading;
 
   // Build a subtle glow from primary color

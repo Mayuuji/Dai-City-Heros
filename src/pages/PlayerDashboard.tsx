@@ -1095,7 +1095,7 @@ export default function PlayerDashboard() {
   const locationTypes = [...new Set(locations.map(loc => loc.icon))];
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
       {/* Screen Effects Overlay */}
       <PlayerEffectsOverlay characterId={selectedCharacter?.id || null} campaignId={campaignId ?? undefined} />
       {/* Header */}
@@ -1423,7 +1423,7 @@ export default function PlayerDashboard() {
                                 className="px-1 rounded text-xs"
                                 style={{ 
                                   background: weapon.rank >= 3 ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                                  color: '#0D1117',
+                                  color: 'white',
                                   fontWeight: 'bold'
                                 }}
                               >
@@ -1461,7 +1461,7 @@ export default function PlayerDashboard() {
                       style={{
                         fontFamily: 'var(--font-mono)',
                         backgroundColor: activeTab === tab.id ? 'var(--color-cyber-yellow)' : 'transparent',
-                        color: activeTab === tab.id ? '#0D1117' : 'var(--color-cyber-cyan)',
+                        color: activeTab === tab.id ? 'white' : 'var(--color-cyber-cyan)',
                         border: `1px solid ${activeTab === tab.id ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'}`,
                         fontWeight: activeTab === tab.id ? 'bold' : 'normal'
                       }}
@@ -1602,7 +1602,7 @@ export default function PlayerDashboard() {
                                         {' • '}{item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
                                       </div>
                                     </div>
-                                    <span className="text-xs px-2 py-1 rounded font-bold flex-shrink-0" style={{ background: 'var(--color-cyber-green)', color: '#0D1117' }}>EQUIPPED</span>
+                                    <span className="text-xs px-2 py-1 rounded font-bold flex-shrink-0" style={{ background: 'var(--color-cyber-green)', color: 'white' }}>EQUIPPED</span>
                                   </div>
 
                                   {/* Description */}
@@ -1615,7 +1615,7 @@ export default function PlayerDashboard() {
                                   {/* Weapon To Hit */}
                                   {isWeapon && (
                                     <div className="mb-3">
-                                      <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: '#0D1117', fontFamily: 'var(--font-mono)' }}>
+                                      <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>
                                         🎯 To Hit: {formatToHit(rank)} {!isProficient && '(Not Proficient)'}
                                       </span>
                                     </div>
@@ -1944,7 +1944,7 @@ export default function PlayerDashboard() {
                                   {item.rarity}
                                 </span>
                                 {inv.is_equipped && (
-                                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontWeight: 'bold' }}>
+                                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>
                                     ✓
                                   </span>
                                 )}
@@ -1984,7 +1984,7 @@ export default function PlayerDashboard() {
                                 </span>
                               )}
                               {inv.is_equipped && (
-                                <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: '#0D1117', fontWeight: 'bold' }}>
+                                <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>
                                   EQUIPPED
                                 </span>
                               )}
@@ -2366,7 +2366,7 @@ export default function PlayerDashboard() {
                             className="px-3 py-1 text-xs rounded"
                             style={{
                               background: missionFilter === filter ? 'var(--color-cyber-yellow)' : 'transparent',
-                              color: missionFilter === filter ? '#0D1117' : 'var(--color-cyber-cyan)',
+                              color: missionFilter === filter ? 'white' : 'var(--color-cyber-cyan)',
                               border: `1px solid ${missionFilter === filter ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'}`,
                               fontWeight: missionFilter === filter ? 'bold' : 'normal'
                             }}
@@ -2414,7 +2414,7 @@ export default function PlayerDashboard() {
                                     background: mission.status === 'active' ? 'var(--color-cyber-yellow)' : 
                                                mission.status === 'completed' ? 'var(--color-cyber-cyan)' : 
                                                'var(--color-cyber-magenta)',
-                                    color: '#0D1117',
+                                    color: 'white',
                                     fontWeight: 'bold'
                                   }}
                                 >
@@ -2692,7 +2692,7 @@ export default function PlayerDashboard() {
                                     className="text-sm px-3 py-1 rounded font-bold inline-block"
                                     style={{ 
                                       background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)',
-                                      color: '#0D1117',
+                                      color: 'white',
                                       fontFamily: 'var(--font-mono)'
                                     }}
                                   >
@@ -2704,7 +2704,7 @@ export default function PlayerDashboard() {
                           )}
                         </div>
                         {selectedInventoryItem.is_equipped && (
-                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--color-cyber-green)', color: '#0D1117', fontWeight: 'bold' }}>EQUIPPED</span>
+                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--color-cyber-green)', color: 'white', fontWeight: 'bold' }}>EQUIPPED</span>
                         )}
                       </div>
 
@@ -2879,7 +2879,7 @@ export default function PlayerDashboard() {
                             className="flex-1 py-2 rounded font-bold text-sm transition-all"
                             style={{
                               background: selectedInventoryItem.is_equipped ? 'transparent' : 'var(--color-cyber-yellow)',
-                              color: selectedInventoryItem.is_equipped ? 'var(--color-cyber-cyan)' : '#0D1117',
+                              color: selectedInventoryItem.is_equipped ? 'var(--color-cyber-cyan)' : 'white',
                               border: `2px solid ${selectedInventoryItem.is_equipped ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-yellow)'}`,
                               fontFamily: 'var(--font-cyber)'
                             }}
@@ -2895,7 +2895,7 @@ export default function PlayerDashboard() {
                             className="flex-1 py-2 rounded font-bold text-sm transition-all"
                             style={{
                               background: 'var(--color-cyber-magenta)',
-                              color: '#0D1117',
+                              color: 'white',
                               border: '2px solid var(--color-cyber-magenta)',
                               fontFamily: 'var(--font-cyber)'
                             }}

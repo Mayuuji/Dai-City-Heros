@@ -69,7 +69,7 @@ export default function CampaignSelect() {
 
   if (campaignsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
         <div className="glass-panel p-8 text-center">
           <div className="animate-spin w-12 h-12 border-4 rounded-full mx-auto mb-4"
             style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', borderTopColor: 'var(--color-cyber-cyan)' }} />
@@ -80,7 +80,7 @@ export default function CampaignSelect() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(180deg, #0D1117 0%, #010409 50%, #0D1117 100%)', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
@@ -105,7 +105,7 @@ export default function CampaignSelect() {
               className="flex-1 px-3 py-2 rounded text-xs font-bold"
               style={{
                 background: mode === tab.id ? 'var(--color-cyber-cyan)' : 'transparent',
-                color: mode === tab.id ? '#0D1117' : 'var(--color-cyber-cyan)',
+                color: mode === tab.id ? 'white' : 'var(--color-cyber-cyan)',
                 border: '1px solid var(--color-cyber-cyan)',
                 fontFamily: 'var(--font-mono)'
               }}
@@ -135,7 +135,7 @@ export default function CampaignSelect() {
                   <button
                     onClick={() => setMode('create')}
                     className="px-4 py-2 rounded font-bold text-sm"
-                    style={{ background: 'var(--color-cyber-cyan)', color: '#0D1117' }}
+                    style={{ background: 'var(--color-cyber-cyan)', color: 'white' }}
                   >
                     ✨ Create Campaign
                   </button>
@@ -244,7 +244,7 @@ export default function CampaignSelect() {
                     className="p-2 rounded text-xs font-bold text-center"
                     style={{
                       background: selectedPreset === key ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-darker)',
-                      color: selectedPreset === key ? '#0D1117' : 'var(--color-cyber-cyan)',
+                      color: selectedPreset === key ? 'white' : 'var(--color-cyber-cyan)',
                       border: `1px solid ${selectedPreset === key ? 'var(--color-cyber-cyan)' : 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)'}`,
                       fontFamily: 'var(--font-mono)'
                     }}
@@ -266,7 +266,7 @@ export default function CampaignSelect() {
               className="w-full px-4 py-3 rounded font-bold text-sm"
               style={{
                 background: loading ? 'color-mix(in srgb, var(--color-cyber-cyan) 50%, transparent)' : 'var(--color-cyber-cyan)',
-                color: '#0D1117',
+                color: 'white',
                 fontFamily: 'var(--font-mono)'
               }}
             >
@@ -310,7 +310,7 @@ export default function CampaignSelect() {
               className="w-full px-4 py-3 rounded font-bold text-sm"
               style={{
                 background: loading ? 'color-mix(in srgb, var(--color-cyber-cyan) 50%, transparent)' : 'var(--color-cyber-cyan)',
-                color: '#0D1117',
+                color: 'white',
                 fontFamily: 'var(--font-mono)'
               }}
             >

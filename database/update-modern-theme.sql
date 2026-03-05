@@ -27,7 +27,7 @@ UPDATE campaign_themes SET color_text_muted = '#8B949E' WHERE color_text_muted I
 -- Step 3: Update Modern/Urban themes to new light colors
 UPDATE campaign_themes
 SET
-  color_primary = '#4F46E5',
+  color_primary = '#2563EB',
   color_secondary = '#E11D48',
   color_tertiary = '#0D9488',
   color_success = '#16A34A',

@@ -339,3 +339,109 @@
 .leaflet-marker-pane {
   z-index: 600 !important;
 }
+
+/* ============================================================
+   LIGHT THEME OVERRIDES
+   Applied when data-theme="light" is set on <html>
+   ============================================================ */
+
+[data-theme="light"] body {
+  color: var(--color-text, #1F2937);
+}
+
+[data-theme="light"] .glass-panel {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .neon-border {
+  border: 2px solid var(--color-cyber-cyan);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .neon-text {
+  color: var(--color-cyber-cyan);
+  text-shadow: none;
+}
+
+[data-theme="light"] .neon-button {
+  background-color: white;
+  border: 1px solid var(--color-cyber-cyan);
+  color: var(--color-cyber-cyan);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .neon-button:hover {
+  background-color: var(--color-cyber-cyan);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .neon-button-magenta {
+  background-color: white;
+  border: 1px solid var(--color-cyber-magenta);
+  color: var(--color-cyber-magenta);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .neon-button-magenta:hover {
+  background-color: var(--color-cyber-magenta);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .terminal-input {
+  background-color: white;
+  border: 1px solid #D1D5DB;
+  color: #1F2937;
+  border-radius: 0.375rem;
+}
+
+[data-theme="light"] .terminal-input:focus {
+  outline: none;
+  border-color: var(--color-cyber-cyan);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="light"] .terminal-input::placeholder {
+  color: #9CA3AF;
+}
+
+[data-theme="light"] .stat-bar {
+  background-color: #E5E7EB;
+}
+
+[data-theme="light"] .stat-bar-fill {
+  background: linear-gradient(to right, var(--color-cyber-cyan), var(--color-cyber-blue));
+}
+
+[data-theme="light"] .grid-bg {
+  background: #F9FAFB;
+}
+
+[data-theme="light"] .glitch {
+  animation: none;
+}
+
+[data-theme="light"] .glitch-scanlines,
+[data-theme="light"] .glitch-noise,
+[data-theme="light"] .glitch-shift {
+  display: none;
+}
+
+/* Light scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #F3F4F6;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
