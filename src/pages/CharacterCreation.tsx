@@ -177,7 +177,7 @@ export default function CharacterCreation() {
             CREATE CHARACTER
           </h1>
           <p className="text-center mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-            Choose your class and enter the neon streets
+            Choose your class and begin your adventure
           </p>
         </div>
 

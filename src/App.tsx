@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CampaignProvider, useCampaign, CampaignTheme, DEFAULT_THEME } from './contexts/CampaignContext';
@@ -117,7 +117,6 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
   const [subtitle, setSubtitle] = useState('');
 
   useEffect(() => {
-    // Fetch DM-configured subtitle from game_settings
     const fetchSubtitle = async () => {
       const { data } = await supabase
         .from('game_settings')
@@ -133,9 +132,7 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
   }, [campaign.id]);
 
   useEffect(() => {
-    // Fade in after 200ms
     const holdTimer = setTimeout(() => setPhase('hold'), 400);
-    // Fade out at 4s (giving full 5s total with exit transition)
     const exitTimer = setTimeout(() => setPhase('exit'), 4000);
     return () => { clearTimeout(holdTimer); clearTimeout(exitTimer); };
   }, []);
@@ -143,15 +140,14 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
   const opacity = phase === 'enter' ? 0 : phase === 'hold' ? 1 : 0;
   const scale = phase === 'enter' ? 0.95 : phase === 'hold' ? 1 : 1.02;
 
-  // Use theme colors
   const primaryColor = theme.color_primary;
+  const secondaryColor = theme.color_secondary;
   const bgDark = theme.color_bg_dark;
   const bgDarker = theme.color_bg_darker;
   const textColor = theme.color_text || 'var(--color-text)';
   const mutedColor = theme.color_text_muted || 'var(--color-text-muted)';
   const headingFont = theme.font_heading;
 
-  // Build a subtle glow from primary color
   const toRgba = (hex: string, alpha: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -159,46 +155,254 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
+  // Detect theme type from name
+  const themeName = (theme.name || '').toLowerCase();
+  const isCyberpunk = themeName.includes('cyberpunk');
+  const isModern = themeName.includes('modern') || themeName.includes('urban');
+
+  // Generate stable random particles
+  const particles = useMemo(() => {
+    return Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 3 + 1,
+      duration: Math.random() * 8 + 6,
+      delay: Math.random() * 5,
+      drift: (Math.random() - 0.5) * 30,
+    }));
+  }, []);
+
+  // Lightning bolts for cyberpunk
+  const lightningBolts = useMemo(() => {
+    if (!isCyberpunk) return [];
+    return Array.from({ length: 5 }, (_, i) => ({
+      id: i,
+      x: 10 + Math.random() * 80,
+      delay: Math.random() * 4 + 1,
+      duration: 0.15 + Math.random() * 0.1,
+      opacity: 0.3 + Math.random() * 0.5,
+    }));
+  }, [isCyberpunk]);
+
+  // City skyline buildings for modern
+  const buildings = useMemo(() => {
+    if (!isModern) return [];
+    const b = [];
+    let x = 0;
+    while (x < 100) {
+      const w = 2 + Math.random() * 5;
+      const h = 15 + Math.random() * 45;
+      b.push({ x, w, h, windows: Math.floor(h / 6) });
+      x += w + Math.random() * 2;
+    }
+    return b;
+  }, [isModern]);
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
       style={{ background: `linear-gradient(160deg, ${bgDarker} 0%, ${bgDark} 40%, ${bgDarker} 100%)` }}
     >
-      {/* Glow behind title using primary color */}
+      {/* ── Inline Keyframes ── */}
+      <style>{`
+        @keyframes splash-particle-rise {
+          0% { transform: translateY(0) translateX(0); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(-100vh) translateX(var(--drift)); opacity: 0; }
+        }
+        @keyframes splash-particle-float {
+          0% { transform: translateY(0) translateX(0); opacity: 0; }
+          15% { opacity: 0.7; }
+          85% { opacity: 0.7; }
+          100% { transform: translateY(-30px) translateX(var(--drift)); opacity: 0; }
+        }
+        @keyframes splash-lightning-flash {
+          0%, 100% { opacity: 0; }
+          5% { opacity: var(--bolt-opacity); }
+          10% { opacity: 0; }
+          12% { opacity: var(--bolt-opacity); }
+          15% { opacity: 0; }
+        }
+        @keyframes splash-scanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100vh); }
+        }
+        @keyframes splash-building-reveal {
+          0% { transform: translateY(100%); }
+          100% { transform: translateY(0); }
+        }
+        @keyframes splash-window-flicker {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.8; }
+        }
+      `}</style>
+
+      {/* ── Cyberpunk: Lightning Bolts ── */}
+      {isCyberpunk && lightningBolts.map(bolt => (
+        <div key={bolt.id} style={{
+          position: 'absolute',
+          left: `${bolt.x}%`,
+          top: 0,
+          width: '2px',
+          height: '100%',
+          background: `linear-gradient(180deg, transparent 0%, ${toRgba(primaryColor, 0.8)} 30%, ${toRgba(secondaryColor, 0.6)} 50%, ${toRgba(primaryColor, 0.8)} 70%, transparent 100%)`,
+          boxShadow: `0 0 15px 5px ${toRgba(primaryColor, 0.4)}, 0 0 30px 10px ${toRgba(primaryColor, 0.2)}`,
+          animation: `splash-lightning-flash ${bolt.duration * 8}s ${bolt.delay}s infinite`,
+          ['--bolt-opacity' as string]: bolt.opacity,
+          zIndex: 1,
+          pointerEvents: 'none' as const,
+        }} />
+      ))}
+
+      {/* ── Cyberpunk: Horizontal scanline ── */}
+      {isCyberpunk && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: '100%',
+          height: '2px',
+          background: `linear-gradient(90deg, transparent, ${toRgba(primaryColor, 0.3)}, transparent)`,
+          animation: 'splash-scanline 3s linear infinite',
+          zIndex: 2,
+          pointerEvents: 'none' as const,
+        }} />
+      )}
+
+      {/* ── Cyberpunk: Glitch overlay ── */}
+      {isCyberpunk && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 2px, ${toRgba(primaryColor, 0.02)} 2px, ${toRgba(primaryColor, 0.02)} 4px)`,
+          pointerEvents: 'none' as const,
+          zIndex: 2,
+        }} />
+      )}
+
+      {/* ── Modern: City Skyline Silhouette ── */}
+      {isModern && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          width: '100%',
+          height: '40%',
+          overflow: 'hidden',
+          zIndex: 1,
+          pointerEvents: 'none' as const,
+        }}>
+          <svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="none" style={{
+            position: 'absolute', bottom: 0, left: 0,
+            animation: `splash-building-reveal 1.5s ease-out forwards`,
+            opacity: phase === 'exit' ? 0 : 1,
+            transition: 'opacity 0.8s ease',
+          }}>
+            {buildings.map((b, i) => (
+              <g key={i}>
+                {/* Building body */}
+                <rect
+                  x={b.x}
+                  y={60 - b.h}
+                  width={b.w}
+                  height={b.h}
+                  fill={bgDarker}
+                  stroke={toRgba(primaryColor, 0.15)}
+                  strokeWidth="0.15"
+                />
+                {/* Windows */}
+                {Array.from({ length: b.windows }, (_, wi) => (
+                  <rect
+                    key={wi}
+                    x={b.x + b.w * 0.25}
+                    y={60 - b.h + 2 + wi * 6}
+                    width={b.w * 0.5}
+                    height={2}
+                    fill={toRgba(primaryColor, 0.15 + Math.random() * 0.25)}
+                    style={{
+                      animation: `splash-window-flicker ${3 + Math.random() * 4}s ${Math.random() * 3}s infinite`,
+                    }}
+                  />
+                ))}
+              </g>
+            ))}
+            {/* Horizon glow */}
+            <rect x="0" y="55" width="100" height="5" fill={`url(#skylineGlow)`} />
+            <defs>
+              <linearGradient id="skylineGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={toRgba(primaryColor, 0.08)} />
+                <stop offset="100%" stopColor="transparent" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      )}
+
+      {/* ── Particles (all themes) ── */}
+      {particles.map(p => (
+        <div
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: `${p.x}%`,
+            bottom: isCyberpunk ? `${p.y * 0.3}%` : `-5%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            borderRadius: '50%',
+            background: isCyberpunk
+              ? (p.id % 3 === 0 ? primaryColor : p.id % 3 === 1 ? secondaryColor : toRgba(primaryColor, 0.5))
+              : toRgba(primaryColor, 0.4 + p.size * 0.1),
+            boxShadow: isCyberpunk
+              ? `0 0 ${p.size * 2}px ${p.id % 2 === 0 ? primaryColor : secondaryColor}`
+              : `0 0 ${p.size * 2}px ${toRgba(primaryColor, 0.3)}`,
+            animation: `${isCyberpunk ? 'splash-particle-float' : 'splash-particle-rise'} ${p.duration}s ${p.delay}s infinite`,
+            ['--drift' as string]: `${p.drift}px`,
+            pointerEvents: 'none' as const,
+            zIndex: 3,
+          }}
+        />
+      ))}
+
+      {/* ── Glow behind title ── */}
       <div
         className="absolute rounded-full blur-3xl"
         style={{
           width: '600px',
           height: '600px',
-          background: `radial-gradient(circle, ${toRgba(primaryColor, 0.1)} 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${toRgba(primaryColor, isCyberpunk ? 0.15 : 0.1)} 0%, transparent 70%)`,
           opacity: phase === 'hold' ? 1 : 0,
-          transition: 'opacity 1s ease'
+          transition: 'opacity 1s ease',
+          zIndex: 4,
         }}
       />
 
+      {/* ── Title content ── */}
       <div
         style={{
           opacity,
           transform: `scale(${scale})`,
           transition: 'all 1s cubic-bezier(0.16, 1, 0.3, 1)',
           textAlign: 'center',
-          padding: '0 2rem'
+          padding: '0 2rem',
+          zIndex: 10,
+          position: 'relative',
         }}
       >
-        {/* Campaign name — always shown */}
         <h1
           className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4"
           style={{
             fontFamily: headingFont,
             color: textColor,
-            textShadow: `0 0 40px ${toRgba(primaryColor, 0.2)}`,
-            letterSpacing: '0.02em'
+            textShadow: isCyberpunk
+              ? `0 0 20px ${toRgba(primaryColor, 0.6)}, 0 0 60px ${toRgba(primaryColor, 0.3)}, 0 0 100px ${toRgba(secondaryColor, 0.15)}`
+              : `0 0 40px ${toRgba(primaryColor, 0.2)}`,
+            letterSpacing: isCyberpunk ? '0.08em' : '0.02em',
           }}
         >
           {campaign.name}
         </h1>
 
-        {/* DM-configured subtitle */}
         {subtitle && (
           <p
             className="text-lg md:text-xl mb-4 tracking-wider"
@@ -206,14 +410,13 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
               fontFamily: theme.font_body,
               color: mutedColor,
               opacity: phase === 'hold' ? 1 : 0,
-              transition: 'opacity 0.8s ease 0.3s'
+              transition: 'opacity 0.8s ease 0.3s',
             }}
           >
             {subtitle}
           </p>
         )}
 
-        {/* Divider using primary color */}
         <div
           className="mx-auto"
           style={{
@@ -221,7 +424,7 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
             height: '1px',
             background: `linear-gradient(90deg, transparent, ${toRgba(primaryColor, 0.5)}, transparent)`,
             opacity: phase === 'hold' ? 1 : 0,
-            transition: 'opacity 0.6s ease 0.4s'
+            transition: 'opacity 0.6s ease 0.4s',
           }}
         />
       </div>
