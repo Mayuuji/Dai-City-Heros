@@ -113,10 +113,9 @@ CREATE POLICY "Anyone can lookup campaigns by invite" ON campaigns
 DROP POLICY IF EXISTS "Members can read campaign members" ON campaign_members;
 CREATE POLICY "Members can read campaign members" ON campaign_members
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM campaign_members cm2
-      WHERE cm2.campaign_id = campaign_members.campaign_id
-      AND cm2.user_id = auth.uid()
+    user_id = auth.uid()
+    OR campaign_id IN (
+      SELECT c.id FROM campaigns c WHERE c.owner_id = auth.uid()
     )
   );
 
@@ -367,31 +366,4 @@ WHERE NOT EXISTS (
   AND cm.user_id = p.id
 );
 
--- ============================================================
--- RLS policies for new tables
--- ============================================================
-ALTER TABLE campaign_themes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE campaign_members ENABLE ROW LEVEL SECURITY;
-
--- Campaign themes: readable by all authenticated users
-CREATE POLICY "campaign_themes_select" ON campaign_themes FOR SELECT TO authenticated USING (true);
--- Only campaign owner can manage themes
-CREATE POLICY "campaign_themes_insert" ON campaign_themes FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "campaign_themes_update" ON campaign_themes FOR UPDATE TO authenticated USING (true);
-
--- Campaigns: members can read, owners can manage
-CREATE POLICY "campaigns_select" ON campaigns FOR SELECT TO authenticated 
-  USING (id IN (SELECT campaign_id FROM campaign_members WHERE user_id = auth.uid()) OR owner_id = auth.uid());
-CREATE POLICY "campaigns_insert" ON campaigns FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
-CREATE POLICY "campaigns_update" ON campaigns FOR UPDATE TO authenticated USING (owner_id = auth.uid());
-CREATE POLICY "campaigns_delete" ON campaigns FOR DELETE TO authenticated USING (owner_id = auth.uid());
-
--- Campaign members: members can see other members, admins can manage
-CREATE POLICY "campaign_members_select" ON campaign_members FOR SELECT TO authenticated
-  USING (campaign_id IN (SELECT campaign_id FROM campaign_members WHERE user_id = auth.uid()));
-CREATE POLICY "campaign_members_insert" ON campaign_members FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "campaign_members_update" ON campaign_members FOR UPDATE TO authenticated
-  USING (campaign_id IN (SELECT cm.campaign_id FROM campaign_members cm WHERE cm.user_id = auth.uid() AND cm.role = 'admin'));
-CREATE POLICY "campaign_members_delete" ON campaign_members FOR DELETE TO authenticated
-  USING (user_id = auth.uid() OR campaign_id IN (SELECT cm.campaign_id FROM campaign_members cm WHERE cm.user_id = auth.uid() AND cm.role = 'admin'));
+-- (RLS policies for new tables are defined earlier in this migration)
