@@ -185,7 +185,7 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
           padding: '0 2rem'
         }}
       >
-        {/* Title — uses landing_title if set, otherwise campaign name */}
+        {/* Campaign name — always shown */}
         <h1
           className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4"
           style={{
@@ -195,10 +195,10 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
             letterSpacing: '0.02em'
           }}
         >
-          {theme.landing_title || campaign.name}
+          {campaign.name}
         </h1>
 
-        {/* Subtitle if configured */}
+        {/* DM-configured subtitle */}
         {subtitle && (
           <p
             className="text-lg md:text-xl mb-4 tracking-wider"

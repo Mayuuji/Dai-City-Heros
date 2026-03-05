@@ -90,7 +90,7 @@ export const DEFAULT_THEME: CampaignTheme = {
   font_body: "'Courier New', monospace",
   shadow_primary: '0 0 5px #40E0D0, 0 0 20px rgba(64, 224, 208, 0.3)',
   shadow_secondary: '0 0 5px #D93654, 0 0 20px rgba(217, 54, 84, 0.3)',
-  landing_title: 'CAMPAIGN',
+  landing_title: '',
   landing_subtitle: '',
   landing_bg_image: null,
 };

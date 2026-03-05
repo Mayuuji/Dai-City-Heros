@@ -3,23 +3,7 @@
 -- Run this in Supabase SQL Editor
 -- ============================================================
 
--- Update any campaign_themes that still have the old dark modern values
-UPDATE campaign_themes
-SET
-  color_primary = '#4F46E5',
-  color_secondary = '#E11D48',
-  color_tertiary = '#0D9488',
-  color_success = '#16A34A',
-  color_danger = '#DC2626',
-  color_bg_dark = '#F5F5F5',
-  color_bg_darker = '#FFFFFF',
-  color_text = '#1F2937',
-  color_text_muted = '#6B7280',
-  font_heading = '''Segoe UI'', sans-serif',
-  font_body = '''Inter'', ''Segoe UI'', sans-serif'
-WHERE name = 'Modern/Urban';
-
--- Also add color_text and color_text_muted columns if they don't exist yet
+-- Step 1: Add color_text and color_text_muted columns FIRST
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -36,11 +20,27 @@ BEGIN
   END IF;
 END $$;
 
--- Set text colors for all existing themes that don't have them
+-- Step 2: Set default text colors for all existing themes
 UPDATE campaign_themes SET color_text = '#E6EDF3' WHERE color_text IS NULL;
 UPDATE campaign_themes SET color_text_muted = '#8B949E' WHERE color_text_muted IS NULL;
 
--- Set dark text for light-background themes specifically
+-- Step 3: Update Modern/Urban themes to new light colors
+UPDATE campaign_themes
+SET
+  color_primary = '#4F46E5',
+  color_secondary = '#E11D48',
+  color_tertiary = '#0D9488',
+  color_success = '#16A34A',
+  color_danger = '#DC2626',
+  color_bg_dark = '#F5F5F5',
+  color_bg_darker = '#FFFFFF',
+  color_text = '#1F2937',
+  color_text_muted = '#6B7280',
+  font_heading = '''Segoe UI'', sans-serif',
+  font_body = '''Inter'', ''Segoe UI'', sans-serif'
+WHERE name = 'Modern/Urban';
+
+-- Step 4: Set dark text for any light-background themes
 UPDATE campaign_themes 
 SET color_text = '#1F2937', color_text_muted = '#6B7280'
 WHERE color_bg_darker = '#FFFFFF' OR color_bg_dark = '#F5F5F5';
