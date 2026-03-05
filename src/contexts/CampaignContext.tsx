@@ -271,23 +271,16 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // ── Load campaigns when user changes ──
+  // Also clear any stored campaign so user always sees the selection screen on login
   useEffect(() => {
+    setCampaign(null);
+    setCampaignRole(null);
+    setTheme(null);
+    localStorage.removeItem(CAMPAIGN_STORAGE_KEY);
     refreshCampaigns();
   }, [refreshCampaigns]);
 
-  // ── Auto-restore last selected campaign from localStorage ──
-  useEffect(() => {
-    if (campaignsLoading || campaigns.length === 0) return;
-    if (campaign) return; // Already selected
-
-    const storedId = localStorage.getItem(CAMPAIGN_STORAGE_KEY);
-    const stored = storedId ? campaigns.find(c => c.id === storedId) : null;
-
-    if (stored) {
-      selectCampaign(stored.id);
-    }
-    // Otherwise, always show the campaign selection screen
-  }, [campaigns, campaignsLoading, campaign]);
+  // Campaign is only set when user explicitly calls selectCampaign()
 
   // ── Select a campaign ──
   const selectCampaign = async (id: string) => {
