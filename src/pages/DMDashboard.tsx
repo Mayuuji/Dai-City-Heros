@@ -1432,9 +1432,63 @@ export default function DMDashboard() {
   // ============ ABILITIES TAB FUNCTIONS ============
   useEffect(() => {
     if (activeTab === 'abilities') {
-      fetchAllAbilities();
+      seedAndFetchAbilities();
     }
   }, [activeTab]);
+
+  // Auto-seed class abilities for this campaign if none exist yet
+  const seedClassAbilitiesIfNeeded = async () => {
+    if (!campaignId) return;
+
+    // Check if this campaign already has class abilities
+    const { data: existing } = await supabase
+      .from('abilities')
+      .select('id')
+      .eq('campaign_id', campaignId)
+      .eq('source', 'class')
+      .limit(1);
+
+    if (existing && existing.length > 0) return; // Already seeded
+
+    console.log('[Abilities] Seeding class abilities for campaign:', campaignId);
+
+    const typeMap: Record<string, string> = {
+      'ACTION': 'action',
+      'BONUS': 'bonus_action',
+      'HIT/STEALTH': 'utility',
+      'ON HIT': 'reaction',
+      'passive': 'passive'
+    };
+
+    const abilityRows = CHARACTER_CLASSES.flatMap(cls =>
+      cls.classFeatures.map(feat => ({
+        name: feat.name,
+        description: feat.description,
+        type: typeMap[feat.type] || 'action',
+        charge_type: feat.charges ? 'long_rest' : 'infinite',
+        max_charges: feat.charges || null,
+        charges_per_rest: feat.charges || null,
+        effects: feat.effects || [],
+        source: 'class',
+        class_name: cls.name,
+        campaign_id: campaignId,
+      }))
+    );
+
+    if (abilityRows.length > 0) {
+      const { error } = await supabase.from('abilities').insert(abilityRows);
+      if (error) {
+        console.error('[Abilities] Error seeding class abilities:', error);
+      } else {
+        console.log(`[Abilities] Seeded ${abilityRows.length} class abilities`);
+      }
+    }
+  };
+
+  const seedAndFetchAbilities = async () => {
+    await seedClassAbilitiesIfNeeded();
+    await fetchAllAbilities();
+  };
 
   const fetchAllAbilities = async () => {
     try {
