@@ -158,7 +158,6 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
   // Detect theme type from name
   const themeName = (theme.name || '').toLowerCase();
   const isCyberpunk = themeName.includes('cyberpunk');
-  const isModern = themeName.includes('modern') || themeName.includes('urban');
 
   // Generate stable random particles
   const particles = useMemo(() => {
@@ -184,20 +183,6 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
       opacity: 0.3 + Math.random() * 0.5,
     }));
   }, [isCyberpunk]);
-
-  // City skyline buildings for modern
-  const buildings = useMemo(() => {
-    if (!isModern) return [];
-    const b = [];
-    let x = 0;
-    while (x < 100) {
-      const w = 2 + Math.random() * 5;
-      const h = 15 + Math.random() * 45;
-      b.push({ x, w, h, windows: Math.floor(h / 6) });
-      x += w + Math.random() * 2;
-    }
-    return b;
-  }, [isModern]);
 
   return (
     <div
@@ -228,14 +213,6 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
         @keyframes splash-scanline {
           0% { transform: translateY(-100%); }
           100% { transform: translateY(100vh); }
-        }
-        @keyframes splash-building-reveal {
-          0% { transform: translateY(100%); }
-          100% { transform: translateY(0); }
-        }
-        @keyframes splash-window-flicker {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.8; }
         }
       `}</style>
 
@@ -279,64 +256,6 @@ function CampaignSplash({ campaign, theme }: { campaign: { id: string; name: str
           pointerEvents: 'none' as const,
           zIndex: 2,
         }} />
-      )}
-
-      {/* ── Modern: City Skyline Silhouette ── */}
-      {isModern && (
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          width: '100%',
-          height: '40%',
-          overflow: 'hidden',
-          zIndex: 1,
-          pointerEvents: 'none' as const,
-        }}>
-          <svg width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="none" style={{
-            position: 'absolute', bottom: 0, left: 0,
-            animation: `splash-building-reveal 1.5s ease-out forwards`,
-            opacity: phase === 'exit' ? 0 : 1,
-            transition: 'opacity 0.8s ease',
-          }}>
-            {buildings.map((b, i) => (
-              <g key={i}>
-                {/* Building body */}
-                <rect
-                  x={b.x}
-                  y={60 - b.h}
-                  width={b.w}
-                  height={b.h}
-                  fill={bgDarker}
-                  stroke={toRgba(primaryColor, 0.15)}
-                  strokeWidth="0.15"
-                />
-                {/* Windows */}
-                {Array.from({ length: b.windows }, (_, wi) => (
-                  <rect
-                    key={wi}
-                    x={b.x + b.w * 0.25}
-                    y={60 - b.h + 2 + wi * 6}
-                    width={b.w * 0.5}
-                    height={2}
-                    fill={toRgba(primaryColor, 0.15 + Math.random() * 0.25)}
-                    style={{
-                      animation: `splash-window-flicker ${3 + Math.random() * 4}s ${Math.random() * 3}s infinite`,
-                    }}
-                  />
-                ))}
-              </g>
-            ))}
-            {/* Horizon glow */}
-            <rect x="0" y="55" width="100" height="5" fill={`url(#skylineGlow)`} />
-            <defs>
-              <linearGradient id="skylineGlow" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={toRgba(primaryColor, 0.08)} />
-                <stop offset="100%" stopColor="transparent" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
       )}
 
       {/* ── Particles (all themes) ── */}
