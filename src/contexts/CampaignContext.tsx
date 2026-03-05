@@ -231,27 +231,35 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
     setCampaignsLoading(true);
     try {
+      console.log('[Campaign] Fetching memberships for user:', user.id);
+
       // Get campaign IDs for this user
-      const { data: memberships } = await supabase
+      const { data: memberships, error: memError } = await supabase
         .from('campaign_members')
         .select('campaign_id, role')
         .eq('user_id', user.id);
 
+      console.log('[Campaign] Memberships result:', { memberships, error: memError });
+
       if (!memberships || memberships.length === 0) {
+        console.warn('[Campaign] No memberships found — user may not be in campaign_members table');
         setCampaigns([]);
         setCampaignsLoading(false);
         return;
       }
 
       const campaignIds = memberships.map(m => m.campaign_id);
+      console.log('[Campaign] Fetching campaigns:', campaignIds);
 
       // Fetch campaigns with themes
-      const { data: campaignData } = await supabase
+      const { data: campaignData, error: campError } = await supabase
         .from('campaigns')
         .select('*, theme:campaign_themes(*)')
         .in('id', campaignIds)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
+
+      console.log('[Campaign] Campaigns result:', { campaignData, error: campError });
 
       setCampaigns(campaignData || []);
     } catch (err) {
