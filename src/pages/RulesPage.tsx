@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { CHARACTER_CLASSES, ALL_SKILLS } from '../data/characterClasses';
+import { useCampaign } from '../contexts/CampaignContext';
+import { useClassAliases } from '../utils/useClassAliases';
 
 type RulesSection = 'overview' | 'combat' | 'conditions' | 'damage-types' | 'skills' | 'classes' | 'equipment' | 'exploration';
 
 export default function RulesPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { campaignId } = useCampaign();
+  const { getClassName, getClassDescription } = useClassAliases(campaignId);
   const [activeSection, setActiveSection] = useState<RulesSection>('overview');
   const [expandedCondition, setExpandedCondition] = useState<string | null>(null);
   const [expandedClass, setExpandedClass] = useState<string | null>(null);
@@ -521,10 +525,10 @@ export default function RulesPage() {
                   >
                     <div className="flex items-center gap-4">
                       <span className="text-lg font-bold" style={{ fontFamily: 'var(--font-cyber)', color: '#FF007F' }}>
-                        {cls.name}
+                        {getClassName(cls.id)}
                       </span>
                       <span className="text-xs opacity-70" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        {cls.description}
+                        {getClassDescription(cls.id)}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>

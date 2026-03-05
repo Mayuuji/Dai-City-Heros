@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { CHARACTER_CLASSES, ALL_SKILLS } from '../data/characterClasses';
 import { useAuth } from '../contexts/AuthContext';
+import { useCampaign } from '../contexts/CampaignContext';
+import { useClassAliases } from '../utils/useClassAliases';
 
 interface Character {
   id: string;
@@ -48,6 +50,8 @@ export default function CharacterSheet() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { campaignId } = useCampaign();
+  const { getClassName } = useClassAliases(campaignId);
   const [character, setCharacter] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -209,7 +213,7 @@ export default function CharacterSheet() {
                 {character.name.toUpperCase()}
               </h2>
               <p className="text-lg" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
-                Level {character.level} {classInfo?.name}
+                Level {character.level} {getClassName(character.class)}
               </p>
             </div>
             <div className="text-right">

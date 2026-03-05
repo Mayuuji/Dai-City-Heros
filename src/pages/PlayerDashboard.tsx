@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { CHARACTER_CLASSES, formatToHit } from '../data/characterClasses';
+import { useClassAliases } from '../utils/useClassAliases';
 import WorldMap from '../components/WorldMap';
 import type { InventoryItem, Ability } from '../types/inventory';
 import type { Location } from '../types/map';
@@ -974,6 +975,8 @@ export default function PlayerDashboard() {
     return CHARACTER_CLASSES.find(c => c.id === classId);
   };
 
+  const { getClassName } = useClassAliases(campaignId);
+
   // Convert stored stat to modifier
   // Old characters have stats stored as 10 + bonus (10 = +0, 11 = +1, 12 = +2)
   // New characters have direct modifiers (0, 1, 2)
@@ -1160,7 +1163,7 @@ export default function PlayerDashboard() {
             >
               {characters.map(char => (
                 <option key={char.id} value={char.id}>
-                  {char.name} - Level {char.level} {getClassInfo(char.class)?.name}
+                  {char.name} - Level {char.level} {getClassName(char.class)}
                 </option>
               ))}
             </select>
@@ -1213,7 +1216,7 @@ export default function PlayerDashboard() {
                   {selectedCharacter.name.toUpperCase()}
                 </h2>
                 <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                  Level <span style={{ color: 'var(--color-cyber-yellow)' }}>{selectedCharacter.level}</span> {getClassInfo(selectedCharacter.class)?.name}
+                  Level <span style={{ color: 'var(--color-cyber-yellow)' }}>{selectedCharacter.level}</span> {getClassName(selectedCharacter.class)}
                 </p>
               </div>
 

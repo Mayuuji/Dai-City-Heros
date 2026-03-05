@@ -11,6 +11,7 @@ import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus,
 import { getRarityColor, getRarityBgColor, getItemTypeIcon, formatModifier, getAbilityTypeIcon } from '../utils/stats';
 import { ALL_SKILLS, CHARACTER_CLASSES, formatToHit, WeaponType } from '../data/characterClasses';
 import { getLocationIcon, getLocationColor, ALL_LOCATION_ICONS, ALL_LOCATION_COLORS } from '../utils/mapUtils';
+import { useClassAliases } from '../utils/useClassAliases';
 import WorldMap from '../components/WorldMap';
 
 // Weapon types for rank editing
@@ -79,6 +80,7 @@ export default function DMDashboard() {
   const { profile, signOut } = useAuth();
   const { campaignId } = useCampaign();
   const navigate = useNavigate();
+  const { getClassName } = useClassAliases(campaignId);
   
   // Helper to capitalize types like "bonus_action" -> "Bonus Action", "cyberware" -> "Cyberware"
   const toTitleCase = (str: string) => str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -108,6 +110,11 @@ export default function DMDashboard() {
   // Settings State
   const [landingSubtitle, setLandingSubtitle] = useState('ENTER THE NEON SHADOWS');
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [campaignInviteCode, setCampaignInviteCode] = useState('');
+  const [inviteCodeEditing, setInviteCodeEditing] = useState(false);
+  const [inviteCodeSaving, setInviteCodeSaving] = useState(false);
+  const [classAliases, setClassAliases] = useState<Record<string, { display_name: string; description: string }>>({});
+  const [classAliasesSaving, setClassAliasesSaving] = useState(false);
   
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -479,6 +486,71 @@ export default function DMDashboard() {
     }
   };
 
+  // Fetch invite code for this campaign
+  const fetchInviteCode = async () => {
+    const { data } = await supabase
+      .from('campaigns')
+      .select('invite_code')
+      .eq('id', campaignId)
+      .single();
+    if (data?.invite_code) setCampaignInviteCode(data.invite_code);
+  };
+
+  // Save custom invite code
+  const saveInviteCode = async () => {
+    if (!campaignInviteCode.trim()) return;
+    setInviteCodeSaving(true);
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ invite_code: campaignInviteCode.trim().toLowerCase() })
+        .eq('id', campaignId);
+      if (error) throw error;
+      setInviteCodeEditing(false);
+      alert('Invite code updated!');
+    } catch (err: any) {
+      if (err.message?.includes('duplicate') || err.code === '23505') {
+        alert('That invite code is already taken. Please choose a different one.');
+      } else {
+        alert(`Error: ${err.message}`);
+      }
+    } finally {
+      setInviteCodeSaving(false);
+    }
+  };
+
+  // Fetch class aliases for this campaign
+  const fetchClassAliases = async () => {
+    const { data } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('campaign_id', campaignId)
+      .eq('key', 'class_aliases')
+      .single();
+    if (data?.value) setClassAliases(data.value);
+  };
+
+  // Save class aliases
+  const saveClassAliases = async () => {
+    setClassAliasesSaving(true);
+    try {
+      const { error } = await supabase
+        .from('game_settings')
+        .upsert({
+          key: 'class_aliases',
+          value: classAliases,
+          updated_at: new Date().toISOString(),
+          campaign_id: campaignId
+        }, { onConflict: 'key,campaign_id' });
+      if (error) throw error;
+      alert('Class aliases saved!');
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setClassAliasesSaving(false);
+    }
+  };
+
   // Save landing page subtitle
   const saveLandingSubtitle = async () => {
     setSettingsSaving(true);
@@ -514,6 +586,8 @@ export default function DMDashboard() {
     }
     if (activeTab === 'settings') {
       fetchLandingSubtitle();
+      fetchInviteCode();
+      fetchClassAliases();
     }
   }, [activeTab]);
 
@@ -3424,7 +3498,7 @@ export default function DMDashboard() {
                           {char.name}
                         </div>
                         <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                          Lvl {char.level} {char.class} • {char.profile?.username}
+                          Lvl {char.level} {getClassName(char.class)} • {char.profile?.username}
                         </div>
                         <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
                           HP: {char.current_hp}/{char.max_hp}
@@ -3450,7 +3524,7 @@ export default function DMDashboard() {
                           {selectedCharacter.name}
                         </h2>
                         <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                          Level {selectedCharacter.level} {selectedCharacter.class} • Player: {selectedCharacter.profile?.username}
+                          Level {selectedCharacter.level} {getClassName(selectedCharacter.class)} • Player: {selectedCharacter.profile?.username}
                         </p>
                       </div>
                     </div>
@@ -8106,14 +8180,145 @@ export default function DMDashboard() {
                 </div>
               </div>
 
-              {/* Future settings can go here */}
-              <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-purple)', opacity: 0.5 }}>
-                <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-purple)' }}>
-                  🔮 More Settings Coming Soon...
+              {/* Invite Code Settings */}
+              <div className="glass-panel p-6" style={{ border: '2px solid var(--color-cyber-yellow)' }}>
+                <h3 className="text-lg mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
+                  🔗 Invite Code
                 </h3>
-                <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                  Additional game configuration options will be added here.
+                <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  Share this code with players so they can join your campaign. You can set a custom code.
                 </p>
+                <div className="flex gap-3 items-center">
+                  {inviteCodeEditing ? (
+                    <>
+                      <input
+                        type="text"
+                        value={campaignInviteCode}
+                        onChange={(e) => setCampaignInviteCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                        className="flex-1 px-4 py-3 rounded text-lg"
+                        style={{
+                          background: 'var(--color-cyber-dark)',
+                          border: '2px solid var(--color-cyber-yellow)',
+                          color: 'var(--color-cyber-yellow)',
+                          fontFamily: 'var(--font-mono)',
+                          letterSpacing: '2px',
+                          textAlign: 'center'
+                        }}
+                        placeholder="my-campaign-code"
+                      />
+                      <button
+                        onClick={saveInviteCode}
+                        disabled={inviteCodeSaving || !campaignInviteCode.trim()}
+                        className="px-4 py-3 rounded font-bold"
+                        style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
+                      >
+                        {inviteCodeSaving ? '⏳' : '💾 Save'}
+                      </button>
+                      <button
+                        onClick={() => { setInviteCodeEditing(false); fetchInviteCode(); }}
+                        className="px-4 py-3 rounded"
+                        style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 px-4 py-3 rounded text-lg text-center" style={{
+                        background: 'color-mix(in srgb, var(--color-cyber-yellow) 10%, transparent)',
+                        border: '2px solid color-mix(in srgb, var(--color-cyber-yellow) 40%, transparent)',
+                        color: 'var(--color-cyber-yellow)',
+                        fontFamily: 'var(--font-mono)',
+                        letterSpacing: '3px',
+                        fontWeight: 'bold'
+                      }}>
+                        {campaignInviteCode || '...'}
+                      </div>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(campaignInviteCode); alert('Copied to clipboard!'); }}
+                        className="px-4 py-3 rounded"
+                        style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                      >
+                        📋 Copy
+                      </button>
+                      <button
+                        onClick={() => setInviteCodeEditing(true)}
+                        className="px-4 py-3 rounded"
+                        style={{ border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
+                  Only letters, numbers, hyphens, and underscores allowed. Must be unique across all campaigns.
+                </p>
+              </div>
+
+              {/* Class Display Names / Aliases */}
+              <div className="glass-panel p-6" style={{ border: '2px solid var(--color-cyber-purple)' }}>
+                <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-purple)' }}>
+                  🎭 Class Display Names
+                </h3>
+                <p className="text-xs mb-4" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  Customize how each class appears in this campaign. Leave blank to use the default name.
+                </p>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                  {CHARACTER_CLASSES.map(cls => (
+                    <div key={cls.id} className="flex items-center gap-3 p-2 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
+                      <span className="text-xs w-24 font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        {cls.name}
+                      </span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>→</span>
+                      <input
+                        type="text"
+                        value={classAliases[cls.id]?.display_name || ''}
+                        onChange={(e) => setClassAliases(prev => ({
+                          ...prev,
+                          [cls.id]: { display_name: e.target.value, description: prev[cls.id]?.description || '' }
+                        }))}
+                        placeholder={cls.name}
+                        className="flex-1 px-3 py-1.5 rounded text-sm"
+                        style={{
+                          background: 'var(--color-cyber-dark)',
+                          border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)',
+                          color: 'var(--color-cyber-purple)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={classAliases[cls.id]?.description || ''}
+                        onChange={(e) => setClassAliases(prev => ({
+                          ...prev,
+                          [cls.id]: { display_name: prev[cls.id]?.display_name || '', description: e.target.value }
+                        }))}
+                        placeholder="Custom description..."
+                        className="flex-1 px-3 py-1.5 rounded text-sm"
+                        style={{
+                          background: 'var(--color-cyber-dark)',
+                          border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 20%, transparent)',
+                          color: 'var(--color-text)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={saveClassAliases}
+                  disabled={classAliasesSaving}
+                  className="mt-4 px-6 py-3 rounded font-bold text-lg"
+                  style={{
+                    background: classAliasesSaving ? 'var(--color-cyber-dark)' : 'var(--color-cyber-purple)',
+                    color: classAliasesSaving ? 'var(--color-cyber-purple)' : 'white',
+                    fontFamily: 'var(--font-cyber)',
+                    opacity: classAliasesSaving ? 0.5 : 1
+                  }}
+                >
+                  {classAliasesSaving ? '⏳ Saving...' : '💾 Save Class Names'}
+                </button>
               </div>
             </div>
           )}

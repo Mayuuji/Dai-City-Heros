@@ -4,11 +4,13 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { CHARACTER_CLASSES, type CharacterClass } from '../data/characterClasses';
 import { useCampaign } from '../contexts/CampaignContext';
+import { useClassAliases } from '../utils/useClassAliases';
 
 export default function CharacterCreation() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { campaignId } = useCampaign();
+  const { getClassName, getClassDescription } = useClassAliases(campaignId);
   const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
   const [characterName, setCharacterName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -211,10 +213,10 @@ export default function CharacterCreation() {
               }}
             >
               <h3 className="text-xl mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                {charClass.name}
+                {getClassName(charClass.id)}
               </h3>
               <p className="text-sm mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                {charClass.description}
+                {getClassDescription(charClass.id)}
               </p>
 
               {/* Stats */}
@@ -250,7 +252,7 @@ export default function CharacterCreation() {
         {selectedClass && (
           <div className="glass-panel p-6 mb-8" style={{ border: '2px solid var(--color-cyber-magenta)' }}>
             <h2 className="text-2xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-magenta)' }}>
-              {selectedClass.name} DETAILS
+              {getClassName(selectedClass.id)} DETAILS
             </h2>
 
             {/* Tools */}
