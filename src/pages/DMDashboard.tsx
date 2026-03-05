@@ -8259,48 +8259,51 @@ export default function DMDashboard() {
               {/* Class Display Names / Aliases */}
               <div className="glass-panel p-6" style={{ border: '2px solid var(--color-cyber-purple)' }}>
                 <h3 className="text-lg mb-2" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-purple)' }}>
-                  🎭 Class Display Names
+                  🎭 Class Display Names & Descriptions
                 </h3>
                 <p className="text-xs mb-4" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  Customize how each class appears in this campaign. Leave blank to use the default name.
+                  Customize how each class appears in this campaign. Leave blank to use defaults. Changes here only affect THIS campaign.
                 </p>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                   {CHARACTER_CLASSES.map(cls => (
-                    <div key={cls.id} className="flex items-center gap-3 p-2 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)' }}>
-                      <span className="text-xs w-24 font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        {cls.name}
-                      </span>
-                      <span style={{ color: 'var(--color-text-muted)' }}>→</span>
-                      <input
-                        type="text"
-                        value={classAliases[cls.id]?.display_name || ''}
-                        onChange={(e) => setClassAliases(prev => ({
-                          ...prev,
-                          [cls.id]: { display_name: e.target.value, description: prev[cls.id]?.description || '' }
-                        }))}
-                        placeholder={cls.name}
-                        className="flex-1 px-3 py-1.5 rounded text-sm"
-                        style={{
-                          background: 'var(--color-cyber-dark)',
-                          border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)',
-                          color: 'var(--color-cyber-purple)',
-                          fontFamily: 'var(--font-mono)'
-                        }}
-                      />
-                      <input
-                        type="text"
+                    <div key={cls.id} className="p-3 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-dark) 50%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 20%, transparent)' }}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xs w-24 font-bold shrink-0" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                          {cls.name}
+                        </span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>→</span>
+                        <input
+                          type="text"
+                          value={classAliases[cls.id]?.display_name || ''}
+                          onChange={(e) => setClassAliases(prev => ({
+                            ...prev,
+                            [cls.id]: { display_name: e.target.value, description: prev[cls.id]?.description || '' }
+                          }))}
+                          placeholder={cls.name}
+                          className="flex-1 px-3 py-1.5 rounded text-sm"
+                          style={{
+                            background: 'var(--color-cyber-dark)',
+                            border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 30%, transparent)',
+                            color: 'var(--color-cyber-purple)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        />
+                      </div>
+                      <textarea
                         value={classAliases[cls.id]?.description || ''}
                         onChange={(e) => setClassAliases(prev => ({
                           ...prev,
                           [cls.id]: { display_name: prev[cls.id]?.display_name || '', description: e.target.value }
                         }))}
-                        placeholder="Custom description..."
-                        className="flex-1 px-3 py-1.5 rounded text-sm"
+                        placeholder={cls.description}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded text-xs resize-y"
                         style={{
                           background: 'var(--color-cyber-dark)',
                           border: '1px solid color-mix(in srgb, var(--color-cyber-purple) 20%, transparent)',
                           color: 'var(--color-text)',
-                          fontFamily: 'var(--font-mono)'
+                          fontFamily: 'var(--font-mono)',
+                          lineHeight: '1.5'
                         }}
                       />
                     </div>

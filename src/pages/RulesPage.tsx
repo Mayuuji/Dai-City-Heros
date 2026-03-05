@@ -581,18 +581,6 @@ export default function RulesPage() {
                           </div>
                         </div>
 
-                        {/* Tools */}
-                        <div className="mb-4">
-                          <span className="text-xs font-bold" style={{ color: '#BD00FF', fontFamily: 'var(--font-mono)' }}>Tools:</span>
-                          <div className="mt-1 space-y-1">
-                            {cls.tools.map(tool => (
-                              <div key={tool.name} className="text-xs" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-cyber-cyan)', opacity: 0.85 }}>
-                                <span style={{ color: '#BD00FF' }}>{tool.name}</span> — {tool.description}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
                         {/* Class Feature */}
                         {cls.classFeatures.map(feat => (
                           <div key={feat.name} className="p-3 rounded" style={{ border: '1px solid #FF007F40', background: 'color-mix(in srgb, #FF007F 5%, transparent)' }}>

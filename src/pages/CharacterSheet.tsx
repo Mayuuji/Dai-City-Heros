@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { CHARACTER_CLASSES, ALL_SKILLS } from '../data/characterClasses';
+import { ALL_SKILLS } from '../data/characterClasses';
 import { useAuth } from '../contexts/AuthContext';
 import { useCampaign } from '../contexts/CampaignContext';
 import { useClassAliases } from '../utils/useClassAliases';
@@ -107,9 +107,6 @@ export default function CharacterSheet() {
     }
   };
 
-  const getClassInfo = (classId: string) => {
-    return CHARACTER_CLASSES.find(c => c.id === classId);
-  };
 
   const calculateStatModifier = (stat: number) => {
     return Math.floor((stat - 10) / 2);
@@ -186,8 +183,6 @@ export default function CharacterSheet() {
       </div>
     );
   }
-
-  const classInfo = getClassInfo(character.class);
 
   return (
     <div className="min-h-screen grid-bg" style={{ backgroundColor: 'var(--color-cyber-darker)' }}>
@@ -427,39 +422,6 @@ export default function CharacterSheet() {
           </div>
         </div>
 
-        {/* Tools & Equipment */}
-        <div className="glass-panel p-6" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 30%, transparent)' }}>
-          <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-magenta)' }}>
-            TOOLS & EQUIPMENT
-          </h3>
-          <div className="grid md:grid-cols-2 gap-4">
-            {character.tools && character.tools.length > 0 ? (
-              character.tools.map((tool, idx) => {
-                const toolInfo = classInfo?.tools.find(t => t.name === tool);
-                return (
-                  <div
-                    key={idx}
-                    className="p-4 rounded"
-                    style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 30%, transparent)' }}
-                  >
-                    <div className="text-sm mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-cyber)' }}>
-                      {tool}
-                    </div>
-                    {toolInfo && (
-                      <p className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                        {toolInfo.description}
-                      </p>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-sm col-span-2 text-center" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
-                No tools equipped
-              </p>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -255,21 +255,6 @@ export default function CharacterCreation() {
               {getClassName(selectedClass.id)} DETAILS
             </h2>
 
-            {/* Tools */}
-            <div className="mb-4">
-              <h3 className="text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                TOOLS
-              </h3>
-              <div className="space-y-2">
-                {selectedClass.tools.map((tool, idx) => (
-                  <div key={idx} className="text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
-                    <span style={{ color: 'var(--color-cyber-magenta)' }}>{tool.name}:</span>{' '}
-                    <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>{tool.description}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Class Features */}
             <div className="mb-4">
               <h3 className="text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>

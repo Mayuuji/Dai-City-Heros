@@ -24,7 +24,7 @@ END $$;
 UPDATE campaign_themes SET color_text = '#E6EDF3' WHERE color_text IS NULL;
 UPDATE campaign_themes SET color_text_muted = '#8B949E' WHERE color_text_muted IS NULL;
 
--- Step 3: Update Modern/Urban themes to new light colors
+-- Step 3: Update Modern/Urban themes to dark background with modern accent colors
 UPDATE campaign_themes
 SET
   color_primary = '#2563EB',
@@ -32,18 +32,13 @@ SET
   color_tertiary = '#0D9488',
   color_success = '#16A34A',
   color_danger = '#DC2626',
-  color_bg_dark = '#F5F5F5',
-  color_bg_darker = '#FFFFFF',
-  color_text = '#1F2937',
-  color_text_muted = '#6B7280',
+  color_bg_dark = '#1A1A2E',
+  color_bg_darker = '#0F0F1A',
+  color_text = '#E6EDF3',
+  color_text_muted = '#8B949E',
   font_heading = '''Segoe UI'', sans-serif',
   font_body = '''Inter'', ''Segoe UI'', sans-serif'
 WHERE name = 'Modern/Urban';
-
--- Step 4: Set dark text for any light-background themes
-UPDATE campaign_themes 
-SET color_text = '#1F2937', color_text_muted = '#6B7280'
-WHERE color_bg_darker = '#FFFFFF' OR color_bg_dark = '#F5F5F5';
 
 -- Verify
 SELECT id, name, color_bg_dark, color_bg_darker, color_text, color_text_muted 
