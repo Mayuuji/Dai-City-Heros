@@ -35,7 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const handleSession = (session: Session | null) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      // Only update user state if the identity actually changed, to avoid
+      // unnecessary re-renders on token refreshes (which create new object refs)
+      setUser(prev => {
+        const newUser = session?.user ?? null;
+        if (prev?.id === newUser?.id) return prev;
+        return newUser;
+      });
       if (session?.user) {
         if (handledUserId !== session.user.id) {
           handledUserId = session.user.id;

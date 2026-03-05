@@ -255,6 +255,9 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
   const campaignId = campaign?.id || null;
 
+  // Track the user ID to detect actual user changes (not just token refreshes)
+  const [prevUserId, setPrevUserId] = useState<string | null>(null);
+
   // ── Fetch all campaigns the user belongs to ──
   const refreshCampaigns = useCallback(async () => {
     if (!user) {
@@ -305,14 +308,64 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // ── Load campaigns when user changes ──
-  // Also clear any stored campaign so user always sees the selection screen on login
+  // Only clear campaign state when the actual user identity changes (not token refreshes).
+  // On refresh / tab-switch, restore the previously selected campaign from localStorage.
   useEffect(() => {
-    setCampaign(null);
-    setCampaignRole(null);
-    setTheme(null);
-    localStorage.removeItem(CAMPAIGN_STORAGE_KEY);
-    refreshCampaigns();
-  }, [refreshCampaigns]);
+    const currentUserId = user?.id || null;
+
+    if (currentUserId !== prevUserId) {
+      // User identity actually changed — clear old campaign
+      setPrevUserId(currentUserId);
+      setCampaign(null);
+      setCampaignRole(null);
+      setTheme(null);
+      if (!currentUserId) {
+        localStorage.removeItem(CAMPAIGN_STORAGE_KEY);
+      }
+    }
+
+    if (!currentUserId) {
+      setCampaigns([]);
+      setCampaignsLoading(false);
+      return;
+    }
+
+    // Fetch campaigns, then try to restore the saved selection
+    (async () => {
+      await refreshCampaigns();
+
+      // Restore previously selected campaign from localStorage
+      const savedId = localStorage.getItem(CAMPAIGN_STORAGE_KEY);
+      if (savedId && !campaign) {
+        // We need the fresh campaigns list — wait a tick for state to settle
+        // Use a function updater to peek at the latest campaigns
+        setCampaigns(prev => {
+          const saved = prev.find(c => c.id === savedId);
+          if (saved) {
+            // Restore campaign selection silently (no splash)
+            setCampaign(saved);
+            const campaignTheme: CampaignTheme = saved.theme
+              ? { ...DEFAULT_THEME, ...saved.theme }
+              : DEFAULT_THEME;
+            setTheme(campaignTheme);
+            applyTheme(campaignTheme);
+
+            // Restore role
+            supabase
+              .from('campaign_members')
+              .select('role')
+              .eq('campaign_id', savedId)
+              .eq('user_id', currentUserId)
+              .single()
+              .then(({ data: membership }) => {
+                setCampaignRole((membership?.role as 'admin' | 'player') || 'player');
+              });
+          }
+          return prev; // don't mutate
+        });
+      }
+    })();
+  }, [user?.id]); // Only re-run when user identity changes, not on every token refresh
 
   // Campaign is only set when user explicitly calls selectCampaign()
   const [showingSplash, setShowingSplash] = useState(false);
