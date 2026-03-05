@@ -255,6 +255,23 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(({ isDM = false, onLo
 
       if (settingsError) {
         console.error('Error fetching map settings:', settingsError);
+        // Use sensible defaults so the map still renders for new campaigns
+        setSettings({
+          id: '',
+          center_lat: 0,
+          center_lng: 0,
+          default_zoom: 3,
+          min_zoom: 2,
+          max_zoom: 18,
+          min_lat: -90,
+          max_lat: 90,
+          min_lng: -180,
+          max_lng: 180,
+          lock_bounds: false,
+          tile_url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+          tile_attribution: '© CartoDB',
+          campaign_id: campaignId,
+        } as any);
       } else {
         setSettings(settingsData);
       }

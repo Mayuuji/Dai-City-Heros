@@ -458,9 +458,13 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       ]);
 
       // Create default map_settings for this campaign
-      await supabase.from('map_settings').insert({
+      const { error: mapError } = await supabase.from('map_settings').insert({
+        id: crypto.randomUUID(),
         campaign_id: newCampaign.id,
       });
+      if (mapError) {
+        console.warn('Could not create map_settings (run fix-map-settings migration):', mapError.message);
+      }
 
       await refreshCampaigns();
       return newCampaign;

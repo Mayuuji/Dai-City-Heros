@@ -216,7 +216,7 @@ export default function DMMapEditor() {
         min_zoom: settingsMinZoom, max_zoom: settingsMaxZoom, default_zoom: settingsDefaultZoom,
         center_lat: settingsCenterLat, center_lng: settingsCenterLng, lock_bounds: settingsLockBounds,
         updated_at: new Date().toISOString(), updated_by: profile?.id
-      }).eq('id', '00000000-0000-0000-0000-000000000001');
+      }).eq('campaign_id', campaignId);
       if (error) throw error;
       alert('Settings saved!');
       await fetchData();
