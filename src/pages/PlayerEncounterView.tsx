@@ -194,8 +194,9 @@ export default function PlayerEncounterView() {
           npc: npc ? { ...npc, current_hp: undefined, max_hp: undefined, ac: undefined } as any : undefined,
           display_name: char?.name || npc?.name || 'Unknown',
           // Only show HP/AC for player's own characters
-          display_hp: isMyCharacter ? (p.current_hp ?? char?.current_hp) : undefined,
-          display_max_hp: isMyCharacter ? (p.max_hp ?? char?.max_hp) : undefined,
+          // Players always use live character HP
+          display_hp: isMyCharacter ? (char?.current_hp ?? 0) : undefined,
+          display_max_hp: isMyCharacter ? (char?.max_hp ?? 0) : undefined,
           display_ac: isMyCharacter ? char?.ac : undefined,
           display_initiative_modifier: 0, // Don't show to players
         };

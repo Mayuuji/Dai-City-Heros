@@ -167,14 +167,16 @@ export default function DMEncounterManager() {
       const transformed: ParticipantWithAbilities[] = (participantsData || []).map((p: any) => {
         const char = charactersData?.find(c => c.id === p.character_id) || null;
         const npc = npcsData?.find(n => n.id === p.npc_id) || null;
+        const isPlayer = !!char;
 
         return {
           ...p,
           character: char || undefined,
           npc: npc || undefined,
           display_name: char?.name || npc?.name || 'Unknown',
-          display_hp: p.current_hp ?? (char?.current_hp || npc?.current_hp || 0),
-          display_max_hp: p.max_hp ?? (char?.max_hp || npc?.max_hp || 0),
+          // Players always use live character HP; NPCs use encounter snapshot
+          display_hp: isPlayer ? (char?.current_hp || 0) : (p.current_hp ?? npc?.current_hp ?? 0),
+          display_max_hp: isPlayer ? (char?.max_hp || 0) : (p.max_hp ?? npc?.max_hp ?? 0),
           display_ac: char?.ac || npc?.ac || 10,
           display_initiative_modifier: char?.initiative_modifier || npc?.initiative_modifier || 0,
           abilities: char ? (abilitiesByCharacter[char.id] || []) : undefined,
@@ -238,16 +240,19 @@ export default function DMEncounterManager() {
     if (!selectedEncounter) return;
 
     try {
-      let currentHp, maxHp;
+      let currentHp: number | null = null;
+      let maxHp: number | null = null;
       
       if (type === 'character') {
         const char = availableCharacters.find(c => c.id === id);
         if (!char) return;
-        currentHp = char.current_hp;
-        maxHp = char.max_hp;
+        // Players use live HP from characters table — don't snapshot
+        currentHp = null;
+        maxHp = null;
       } else {
         const npc = availableNPCs.find(n => n.id === id);
         if (!npc) return;
+        // NPCs get their own HP pool per encounter
         currentHp = npc.current_hp;
         maxHp = npc.max_hp;
       }
@@ -377,19 +382,21 @@ export default function DMEncounterManager() {
   const updateParticipantHP = async (participantId: string, newHp: number, entityId?: string, entityType?: 'player' | 'npc') => {
     try {
       const clampedHp = Math.max(0, newHp);
-      
-      const { error } = await supabase
-        .from('encounter_participants')
-        .update({ current_hp: clampedHp })
-        .eq('id', participantId);
 
-      if (error) throw error;
-
-      // Also sync to actual character/NPC record
-      if (entityId && entityType === 'player') {
-        await supabase.from('characters').update({ current_hp: clampedHp }).eq('id', entityId);
-      } else if (entityId && entityType === 'npc') {
-        await supabase.from('npcs').update({ current_hp: clampedHp }).eq('id', entityId);
+      if (entityType === 'player' && entityId) {
+        // Players: write directly to characters table (live HP source)
+        const { error } = await supabase
+          .from('characters')
+          .update({ current_hp: clampedHp })
+          .eq('id', entityId);
+        if (error) throw error;
+      } else {
+        // NPCs: write to encounter_participants (separate HP pool)
+        const { error } = await supabase
+          .from('encounter_participants')
+          .update({ current_hp: clampedHp })
+          .eq('id', participantId);
+        if (error) throw error;
       }
 
       setParticipants(participants.map(p => 
