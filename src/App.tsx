@@ -17,17 +17,12 @@ import DMAbilityCreator from './pages/DMAbilityCreator';
 import DMGiveItem from './pages/DMGiveItem';
 import DMAbilityManager from './pages/DMAbilityManager';
 import DMItemEditor from './pages/DMItemEditor';
-import DMMapEditor from './pages/DMMapEditor';
-import PlayerMapView from './pages/PlayerMapView';
-import DMShopManager from './pages/DMShopManager';
-import PlayerShop from './pages/PlayerShop';
 import DMMissionManager from './pages/DMMissionManager';
 import PlayerMissionLog from './pages/PlayerMissionLog';
 import DMNPCManager from './pages/DMNPCManager';
 import DMEncounterManager from './pages/DMEncounterManager';
 import PlayerEncounterView from './pages/PlayerEncounterView';
 import RulesPage from './pages/RulesPage';
-import ChatBox from './components/ChatBox';
 import './index.css';
 
 // Protected route wrapper
@@ -109,10 +104,7 @@ function CampaignGate({ children }: { children: React.ReactNode }) {
     return <CampaignSplash campaign={campaign} theme={splashTheme} />;
   }
 
-  return <>
-    {children}
-    <ChatBox />
-  </>;
+  return <>{children}</>;
 }
 
 // Campaign title card splash screen
@@ -485,26 +477,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/dm/map-editor" 
-            element={
-              <ProtectedRoute>
-                <CampaignGate>
-                  <DMMapEditor />
-                </CampaignGate>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/dm/shops" 
-            element={
-              <ProtectedRoute>
-                <CampaignGate>
-                  <DMShopManager />
-                </CampaignGate>
-              </ProtectedRoute>
-            } 
-          />
+
           <Route 
             path="/dm/missions" 
             element={
@@ -535,26 +508,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/map" 
-            element={
-              <ProtectedRoute>
-                <CampaignGate>
-                  <PlayerMapView />
-                </CampaignGate>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/shop/:shopId" 
-            element={
-              <ProtectedRoute>
-                <CampaignGate>
-                  <PlayerShop />
-                </CampaignGate>
-              </ProtectedRoute>
-            } 
-          />
+
           <Route 
             path="/missions" 
             element={
