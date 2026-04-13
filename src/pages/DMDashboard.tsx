@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { InventoryItem, Item, ItemType, ItemRarity, Ability, AbilityType, ChargeType } from '../types/inventory';
-import type { NPC, NPCType, NPCDisposition, NPCAbility } from '../types/npc';
+import type { NPC, NPCType } from '../types/npc';
 import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus, RewardMode } from '../types/mission';
 import { getRarityColor, getRarityBgColor, getItemTypeIcon, formatModifier, getAbilityTypeIcon } from '../utils/stats';
 import { ALL_SKILLS, CHARACTER_CLASSES, formatToHit, WeaponType } from '../data/characterClasses';
@@ -231,33 +231,6 @@ export default function DMDashboard() {
 
   // NPCs Tab state
   const [allNPCs, setAllNPCs] = useState<NPC[]>([]);
-  const [npcsLoading, setNpcsLoading] = useState(false);
-  const [npcSearchQuery, setNpcSearchQuery] = useState('');
-  const [npcFilterType, setNpcFilterType] = useState<string>('all');
-  const [npcFilterAlive, setNpcFilterAlive] = useState<string>('alive');
-  const [selectedEditNPC, setSelectedEditNPC] = useState<NPC | null>(null);
-  const [npcsSubTab, setNpcsSubTab] = useState<'list' | 'create'>('list');
-  const [npcSaving, setNpcSaving] = useState(false);
-  
-  // NPC form state
-  const [npcName, setNpcName] = useState('');
-  const [npcType, setNpcType] = useState<NPCType>('Enemy');
-  const [npcDisposition, setNpcDisposition] = useState<NPCDisposition>('Hostile');
-  const [npcDescription, setNpcDescription] = useState('');
-  const [npcMaxHp, setNpcMaxHp] = useState(10);
-  const [npcCurrentHp, setNpcCurrentHp] = useState(10);
-  const [npcAc, setNpcAc] = useState(10);
-  const [npcInitMod, setNpcInitMod] = useState(0);
-  const [npcStr, setNpcStr] = useState(10);
-  const [npcDex, setNpcDex] = useState(10);
-  const [npcCon, setNpcCon] = useState(10);
-  const [npcWis, setNpcWis] = useState(10);
-  const [npcInt, setNpcInt] = useState(10);
-  const [npcCha, setNpcCha] = useState(10);
-  const [npcAbilities, setNpcAbilities] = useState<NPCAbility[]>([]);
-  const [npcDmNotes, setNpcDmNotes] = useState('');
-  const [npcThreeWords, setNpcThreeWords] = useState('');
-  const [npcIsAlive, setNpcIsAlive] = useState(true);
 
   // Encounters Tab state
   interface Encounter {
@@ -2825,138 +2798,11 @@ export default function DMDashboard() {
 
   const fetchAllNPCs = async () => {
     try {
-      setNpcsLoading(true);
       const { data } = await supabase.from('npcs').select('*').eq('campaign_id', campaignId).order('name');
       setAllNPCs(data || []);
     } catch (err: any) {
       console.error('Error fetching NPCs:', err);
-    } finally {
-      setNpcsLoading(false);
     }
-  };
-
-  const resetNpcForm = () => {
-    setNpcName('');
-    setNpcType('Enemy');
-    setNpcDisposition('Hostile');
-    setNpcDescription('');
-    setNpcMaxHp(10);
-    setNpcCurrentHp(10);
-    setNpcAc(10);
-    setNpcInitMod(0);
-    setNpcStr(10);
-    setNpcDex(10);
-    setNpcCon(10);
-    setNpcWis(10);
-    setNpcInt(10);
-    setNpcCha(10);
-    setNpcAbilities([]);
-    setNpcDmNotes('');
-    setNpcThreeWords('');
-    setNpcIsAlive(true);
-    setSelectedEditNPC(null);
-  };
-
-  const loadNpcForEdit = (npc: NPC) => {
-    setSelectedEditNPC(npc);
-    setNpcName(npc.name);
-    setNpcType(npc.type);
-    setNpcDisposition(npc.disposition);
-    setNpcDescription(npc.description || '');
-    setNpcMaxHp(npc.max_hp);
-    setNpcCurrentHp(npc.current_hp);
-    setNpcAc(npc.ac);
-    setNpcInitMod(npc.initiative_modifier || 0);
-    setNpcStr(npc.str);
-    setNpcDex(npc.dex);
-    setNpcCon(npc.con);
-    setNpcWis(npc.wis);
-    setNpcInt(npc.int);
-    setNpcCha(npc.cha);
-    setNpcAbilities(npc.abilities || []);
-    setNpcDmNotes(npc.dm_notes || '');
-    setNpcThreeWords(npc.three_words || '');
-    setNpcIsAlive(npc.is_alive);
-    setNpcsSubTab('list');
-  };
-
-  const handleSaveNpc = async () => {
-    if (!npcName.trim()) {
-      alert('Please enter a name');
-      return;
-    }
-
-    try {
-      setNpcSaving(true);
-      const npcData = {
-        name: npcName,
-        type: npcType,
-        disposition: npcDisposition,
-        description: npcDescription || null,
-        max_hp: npcMaxHp,
-        current_hp: npcCurrentHp,
-        ac: npcAc,
-        initiative_modifier: npcInitMod,
-        str: npcStr,
-        dex: npcDex,
-        con: npcCon,
-        wis: npcWis,
-        int: npcInt,
-        cha: npcCha,
-        abilities: npcAbilities,
-        dm_notes: npcDmNotes || null,
-        three_words: npcThreeWords || null,
-        is_alive: npcIsAlive,
-        is_active: true,
-        created_by: profile?.id,
-        campaign_id: campaignId,
-      };
-
-      if (selectedEditNPC) {
-        const { error } = await supabase.from('npcs').update(npcData).eq('id', selectedEditNPC.id);
-        if (error) throw error;
-        alert(`NPC "${npcName}" updated!`);
-      } else {
-        const { error } = await supabase.from('npcs').insert(npcData);
-        if (error) throw error;
-        alert(`NPC "${npcName}" created!`);
-      }
-
-      resetNpcForm();
-      fetchAllNPCs();
-      setNpcsSubTab('list');
-    } catch (err: any) {
-      alert('Error saving NPC: ' + err.message);
-    } finally {
-      setNpcSaving(false);
-    }
-  };
-
-  const handleDeleteNpc = async (npcId: string, npcNameStr: string) => {
-    if (!confirm(`Delete NPC "${npcNameStr}"? This cannot be undone.`)) return;
-
-    try {
-      const { error } = await supabase.from('npcs').delete().eq('id', npcId);
-      if (error) throw error;
-      setAllNPCs(npcs => npcs.filter(n => n.id !== npcId));
-      if (selectedEditNPC?.id === npcId) resetNpcForm();
-    } catch (err: any) {
-      alert('Error deleting NPC: ' + err.message);
-    }
-  };
-
-  const handleAddNpcAbility = () => {
-    setNpcAbilities([...npcAbilities, { name: '', damage: '', effect: '' }]);
-  };
-
-  const handleUpdateNpcAbility = (index: number, field: keyof NPCAbility, value: string) => {
-    const updated = [...npcAbilities];
-    updated[index] = { ...updated[index], [field]: value };
-    setNpcAbilities(updated);
-  };
-
-  const handleRemoveNpcAbility = (index: number) => {
-    setNpcAbilities(npcAbilities.filter((_, i) => i !== index));
   };
 
   const getNpcTypeColor = (type: NPCType) => {
@@ -2972,15 +2818,6 @@ export default function DMDashboard() {
       default: return 'var(--color-cyber-cyan)';
     }
   };
-
-  const filteredNpcsList = allNPCs.filter(npc => {
-    const matchesSearch = npc.name.toLowerCase().includes(npcSearchQuery.toLowerCase());
-    const matchesType = npcFilterType === 'all' || npc.type === npcFilterType;
-    const matchesAlive = npcFilterAlive === 'all' || 
-      (npcFilterAlive === 'alive' && npc.is_alive) || 
-      (npcFilterAlive === 'dead' && !npc.is_alive);
-    return matchesSearch && matchesType && matchesAlive;
-  });
 
   // ============ EFFECTS TAB FUNCTIONS ============
 
