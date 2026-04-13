@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import type { InventoryItem, Item, ItemType, ItemRarity, Ability, AbilityType, ChargeType } from '../types/inventory';
 import type { NPC, NPCType } from '../types/npc';
 import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus, RewardMode } from '../types/mission';
-import { getRarityColor, getRarityBgColor, getItemTypeIcon, formatModifier, getAbilityTypeIcon } from '../utils/stats';
+import { getRarityColor, getRarityBgColor, getItemTypeIcon, formatModifier, getAbilityTypeIcon, getAbilityCooldownText } from '../utils/stats';
 import { ALL_SKILLS, CHARACTER_CLASSES, formatToHit, WeaponType } from '../data/characterClasses';
 import { useClassAliases } from '../utils/useClassAliases';
 import NumberInput from '../components/NumberInput';
@@ -3748,6 +3748,22 @@ export default function DMDashboard() {
                                     </span>
                                   </div>
                                 )}
+                                {(() => {
+                                  const cooldownText = getAbilityCooldownText(charAbility.ability, charAbility.current_charges);
+                                  return cooldownText ? (
+                                    <div className="text-xs px-2 py-1 mt-2 rounded" style={{
+                                      background: charAbility.current_charges <= 0 
+                                        ? 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' 
+                                        : 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)',
+                                      color: charAbility.current_charges <= 0 
+                                        ? 'var(--color-cyber-magenta)' 
+                                        : 'var(--color-cyber-yellow)',
+                                      fontFamily: 'var(--font-mono)'
+                                    }}>
+                                      {cooldownText}
+                                    </div>
+                                  ) : null;
+                                })()}
                                 
                                 {/* Description */}
                                 <p className="text-xs mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6 }}>
@@ -5522,6 +5538,17 @@ export default function DMDashboard() {
                                               }}
                                             >USE</button>
                                           )}
+                                          {(() => {
+                                            const cooldownText = getAbilityCooldownText(ca.ability, ca.current_charges);
+                                            return cooldownText ? (
+                                              <div className="text-xs mt-1" style={{
+                                                color: ca.current_charges <= 0 ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-yellow)',
+                                                fontFamily: 'var(--font-mono)'
+                                              }}>
+                                                {cooldownText}
+                                              </div>
+                                            ) : null;
+                                          })()}
                                         </div>
                                       )}
                                     </div>

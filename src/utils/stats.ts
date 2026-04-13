@@ -1,6 +1,6 @@
 // Utilities for calculating character stats including item modifiers
 
-import type { InventoryItem, CharacterStats, StatModifiers } from '../types/inventory';
+import type { InventoryItem, CharacterStats, StatModifiers, Item, Ability } from '../types/inventory';
 
 /**
  * Calculate total character stats including base stats and equipped item modifiers
@@ -229,4 +229,99 @@ export function groupInventoryByType(inventory: InventoryItem[]): { [type: strin
     groups[type].push(inv);
     return groups;
   }, {} as { [type: string]: InventoryItem[] });
+}
+
+/**
+ * Resolve a weapon's to-hit bonus for a given character.
+ * Looks up stat/skill/modifier values on the character object.
+ */
+export function resolveWeaponToHit(item: Item, character: Record<string, unknown>): number {
+  if (!item.to_hit_type || item.to_hit_type === 'static') return item.to_hit_static || 0;
+
+  if (item.to_hit_type === 'stat' && item.to_hit_reference) {
+    const statKey = item.to_hit_reference.toLowerCase();
+    return (character[statKey] as number) || 0;
+  }
+  if (item.to_hit_type === 'skill' && item.to_hit_reference) {
+    const skillCol = 'skill_' + item.to_hit_reference.toLowerCase().replace(/ /g, '_');
+    return (character[skillCol] as number) || 0;
+  }
+  // For 'modifier' type — future custom modifier support
+  return item.to_hit_static || 0;
+}
+
+/**
+ * Resolve a weapon's damage bonus for a given character.
+ */
+export function resolveWeaponDamageBonus(item: Item, character: Record<string, unknown>): number {
+  if (!item.damage_bonus_type || item.damage_bonus_type === 'none') return 0;
+
+  if (item.damage_bonus_type === 'stat' && item.damage_bonus_reference) {
+    const statKey = item.damage_bonus_reference.toLowerCase();
+    return (character[statKey] as number) || 0;
+  }
+  if (item.damage_bonus_type === 'skill' && item.damage_bonus_reference) {
+    const skillCol = 'skill_' + item.damage_bonus_reference.toLowerCase().replace(/ /g, '_');
+    return (character[skillCol] as number) || 0;
+  }
+  return 0;
+}
+
+/**
+ * Format a weapon's damage for display.
+ * Returns e.g. "2d6 + 4" or "1d8 + 2 + DEX(+3)" or "No damage"
+ */
+export function formatWeaponDamage(item: Item, character?: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (item.damage_dice) parts.push(item.damage_dice);
+  if (item.damage_static_bonus) {
+    parts.push(`${item.damage_static_bonus > 0 ? '+' : ''}${item.damage_static_bonus}`);
+  }
+  if (item.damage_bonus_type && item.damage_bonus_type !== 'none' && item.damage_bonus_reference) {
+    const label = item.damage_bonus_reference;
+    if (character) {
+      const resolved = resolveWeaponDamageBonus(item, character);
+      parts.push(`+ ${label}(${resolved >= 0 ? '+' : ''}${resolved})`);
+    } else {
+      parts.push(`+ ${label}`);
+    }
+  }
+  return parts.join(' ') || 'No damage';
+}
+
+/**
+ * Format a weapon's to-hit for display.
+ * Returns e.g. "+5 (DEX-based)" or "+3 (static)"
+ */
+export function formatWeaponToHit(item: Item, character?: Record<string, unknown>): string {
+  if (!item.to_hit_type || item.to_hit_type === 'static') {
+    const val = item.to_hit_static || 0;
+    return `${val >= 0 ? '+' : ''}${val}`;
+  }
+  const label = item.to_hit_reference || '';
+  if (character) {
+    const resolved = resolveWeaponToHit(item, character);
+    return `${resolved >= 0 ? '+' : ''}${resolved} (${label})`;
+  }
+  return `${label}-based`;
+}
+
+/**
+ * Get cooldown/recharge text for an ability when it has no charges remaining.
+ * Returns null if ability is usable or has infinite charges.
+ */
+export function getAbilityCooldownText(ability: Ability, currentCharges: number): string | null {
+  if (ability.charge_type === 'infinite') return null;
+  if (currentCharges > 0) return null;
+
+  if (ability.charge_type === 'short_rest') {
+    return '🔄 Recharges on Short Rest';
+  }
+  if (ability.charge_type === 'long_rest') {
+    return '🌙 Recharges on Long Rest';
+  }
+  if (ability.charge_type === 'uses') {
+    return '⚠️ No charges remaining';
+  }
+  return null;
 }

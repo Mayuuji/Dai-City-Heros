@@ -7,6 +7,10 @@ export type AbilityType = 'action' | 'bonus_action' | 'reaction' | 'passive' | '
 export type SourceType = 'class' | 'item' | 'temporary';
 export type HpModType = 'heal' | 'max_hp';
 
+// Weapon combat stat types
+export type ToHitType = 'static' | 'stat' | 'skill' | 'modifier';
+export type DamageBonusType = 'none' | 'stat' | 'skill' | 'modifier';
+
 // Subtypes for weapons and armor
 export type ArmorSubtype = 'clothes' | 'light' | 'medium' | 'heavy' | 'shield';
 export type WeaponSubtype = 'unarmed' | 'melee' | 'sidearms' | 'longarms' | 'heavy';
@@ -54,6 +58,16 @@ export interface Item {
   
   // Skill modifiers (e.g., {"Hacking": 3, "Athletics": 2})
   skill_mods: { [skillName: string]: number };
+
+  // Weapon combat stats
+  to_hit_type: ToHitType;
+  to_hit_static: number;
+  to_hit_reference: string | null;
+  damage_dice: string | null;
+  damage_static_bonus: number;
+  damage_bonus_type: DamageBonusType;
+  damage_bonus_reference: string | null;
+  damage_type: string | null;
   
   // Item properties
   is_consumable: boolean;

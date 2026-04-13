@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { ItemType, ItemRarity } from '../types/inventory';
-import { ALL_SKILLS } from '../data/characterClasses';
+import type { ItemType, ItemRarity, ToHitType, DamageBonusType } from '../types/inventory';
+import { ALL_SKILLS, STATS } from '../data/characterClasses';
 import { formatModifier, getRarityColor, getItemTypeIcon } from '../utils/stats';
 import AbilityBrowser from '../components/AbilityBrowser';
 import NumberInput from '../components/NumberInput';
@@ -44,6 +44,16 @@ export default function DMItemCreator() {
   const [isEquippable, setIsEquippable] = useState(true);
   const [stackSize, setStackSize] = useState(1);
   
+  // Weapon combat stats
+  const [toHitType, setToHitType] = useState<ToHitType>('static');
+  const [toHitStatic, setToHitStatic] = useState(0);
+  const [toHitReference, setToHitReference] = useState('');
+  const [damageDice, setDamageDice] = useState('');
+  const [damageStaticBonus, setDamageStaticBonus] = useState(0);
+  const [damageBonusType, setDamageBonusType] = useState<DamageBonusType>('none');
+  const [damageBonusReference, setDamageBonusReference] = useState('');
+  const [damageTypeLabel, setDamageTypeLabel] = useState('');
+
   const [creating, setCreating] = useState(false);
 
   // Check if user is admin
@@ -95,6 +105,14 @@ export default function DMItemCreator() {
           is_consumable: isConsumable,
           is_equippable: isEquippable,
           stack_size: stackSize,
+          to_hit_type: type === 'weapon' ? toHitType : 'static',
+          to_hit_static: type === 'weapon' ? toHitStatic : 0,
+          to_hit_reference: type === 'weapon' && toHitType !== 'static' ? toHitReference || null : null,
+          damage_dice: type === 'weapon' && damageDice ? damageDice : null,
+          damage_static_bonus: type === 'weapon' ? damageStaticBonus : 0,
+          damage_bonus_type: type === 'weapon' ? damageBonusType : 'none',
+          damage_bonus_reference: type === 'weapon' && damageBonusType !== 'none' ? damageBonusReference || null : null,
+          damage_type: type === 'weapon' && damageTypeLabel ? damageTypeLabel : null,
           created_by: profile?.id,
           campaign_id: campaignId
         })
@@ -147,6 +165,14 @@ export default function DMItemCreator() {
       setStackSize(1);
       setLinkedAbilityIds([]);
       setRequiresEquipped(true);
+      setToHitType('static');
+      setToHitStatic(0);
+      setToHitReference('');
+      setDamageDice('');
+      setDamageStaticBonus(0);
+      setDamageBonusType('none');
+      setDamageBonusReference('');
+      setDamageTypeLabel('');
 
     } catch (err: any) {
       console.error('Error creating item:', err);
@@ -404,6 +430,247 @@ export default function DMItemCreator() {
               </div>
             </div>
 
+            {/* Weapon Combat Stats - only shown for weapon type */}
+            {type === 'weapon' && (
+              <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-yellow, #FACC15)' }}>
+                <h2 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow, #FACC15)' }}>
+                  ⚔️ COMBAT STATS
+                </h2>
+
+                {/* To-Hit Section */}
+                <div className="mb-6">
+                  <h3 className="text-sm mb-3" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-cyber-yellow, #FACC15)' }}>
+                    TO-HIT MODIFIER
+                  </h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Type</label>
+                      <select
+                        value={toHitType}
+                        onChange={(e) => { setToHitType(e.target.value as ToHitType); setToHitReference(''); }}
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      >
+                        <option value="static">Static (flat bonus)</option>
+                        <option value="stat">Stat-Based</option>
+                        <option value="skill">Skill-Based</option>
+                        <option value="modifier">Custom Modifier</option>
+                      </select>
+                    </div>
+                    {toHitType === 'static' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Flat Bonus</label>
+                        <NumberInput
+                          value={toHitStatic}
+                          onChange={(val) => setToHitStatic(val)}
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        />
+                      </div>
+                    )}
+                    {toHitType === 'stat' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Stat</label>
+                        <select
+                          value={toHitReference}
+                          onChange={(e) => setToHitReference(e.target.value)}
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        >
+                          <option value="">Select stat...</option>
+                          {STATS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {toHitType === 'skill' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Skill</label>
+                        <select
+                          value={toHitReference}
+                          onChange={(e) => setToHitReference(e.target.value)}
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        >
+                          <option value="">Select skill...</option>
+                          {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {toHitType === 'modifier' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Modifier Key</label>
+                        <input
+                          type="text"
+                          value={toHitReference}
+                          onChange={(e) => setToHitReference(e.target.value)}
+                          placeholder="e.g. luck"
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Damage Section */}
+                <div>
+                  <h3 className="text-sm mb-3" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-cyber-yellow, #FACC15)' }}>
+                    DAMAGE
+                  </h3>
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Dice Notation</label>
+                      <input
+                        type="text"
+                        value={damageDice}
+                        onChange={(e) => setDamageDice(e.target.value)}
+                        placeholder="e.g. 2d6, 1d8+1d4"
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Static Bonus</label>
+                      <NumberInput
+                        value={damageStaticBonus}
+                        onChange={(val) => setDamageStaticBonus(val)}
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Additional Bonus</label>
+                      <select
+                        value={damageBonusType}
+                        onChange={(e) => { setDamageBonusType(e.target.value as DamageBonusType); setDamageBonusReference(''); }}
+                        className="w-full px-3 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      >
+                        <option value="none">None</option>
+                        <option value="stat">Stat-Based</option>
+                        <option value="skill">Skill-Based</option>
+                        <option value="modifier">Custom Modifier</option>
+                      </select>
+                    </div>
+                    {damageBonusType === 'stat' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Stat</label>
+                        <select
+                          value={damageBonusReference}
+                          onChange={(e) => setDamageBonusReference(e.target.value)}
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        >
+                          <option value="">Select stat...</option>
+                          {STATS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {damageBonusType === 'skill' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Skill</label>
+                        <select
+                          value={damageBonusReference}
+                          onChange={(e) => setDamageBonusReference(e.target.value)}
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        >
+                          <option value="">Select skill...</option>
+                          {ALL_SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {damageBonusType === 'modifier' && (
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Modifier Key</label>
+                        <input
+                          type="text"
+                          value={damageBonusReference}
+                          onChange={(e) => setDamageBonusReference(e.target.value)}
+                          placeholder="e.g. luck"
+                          className="w-full px-3 py-2 rounded"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                            border: '1px solid var(--color-cyber-cyan)',
+                            color: 'var(--color-cyber-cyan)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Damage Type</label>
+                    <input
+                      type="text"
+                      value={damageTypeLabel}
+                      onChange={(e) => setDamageTypeLabel(e.target.value)}
+                      placeholder="e.g. slashing, fire, energy, piercing"
+                      className="w-full px-3 py-2 rounded"
+                      style={{
+                        backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                        border: '1px solid var(--color-cyber-cyan)',
+                        color: 'var(--color-cyber-cyan)',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Skill Modifiers */}
             <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-cyan)' }}>
               <h2 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
@@ -551,6 +818,30 @@ export default function DMItemCreator() {
                           • {skill} {formatModifier(bonus)}
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Weapon Combat Stats Preview */}
+                {type === 'weapon' && (damageDice || toHitType !== 'static' || toHitStatic !== 0) && (
+                  <div className="p-4 rounded" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-yellow, #FACC15) 30%, transparent)' }}>
+                    <h3 className="text-sm mb-2" style={{ color: 'var(--color-cyber-yellow, #FACC15)', fontFamily: 'var(--font-cyber)' }}>
+                      ⚔️ COMBAT
+                    </h3>
+                    <div className="space-y-1">
+                      <div className="text-xs" style={{ color: 'var(--color-cyber-yellow, #FACC15)', fontFamily: 'var(--font-mono)' }}>
+                        🎯 To Hit: {toHitType === 'static' ? `${toHitStatic >= 0 ? '+' : ''}${toHitStatic}` : `${toHitReference || '?'}-based`}
+                      </div>
+                      {damageDice && (
+                        <div className="text-xs" style={{ color: 'var(--color-cyber-yellow, #FACC15)', fontFamily: 'var(--font-mono)' }}>
+                          💥 Damage: {damageDice}{damageStaticBonus ? ` ${damageStaticBonus > 0 ? '+' : ''}${damageStaticBonus}` : ''}{damageBonusType !== 'none' && damageBonusReference ? ` + ${damageBonusReference}` : ''}
+                        </div>
+                      )}
+                      {damageTypeLabel && (
+                        <div className="text-xs" style={{ color: 'var(--color-cyber-yellow, #FACC15)', fontFamily: 'var(--font-mono)' }}>
+                          🔥 Type: {damageTypeLabel}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

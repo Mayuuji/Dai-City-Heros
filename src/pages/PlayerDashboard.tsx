@@ -7,7 +7,7 @@ import { CHARACTER_CLASSES, formatToHit } from '../data/characterClasses';
 import { useClassAliases } from '../utils/useClassAliases';
 import type { InventoryItem, Ability } from '../types/inventory';
 import type { MissionWithDetails, MissionStatus } from '../types/mission';
-import { getRarityColor, getItemTypeIcon } from '../utils/stats';
+import { getRarityColor, getItemTypeIcon, formatWeaponToHit, formatWeaponDamage, getAbilityCooldownText } from '../utils/stats';
 import PlayerEffectsOverlay from '../components/PlayerEffectsOverlay';
 
 // Helper to convert skill name to database column name
@@ -1295,6 +1295,22 @@ export default function PlayerDashboard() {
                                 </div>
                               )}
                             </div>
+                            {(() => {
+                              const cooldownText = getAbilityCooldownText(ability, ability.current_charges || 0);
+                              return cooldownText ? (
+                                <div className="text-xs px-2 py-1 mb-2 rounded" style={{
+                                  background: (ability.current_charges || 0) <= 0 
+                                    ? 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' 
+                                    : 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)',
+                                  color: (ability.current_charges || 0) <= 0 
+                                    ? 'var(--color-cyber-magenta)' 
+                                    : 'var(--color-cyber-yellow)',
+                                  fontFamily: 'var(--font-mono)'
+                                }}>
+                                  {cooldownText}
+                                </div>
+                              ) : null;
+                            })()}
                             <p className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>
                               {ability.description}
                             </p>
@@ -1387,10 +1403,27 @@ export default function PlayerDashboard() {
 
                                   {/* Weapon To Hit */}
                                   {isWeapon && (
-                                    <div className="mb-3">
-                                      <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>
-                                        🎯 To Hit: {formatToHit(rank)} {!isProficient && '(Not Proficient)'}
-                                      </span>
+                                    <div className="mb-3 flex flex-wrap gap-2">
+                                      {weaponType && (
+                                        <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>
+                                          🎯 Proficiency: {formatToHit(rank)} {!isProficient && '(Not Proficient)'}
+                                        </span>
+                                      )}
+                                      {(item.to_hit_type && item.to_hit_type !== 'static' || (item.to_hit_static || 0) !== 0) && selectedCharacter && (
+                                        <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow, #FACC15) 30%, transparent)', border: '1px solid var(--color-cyber-yellow, #FACC15)', color: 'var(--color-cyber-yellow, #FACC15)', fontFamily: 'var(--font-mono)' }}>
+                                          🎯 To Hit: {formatWeaponToHit(item, selectedCharacter as unknown as Record<string, unknown>)}
+                                        </span>
+                                      )}
+                                      {item.damage_dice && selectedCharacter && (
+                                        <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: 'color-mix(in srgb, var(--color-cyber-red, #EF4444) 30%, transparent)', border: '1px solid var(--color-cyber-red, #EF4444)', color: 'var(--color-cyber-red, #EF4444)', fontFamily: 'var(--font-mono)' }}>
+                                          💥 {formatWeaponDamage(item, selectedCharacter as unknown as Record<string, unknown>)}
+                                        </span>
+                                      )}
+                                      {item.damage_type && (
+                                        <span className="text-sm px-3 py-1 rounded inline-block" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                                          🔥 {item.damage_type}
+                                        </span>
+                                      )}
                                     </div>
                                   )}
 
@@ -1896,9 +1929,10 @@ export default function PlayerDashboard() {
                             {selectedInventoryItem.item.armor_subtype && ` • ${selectedInventoryItem.item.armor_subtype.charAt(0).toUpperCase() + selectedInventoryItem.item.armor_subtype.slice(1)}`}
                           </div>
                           {/* Weapon To-Hit Display */}
-                          {selectedInventoryItem.item.type === 'weapon' && selectedInventoryItem.item.weapon_subtype && selectedCharacter && (
-                            <div className="mt-2">
-                              {(() => {
+                          {selectedInventoryItem.item.type === 'weapon' && selectedCharacter && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {/* Proficiency-based to-hit (from weapon rank) */}
+                              {selectedInventoryItem.item.weapon_subtype && (() => {
                                 const weaponType = selectedInventoryItem.item.weapon_subtype.toLowerCase();
                                 const rankKey = `weapon_rank_${weaponType}` as keyof Character;
                                 const rank = (selectedCharacter[rankKey] as number) ?? 0;
@@ -1913,10 +1947,53 @@ export default function PlayerDashboard() {
                                       fontFamily: 'var(--font-mono)'
                                     }}
                                   >
-                                    🎯 To Hit: {toHitText} {!isProficient && '(Not Proficient)'}
+                                    🎯 Proficiency: {toHitText} {!isProficient && '(Not Proficient)'}
                                   </span>
                                 );
                               })()}
+                              {/* New combat stats to-hit */}
+                              {(selectedInventoryItem.item.to_hit_type && selectedInventoryItem.item.to_hit_type !== 'static' || (selectedInventoryItem.item.to_hit_static || 0) !== 0) && (
+                                <span 
+                                  className="text-sm px-3 py-1 rounded font-bold inline-block"
+                                  style={{ 
+                                    background: 'color-mix(in srgb, var(--color-cyber-yellow, #FACC15) 30%, transparent)',
+                                    border: '1px solid var(--color-cyber-yellow, #FACC15)',
+                                    color: 'var(--color-cyber-yellow, #FACC15)',
+                                    fontFamily: 'var(--font-mono)'
+                                  }}
+                                >
+                                  🎯 To Hit: {formatWeaponToHit(selectedInventoryItem.item, selectedCharacter as unknown as Record<string, unknown>)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {/* Weapon Damage Display */}
+                          {selectedInventoryItem.item.type === 'weapon' && selectedInventoryItem.item.damage_dice && selectedCharacter && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <span 
+                                className="text-sm px-3 py-1 rounded font-bold inline-block"
+                                style={{ 
+                                  background: 'color-mix(in srgb, var(--color-cyber-red, #EF4444) 30%, transparent)',
+                                  border: '1px solid var(--color-cyber-red, #EF4444)',
+                                  color: 'var(--color-cyber-red, #EF4444)',
+                                  fontFamily: 'var(--font-mono)'
+                                }}
+                              >
+                                💥 {formatWeaponDamage(selectedInventoryItem.item, selectedCharacter as unknown as Record<string, unknown>)}
+                              </span>
+                              {selectedInventoryItem.item.damage_type && (
+                                <span 
+                                  className="text-sm px-3 py-1 rounded inline-block"
+                                  style={{ 
+                                    background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)',
+                                    border: '1px solid var(--color-cyber-cyan)',
+                                    color: 'var(--color-cyber-cyan)',
+                                    fontFamily: 'var(--font-mono)'
+                                  }}
+                                >
+                                  🔥 {selectedInventoryItem.item.damage_type}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>

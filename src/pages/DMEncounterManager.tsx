@@ -10,6 +10,7 @@ import type {
 } from '../types/encounter';
 import type { NPC } from '../types/npc';
 import type { CharacterAbility } from '../types/inventory';
+import { getAbilityCooldownText } from '../utils/stats';
 
 // Extended participant with abilities
 interface ParticipantWithAbilities extends EncounterParticipantWithDetails {
@@ -1079,6 +1080,17 @@ export default function DMEncounterManager() {
                                       USE
                                     </button>
                                   )}
+                                  {(() => {
+                                    const cooldownText = getAbilityCooldownText(ability, chargesLeft);
+                                    return cooldownText ? (
+                                      <div className="text-xs mt-1" style={{
+                                        color: chargesLeft <= 0 ? 'var(--color-cyber-pink)' : 'var(--color-cyber-yellow)',
+                                        fontFamily: 'var(--font-mono)'
+                                      }}>
+                                        {cooldownText}
+                                      </div>
+                                    ) : null;
+                                  })()}
                                 </div>
                               )}
                             </div>
