@@ -3170,6 +3170,18 @@ export default function DMDashboard() {
               {playersLocked ? '🔒 LOCKED' : '🔓 UNLOCKED'}
             </button>
             <button
+              onClick={() => navigate('/dm/ruleset-editor')}
+              className="px-3 py-1.5 rounded text-sm transition-all hover:opacity-80"
+              style={{
+                border: '1px solid var(--color-cyber-yellow)',
+                color: 'var(--color-cyber-yellow)',
+                fontFamily: 'var(--font-mono)',
+                background: 'transparent'
+              }}
+            >
+              📐 RULESET
+            </button>
+            <button
               onClick={() => navigate('/rules')}
               className="px-3 py-1.5 rounded text-sm transition-all hover:opacity-80"
               style={{

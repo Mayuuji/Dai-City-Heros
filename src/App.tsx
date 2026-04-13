@@ -23,6 +23,8 @@ import DMNPCManager from './pages/DMNPCManager';
 import DMEncounterManager from './pages/DMEncounterManager';
 import PlayerEncounterView from './pages/PlayerEncounterView';
 import RulesPage from './pages/RulesPage';
+import RulesetEditor from './pages/RulesetEditor';
+import { RulesetProvider } from './contexts/RulesetContext';
 import './index.css';
 
 // Protected route wrapper
@@ -352,6 +354,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <CampaignProvider>
+        <RulesetProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -537,8 +540,19 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/dm/ruleset-editor" 
+            element={
+              <ProtectedRoute>
+                <CampaignGate>
+                  <RulesetEditor />
+                </CampaignGate>
+              </ProtectedRoute>
+            } 
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </RulesetProvider>
         </CampaignProvider>
       </AuthProvider>
     </BrowserRouter>
