@@ -3,20 +3,25 @@ import { useCampaign } from '../contexts/CampaignContext';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { CHARACTER_CLASSES, formatToHit } from '../data/characterClasses';
+import { CHARACTER_CLASSES } from '../data/characterClasses';
 import { useClassAliases } from '../utils/useClassAliases';
 import type { InventoryItem, Ability, EquipmentSlot, ItemSlotType } from '../types/inventory';
 import type { MissionWithDetails, MissionStatus } from '../types/mission';
 import type { StorageContainer, StorageItem } from '../types/storage';
-import { getRarityColor, getItemTypeIcon, formatWeaponToHit, formatWeaponDamage, getAbilityCooldownText } from '../utils/stats';
 import PlayerEffectsOverlay from '../components/PlayerEffectsOverlay';
-import NumberInput from '../components/NumberInput';
+
+// Sub-components
+import StatsPanel from '../components/player/StatsPanel';
+import EquipmentPanel from '../components/player/EquipmentPanel';
+import InventoryPanel from '../components/player/InventoryPanel';
+import AbilitiesModal from '../components/player/AbilitiesModal';
+import MissionsModal from '../components/player/MissionsModal';
+import StorageModal from '../components/player/StorageModal';
 
 // Helper to convert skill name to database column name
 const skillToColumn = (skillName: string): string => {
   return 'skill_' + skillName.toLowerCase().replace(/ /g, '_');
 };
-
 
 interface Character {
   id: string;
@@ -29,12 +34,7 @@ interface Character {
   temp_hp: number;
   ac: number;
   cdd: string;
-  str: number;
-  dex: number;
-  con: number;
-  wis: number;
-  int: number;
-  cha: number;
+  str: number; dex: number; con: number; wis: number; int: number; cha: number;
   usd: number;
   speed: number;
   initiative_modifier: number;
@@ -42,33 +42,20 @@ interface Character {
   save_proficiencies: string[];
   tools: string[];
   class_features: any[];
-  
-  // Weapon proficiency ranks (0-5)
+  portrait_url?: string;
+  carrying_capacity?: number;
+  base_carrying_capacity?: number;
   weapon_rank_unarmed: number;
   weapon_rank_melee: number;
   weapon_rank_sidearms: number;
   weapon_rank_longarms: number;
   weapon_rank_heavy: number;
-  
-  // Skills
-  skill_acrobatics: number;
-  skill_animal_handling: number;
-  skill_athletics: number;
-  skill_biology: number;
-  skill_deception: number;
-  skill_hacking: number;
-  skill_history: number;
-  skill_insight: number;
-  skill_intimidation: number;
-  skill_investigation: number;
-  skill_medicine: number;
-  skill_nature: number;
-  skill_perception: number;
-  skill_performance: number;
-  skill_persuasion: number;
-  skill_sleight_of_hand: number;
-  skill_stealth: number;
-  skill_survival: number;
+  skill_acrobatics: number; skill_animal_handling: number; skill_athletics: number;
+  skill_biology: number; skill_deception: number; skill_hacking: number;
+  skill_history: number; skill_insight: number; skill_intimidation: number;
+  skill_investigation: number; skill_medicine: number; skill_nature: number;
+  skill_perception: number; skill_performance: number; skill_persuasion: number;
+  skill_sleight_of_hand: number; skill_stealth: number; skill_survival: number;
 }
 
 export default function PlayerDashboard() {
@@ -81,8 +68,7 @@ export default function PlayerDashboard() {
   const [abilities, setAbilities] = useState<Ability[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'abilities' | 'skills' | 'inventory' | 'missions'>('abilities');
-  
+
   // Inventory state
   const [inventorySearch, setInventorySearch] = useState('');
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<string>('all');
@@ -90,13 +76,13 @@ export default function PlayerDashboard() {
   const [inventorySort, setInventorySort] = useState<'name' | 'type' | 'rarity' | 'equipped'>('equipped');
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [inventoryViewMode, setInventoryViewMode] = useState<'grid' | 'list'>('grid');
-  
+
   // Missions state
   const [missions, setMissions] = useState<MissionWithDetails[]>([]);
   const [missionFilter, setMissionFilter] = useState<MissionStatus | 'all'>('active');
   const [selectedMission, setSelectedMission] = useState<MissionWithDetails | null>(null);
-  
-  // Player Lock state - prevents equipping/using items/shopping during encounters
+
+  // Player Lock state
   const [playersLocked, setPlayersLocked] = useState(false);
   const [lockReason, setLockReason] = useState<string | null>(null);
 
@@ -115,33 +101,34 @@ export default function PlayerDashboard() {
   const [selectedContainer, setSelectedContainer] = useState<StorageContainer | null>(null);
   const [storeItemId, setStoreItemId] = useState<string | null>(null);
   const [storeQuantity, setStoreQuantity] = useState(1);
-  
-  // Computed stats (base + equipment bonuses)
+
+  // Bottom nav overlay modals
+  const [showAbilitiesModal, setShowAbilitiesModal] = useState(false);
+  const [showMissionsModal, setShowMissionsModal] = useState(false);
+
+  // Equipment slot filter (when clicking empty slot in EquipmentPanel)
+  const [slotFilter, setSlotFilter] = useState<EquipmentSlot | null>(null);
+
+  // Computed stats
   const [computedStats, setComputedStats] = useState({
-    hp: 0,
-    ac: 0,
-    str: 0,
-    dex: 0,
-    con: 0,
-    wis: 0,
-    int: 0,
-    cha: 0,
-    speed: 30,
-    init: 0,
-    ic: 3,
+    hp: 0, ac: 0,
+    str: 0, dex: 0, con: 0, wis: 0, int: 0, cha: 0,
+    speed: 30, init: 0, ic: 3,
     skills: {} as Record<string, number>,
-    hasArmorPenalty: false, // True if wearing non-proficient armor (-2 AC, -10 speed)
-    // Equipment slot tracking
+    hasArmorPenalty: false,
     equippedArmorCount: 0,
     equippedWeaponCount: 0,
-    icUsed: 0, // Total IC cost of equipped cyberware
-    icRemaining: 3 // IC available (ic - icUsed)
+    icUsed: 0,
+    icRemaining: 3
   });
+
+  // ============================================================
+  // EFFECTS
+  // ============================================================
 
   useEffect(() => {
     if (user) {
       fetchCharacters();
-      // Fetch weight system setting
       supabase
         .from('game_settings')
         .select('value')
@@ -159,250 +146,147 @@ export default function PlayerDashboard() {
       fetchInventory(selectedCharacter.id);
       fetchAbilities(selectedCharacter.id);
     }
-  }, [selectedCharacter]);
+  }, [selectedCharacter?.id]);
 
-  // Real-time subscription for character HP updates (from DM combat tracker)
+  // Real-time: character updates
   useEffect(() => {
     if (!selectedCharacter) return;
-
     const channel = supabase
       .channel(`character-${selectedCharacter.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'characters',
-          filter: `id=eq.${selectedCharacter.id}`
-        },
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters', filter: `id=eq.${selectedCharacter.id}` },
         (payload) => {
-          // Update the selected character with new data (like HP changes)
           setSelectedCharacter(prev => prev ? { ...prev, ...payload.new } : null);
-          // Also update in the characters list
           setCharacters(prev => prev.map(c => c.id === selectedCharacter.id ? { ...c, ...payload.new } : c));
-        }
-      )
+        })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [selectedCharacter?.id]);
 
-  // Real-time subscription for inventory changes (when DM gives/removes items)
+  // Real-time: inventory
   useEffect(() => {
     if (!selectedCharacter) return;
-
-    const inventoryChannel = supabase
+    const ch = supabase
       .channel(`inventory-${selectedCharacter.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'inventory',
-          filter: `character_id=eq.${selectedCharacter.id}`
-        },
-        () => {
-          // Refetch inventory when any change happens
-          fetchInventory(selectedCharacter.id);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `character_id=eq.${selectedCharacter.id}` },
+        () => { fetchInventory(selectedCharacter.id); })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(inventoryChannel);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, [selectedCharacter?.id]);
 
-  // Real-time subscription for item updates (when item details change)
+  // Real-time: items updates
   useEffect(() => {
     if (!selectedCharacter) return;
-
-    const itemsChannel = supabase
+    const ch = supabase
       .channel(`items-updates-${selectedCharacter.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'items'
-        },
-        () => {
-          // Refetch inventory to get updated item details
-          fetchInventory(selectedCharacter.id);
-        }
-      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'items' },
+        () => { fetchInventory(selectedCharacter.id); })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(itemsChannel);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, [selectedCharacter?.id]);
 
-  // Real-time subscription for ability changes (when DM grants/removes abilities)
+  // Real-time: abilities
   useEffect(() => {
     if (!selectedCharacter) return;
-
-    const abilitiesChannel = supabase
+    const ch = supabase
       .channel(`abilities-${selectedCharacter.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'character_abilities',
-          filter: `character_id=eq.${selectedCharacter.id}`
-        },
-        () => {
-          // Refetch abilities when any change happens
-          fetchAbilities(selectedCharacter.id);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_abilities', filter: `character_id=eq.${selectedCharacter.id}` },
+        () => { fetchAbilities(selectedCharacter.id); })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(abilitiesChannel);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, [selectedCharacter?.id]);
 
-  // Real-time subscription for storage container changes (lock/unlock)
+  // Real-time: storage containers
   useEffect(() => {
-    const storageChannel = supabase
+    const ch = supabase
       .channel('storage-containers-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'storage_containers', filter: `campaign_id=eq.${campaignId}` }, () => {
-        fetchStorageContainers();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'storage_containers', filter: `campaign_id=eq.${campaignId}` },
+        () => { fetchStorageContainers(); })
       .subscribe();
-
-    return () => { supabase.removeChannel(storageChannel); };
+    return () => { supabase.removeChannel(ch); };
   }, [campaignId]);
 
-  // Fetch and subscribe to player lock status
+  // Real-time: player lock
   useEffect(() => {
     const fetchLockStatus = async () => {
       const { data } = await supabase
-        .from('game_settings')
-        .select('value')
-        .eq('campaign_id', campaignId)
-        .eq('key', 'players_locked')
-        .single();
-      
+        .from('game_settings').select('value')
+        .eq('campaign_id', campaignId).eq('key', 'players_locked').single();
       if (data) {
         setPlayersLocked(data.value?.locked || false);
         setLockReason(data.value?.reason || null);
       }
     };
-    
     fetchLockStatus();
-    
-    // Subscribe to real-time changes
-    const subscription = supabase
+    const sub = supabase
       .channel('player_lock_status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_settings', filter: `campaign_id=eq.${campaignId}` }, (payload) => {
-        if (payload.new && (payload.new as any).key === 'players_locked') {
-          const value = (payload.new as any).value;
-          setPlayersLocked(value?.locked || false);
-          setLockReason(value?.reason || null);
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_settings', filter: `campaign_id=eq.${campaignId}` },
+        (payload) => {
+          if (payload.new && (payload.new as any).key === 'players_locked') {
+            const val = (payload.new as any).value;
+            setPlayersLocked(val?.locked || false);
+            setLockReason(val?.reason || null);
+          }
+        })
       .subscribe();
-    
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => { sub.unsubscribe(); };
   }, []);
 
-  // Fetch data based on active tab
+  // Fetch missions when modal opens
   useEffect(() => {
-    if (activeTab === 'missions' && selectedCharacter) {
-      fetchMissions();
-    }
-  }, [activeTab, selectedCharacter]);
+    if (showMissionsModal && selectedCharacter) fetchMissions();
+  }, [showMissionsModal, selectedCharacter?.id]);
 
-  // Recalculate stats whenever character or inventory changes
+  // Recalculate stats
   useEffect(() => {
-    if (selectedCharacter) {
-      calculateComputedStats();
-    }
+    if (selectedCharacter) calculateComputedStats();
   }, [selectedCharacter, inventory]);
+
+  // ============================================================
+  // STAT CALCULATION
+  // ============================================================
 
   const calculateComputedStats = () => {
     if (!selectedCharacter) return;
-
-    // Get the character's class data for armor proficiencies
     const characterClass = CHARACTER_CLASSES.find(c => c.id === selectedCharacter.class);
     const armorProficiencies = characterClass?.armorProficiencies || ['clothes', 'light'];
 
-    // Start with base stats
-    let totalAcMod = 0;
-    let totalHpMod = 0;
-    let totalStrMod = 0;
-    let totalDexMod = 0;
-    let totalConMod = 0;
-    let totalWisMod = 0;
-    let totalIntMod = 0;
-    let totalChaMod = 0;
-    let totalSpeedMod = 0;
-    let totalInitMod = 0;
-    let totalIcMod = 0;
+    let totalAcMod = 0, totalHpMod = 0;
+    let totalStrMod = 0, totalDexMod = 0, totalConMod = 0;
+    let totalWisMod = 0, totalIntMod = 0, totalChaMod = 0;
+    let totalSpeedMod = 0, totalInitMod = 0, totalIcMod = 0;
     const skillMods: Record<string, number> = {};
-
-    // Check for non-proficient armor penalty
     let hasNonProficientArmor = false;
+    let armorCount = 0, weaponCount = 0, cyberwareIcUsed = 0;
 
-    // Equipment slot tracking
-    let armorCount = 0;
-    let weaponCount = 0;
-    let cyberwareIcUsed = 0;
+    inventory.filter(inv => inv.is_equipped && inv.item).forEach(inv => {
+      const item = inv.item!;
+      if (item.type === 'armor') {
+        armorCount++;
+        if (item.armor_subtype && !armorProficiencies.includes(item.armor_subtype as any)) hasNonProficientArmor = true;
+      }
+      if (item.type === 'weapon') weaponCount++;
+      if (item.type === 'cyberware') cyberwareIcUsed += item.ic_cost || 0;
 
-    // Add bonuses from equipped items
-    inventory
-      .filter(inv => inv.is_equipped && inv.item)
-      .forEach(inv => {
-        const item = inv.item!;
-        
-        // Track equipment slots
-        if (item.type === 'armor') {
-          armorCount++;
-          // Check if this is armor the character isn't proficient with
-          if (item.armor_subtype && !armorProficiencies.includes(item.armor_subtype as any)) {
-            hasNonProficientArmor = true;
-          }
-        }
-        if (item.type === 'weapon') {
-          weaponCount++;
-        }
-        if (item.type === 'cyberware') {
-          cyberwareIcUsed += item.ic_cost || 0;
-        }
-        
-        totalAcMod += item.ac_mod || 0;
-        totalHpMod += item.hp_mod || 0;
-        totalStrMod += item.str_mod || 0;
-        totalDexMod += item.dex_mod || 0;
-        totalConMod += item.con_mod || 0;
-        totalWisMod += item.wis_mod || 0;
-        totalIntMod += item.int_mod || 0;
-        totalChaMod += item.cha_mod || 0;
-        totalSpeedMod += item.speed_mod || 0;
-        totalInitMod += item.init_mod || 0;
-        totalIcMod += item.ic_mod || 0;
+      totalAcMod += item.ac_mod || 0;
+      totalHpMod += item.hp_mod || 0;
+      totalStrMod += item.str_mod || 0;
+      totalDexMod += item.dex_mod || 0;
+      totalConMod += item.con_mod || 0;
+      totalWisMod += item.wis_mod || 0;
+      totalIntMod += item.int_mod || 0;
+      totalChaMod += item.cha_mod || 0;
+      totalSpeedMod += item.speed_mod || 0;
+      totalInitMod += item.init_mod || 0;
+      totalIcMod += item.ic_mod || 0;
 
-        // Add skill mods
-        if (item.skill_mods) {
-          Object.entries(item.skill_mods).forEach(([skill, bonus]) => {
-            skillMods[skill] = (skillMods[skill] || 0) + bonus;
-          });
-        }
-      });
+      if (item.skill_mods) {
+        Object.entries(item.skill_mods).forEach(([skill, bonus]) => {
+          skillMods[skill] = (skillMods[skill] || 0) + bonus;
+        });
+      }
+    });
 
-    // Apply non-proficient armor penalty: -2 AC and -10 ft movement
-    if (hasNonProficientArmor) {
-      totalAcMod -= 2;
-      totalSpeedMod -= 10;
-    }
-
+    if (hasNonProficientArmor) { totalAcMod -= 2; totalSpeedMod -= 10; }
     const totalIc = (selectedCharacter.implant_capacity || 3) + totalIcMod;
 
     setComputedStats({
@@ -426,24 +310,36 @@ export default function PlayerDashboard() {
     });
   };
 
+  // ============================================================
+  // DATA FETCHING
+  // ============================================================
+
+  const fetchCharacters = async () => {
+    try {
+      setLoading(true);
+      const { data, error: fetchError } = await supabase
+        .from('characters').select('*')
+        .eq('campaign_id', campaignId).eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+      if (fetchError) throw fetchError;
+      setCharacters(data || []);
+      if (data && data.length > 0) setSelectedCharacter(data[0]);
+    } catch (err: any) {
+      console.error('Error fetching characters:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchInventory = async (characterId: string) => {
     try {
       const { data, error: invError } = await supabase
         .from('inventory')
-        .select(`
-          *,
-          item:items(
-            *,
-            abilities:item_abilities(
-              ability:abilities(*)
-            )
-          )
-        `)
+        .select(`*, item:items(*, abilities:item_abilities(ability:abilities(*)))`)
         .eq('character_id', characterId)
         .order('is_equipped', { ascending: false });
-
       if (invError) throw invError;
-
       setInventory(data || []);
     } catch (err: any) {
       console.error('Error fetching inventory:', err);
@@ -452,103 +348,101 @@ export default function PlayerDashboard() {
 
   const fetchAbilities = async (characterId: string) => {
     try {
-      // Fetch character abilities
       const { data: charAbilities, error: abilitiesError } = await supabase
         .from('character_abilities')
-        .select(`
-          *,
-          ability:abilities(*)
-        `)
+        .select(`*, ability:abilities(*)`)
         .eq('character_id', characterId);
-
       if (abilitiesError) throw abilitiesError;
 
-      // Extract character ability objects - EXCLUDE item-sourced abilities (those only show when equipped)
       const characterAbilitiesList = (charAbilities || [])
         .filter((ca: any) => ca.source_type !== 'item')
-        .map(ca => ({
+        .map((ca: any) => ({
           ...ca.ability,
           current_charges: ca.current_charges,
           source: (ca.ability?.source === 'class' ? 'class' : 'character') as any
         }));
 
-      // Track ability IDs already in character_abilities to avoid duplicates
       const grantedAbilityIds = new Set(
         (charAbilities || []).filter((ca: any) => ca.source_type !== 'item').map((ca: any) => ca.ability_id).filter(Boolean)
       );
-      const grantedAbilityNames = new Set(
-        characterAbilitiesList.map((a: any) => a.name).filter(Boolean)
-      );
+      const grantedAbilityNames = new Set(characterAbilitiesList.map((a: any) => a.name).filter(Boolean));
 
-      // Fetch equipped items with their abilities
       const { data: equippedItems, error: itemsError } = await supabase
         .from('inventory')
-        .select(`
-          *,
-          item:items(
-            *,
-            abilities:item_abilities(
-              requires_equipped,
-              ability:abilities(*)
-            )
-          )
-        `)
-        .eq('character_id', characterId)
-        .eq('is_equipped', true);
-
+        .select(`*, item:items(*, abilities:item_abilities(requires_equipped, ability:abilities(*)))`)
+        .eq('character_id', characterId).eq('is_equipped', true);
       if (itemsError) throw itemsError;
 
-      // Extract item abilities (only from equipped items, skip if already in character_abilities)
       const itemAbilitiesList: Ability[] = [];
       equippedItems?.forEach(invItem => {
         invItem.item?.abilities?.forEach((itemAbility: any) => {
           if (itemAbility.ability && !grantedAbilityIds.has(itemAbility.ability.id)) {
             grantedAbilityIds.add(itemAbility.ability.id);
             grantedAbilityNames.add(itemAbility.ability.name);
-            itemAbilitiesList.push({
-              ...itemAbility.ability,
-              source: 'item' as const,
-              item_name: invItem.item.name
-            });
+            itemAbilitiesList.push({ ...itemAbility.ability, source: 'item' as const, item_name: invItem.item.name });
           }
         });
       });
 
-      // Get class features from character (only if not already seeded into character_abilities)
       const classFeatures: Ability[] = [];
       if (selectedCharacter?.class_features && Array.isArray(selectedCharacter.class_features)) {
         selectedCharacter.class_features.forEach((feature: any) => {
-          if (grantedAbilityNames.has(feature.name)) return; // already in DB
+          if (grantedAbilityNames.has(feature.name)) return;
           classFeatures.push({
-            id: `class_feature_${feature.name}`,
-            name: feature.name,
-            description: feature.description || '',
-            type: feature.type || 'passive',
+            id: `class_feature_${feature.name}`, name: feature.name,
+            description: feature.description || '', type: feature.type || 'passive',
             charge_type: feature.charges ? 'uses' : 'infinite',
-            max_charges: feature.charges || null,
-            charges_per_rest: feature.charges || null,
-            effects: feature.effects || [],
-            damage_dice: feature.damage_dice || null,
-            damage_type: feature.damage_type || null,
-            range_feet: feature.range_feet || null,
-            area_of_effect: feature.area_of_effect || null,
-            duration: feature.duration || null,
+            max_charges: feature.charges || null, charges_per_rest: feature.charges || null,
+            effects: feature.effects || [], damage_dice: feature.damage_dice || null,
+            damage_type: feature.damage_type || null, range_feet: feature.range_feet || null,
+            area_of_effect: feature.area_of_effect || null, duration: feature.duration || null,
             created_at: new Date().toISOString(),
-            current_charges: feature.charges || undefined,
-            source: 'class' as const
+            current_charges: feature.charges || undefined, source: 'class' as const
           });
         });
       }
 
-      // Combine all abilities
-      const allAbilities = [...characterAbilitiesList, ...classFeatures, ...itemAbilitiesList];
-      setAbilities(allAbilities);
+      setAbilities([...characterAbilitiesList, ...classFeatures, ...itemAbilitiesList]);
     } catch (err: any) {
       console.error('Error fetching abilities:', err);
     }
   };
 
-  // Helper to get valid equipment slots for an item's slot_type
+  const fetchMissions = async () => {
+    if (!selectedCharacter) return;
+    try {
+      const { data, error: missionsError } = await supabase
+        .from('missions').select('*')
+        .eq('campaign_id', campaignId)
+        .order('created_at', { ascending: false });
+      if (missionsError) throw missionsError;
+      const characterIds = characters.map(c => c.id);
+      setMissions((data || []).filter(m =>
+        m.assigned_to === null || m.assigned_to?.some((id: string) => characterIds.includes(id))
+      ));
+    } catch (err: any) {
+      console.error('Error fetching missions:', err);
+    }
+  };
+
+  const fetchStorageContainers = async () => {
+    const { data } = await supabase
+      .from('storage_containers').select('*')
+      .eq('campaign_id', campaignId).order('created_at', { ascending: true });
+    if (data) setStorageContainers(data);
+  };
+
+  const fetchContainerItems = async (containerId: string) => {
+    const { data } = await supabase
+      .from('storage_items').select('*, item:items(*)')
+      .eq('container_id', containerId);
+    if (data) setStorageItems(data);
+  };
+
+  // ============================================================
+  // EQUIPMENT HELPERS
+  // ============================================================
+
   const getSlotsForType = (slotType: ItemSlotType): EquipmentSlot[] => {
     switch (slotType) {
       case 'weapon': return ['weapon_primary', 'weapon_secondary'];
@@ -575,116 +469,64 @@ export default function PlayerDashboard() {
 
   const equipInSlot = async (inventoryItemId: string, slot: EquipmentSlot | null) => {
     if (!selectedCharacter) return;
-
-    // If a slot is occupied, unequip the item currently in it
     if (slot) {
       const occupant = inventory.find(inv => inv.is_equipped && inv.equipped_slot === slot && inv.id !== inventoryItemId);
       if (occupant) {
-        const { error: unequipError } = await supabase
-          .from('inventory')
-          .update({ is_equipped: false, equipped_slot: null })
-          .eq('id', occupant.id);
+        const { error: unequipError } = await supabase.from('inventory').update({ is_equipped: false, equipped_slot: null }).eq('id', occupant.id);
         if (unequipError) throw unequipError;
       }
     }
-
-    const { error: updateError } = await supabase
-      .from('inventory')
-      .update({ is_equipped: true, equipped_slot: slot })
-      .eq('id', inventoryItemId);
-
+    const { error: updateError } = await supabase.from('inventory').update({ is_equipped: true, equipped_slot: slot }).eq('id', inventoryItemId);
     if (updateError) throw updateError;
-
     if (selectedInventoryItem && selectedInventoryItem.id === inventoryItemId) {
       setSelectedInventoryItem({ ...selectedInventoryItem, is_equipped: true, equipped_slot: slot });
     }
-
     await fetchInventory(selectedCharacter.id);
     await fetchAbilities(selectedCharacter.id);
   };
 
   const toggleEquipItem = async (inventoryItemId: string, currentlyEquipped: boolean) => {
     if (!selectedCharacter) return;
+    if (playersLocked) { alert(`Actions locked: ${lockReason || 'DM has locked player actions'}`); return; }
 
-    // Check if players are locked
-    if (playersLocked) {
-      alert(`Actions locked: ${lockReason || 'DM has locked player actions'}`);
-      return;
-    }
-
-    // Find the item being equipped/unequipped
     const inventoryItem = inventory.find(inv => inv.id === inventoryItemId);
     if (!inventoryItem?.item) return;
-
     const item = inventoryItem.item;
 
-    // UNEQUIP path
+    // UNEQUIP
     if (currentlyEquipped) {
       try {
-        const { error: updateError } = await supabase
-          .from('inventory')
-          .update({ is_equipped: false, equipped_slot: null })
-          .eq('id', inventoryItemId);
-
+        const { error: updateError } = await supabase.from('inventory').update({ is_equipped: false, equipped_slot: null }).eq('id', inventoryItemId);
         if (updateError) throw updateError;
-
-        if (selectedInventoryItem && selectedInventoryItem.id === inventoryItemId) {
+        if (selectedInventoryItem && selectedInventoryItem.id === inventoryItemId)
           setSelectedInventoryItem({ ...selectedInventoryItem, is_equipped: false, equipped_slot: null });
-        }
-
         await fetchInventory(selectedCharacter.id);
         await fetchAbilities(selectedCharacter.id);
       } catch (err: any) {
-        console.error('Error unequipping item:', err);
-        alert('Failed to unequip item: ' + err.message);
+        console.error('Error unequipping:', err);
+        alert('Failed to unequip: ' + err.message);
       }
       return;
     }
 
-    // EQUIP path — check limits
-    // Check armor limit (max 1)
-    if (item.type === 'armor') {
-      if (computedStats.equippedArmorCount >= 1) {
-        alert('You can only equip 1 armor at a time. Unequip your current armor first.');
-        return;
-      }
-    }
-
-    // Check weapon limit (max 3)
-    if (item.type === 'weapon') {
-      if (computedStats.equippedWeaponCount >= 3) {
-        alert('You can only equip 3 weapons at a time. Unequip a weapon first.');
-        return;
-      }
-    }
-
-    // Check cyberware IC limit
+    // EQUIP — limits
+    if (item.type === 'armor' && computedStats.equippedArmorCount >= 1) { alert('Max 1 armor equipped.'); return; }
+    if (item.type === 'weapon' && computedStats.equippedWeaponCount >= 3) { alert('Max 3 weapons equipped.'); return; }
     if (item.type === 'cyberware') {
       const icCost = item.ic_cost || 0;
-      if (icCost > computedStats.icRemaining) {
-        alert(`Not enough Implant Capacity. This cyberware requires ${icCost} IC, but you only have ${computedStats.icRemaining} IC remaining.`);
-        return;
-      }
+      if (icCost > computedStats.icRemaining) { alert(`Not enough IC. Need ${icCost}, have ${computedStats.icRemaining}.`); return; }
     }
 
-    // If item has a slot_type, show slot selection
     const slotType = item.slot_type as ItemSlotType;
     if (slotType && slotType !== 'backpack' && slotType !== 'weapon_mod') {
       const validSlots = getSlotsForType(slotType);
       if (validSlots.length === 1) {
-        // Only one valid slot — equip directly (auto-replace if occupied)
         try {
           const occupant = inventory.find(inv => inv.is_equipped && inv.equipped_slot === validSlots[0]);
-          if (occupant) {
-            if (!confirm(`Replace ${occupant.item?.name || 'current item'} in ${getSlotLabel(validSlots[0])}?`)) return;
-          }
+          if (occupant && !confirm(`Replace ${occupant.item?.name || 'current item'} in ${getSlotLabel(validSlots[0])}?`)) return;
           await equipInSlot(inventoryItemId, validSlots[0]);
-        } catch (err: any) {
-          console.error('Error equipping item:', err);
-          alert('Failed to equip item: ' + err.message);
-        }
+        } catch (err: any) { alert('Failed to equip: ' + err.message); }
       } else {
-        // Multiple valid slots — show slot picker modal
         setSlotModalItem(inventoryItem);
         setAvailableSlots(validSlots);
         setShowSlotModal(true);
@@ -692,129 +534,59 @@ export default function PlayerDashboard() {
       return;
     }
 
-    // No slot_type — equip generically (old behavior)
-    try {
-      await equipInSlot(inventoryItemId, null);
-    } catch (err: any) {
-      console.error('Error toggling item equip:', err);
-      alert('Failed to equip/unequip item: ' + err.message);
-    }
+    try { await equipInSlot(inventoryItemId, null); }
+    catch (err: any) { alert('Failed to equip: ' + err.message); }
   };
 
-  // Storage functions
-  const fetchStorageContainers = async () => {
-    const { data } = await supabase
-      .from('storage_containers')
-      .select('*')
-      .eq('campaign_id', campaignId)
-      .order('created_at', { ascending: true });
-    if (data) setStorageContainers(data);
-  };
-
-  const fetchContainerItems = async (containerId: string) => {
-    const { data } = await supabase
-      .from('storage_items')
-      .select('*, item:items(*)')
-      .eq('container_id', containerId);
-    if (data) setStorageItems(data);
-  };
+  // ============================================================
+  // STORAGE ACTIONS
+  // ============================================================
 
   const storeItemInContainer = async (containerId: string) => {
     if (!storeItemId || !selectedCharacter) return;
     const invItem = inventory.find(inv => inv.id === storeItemId);
     if (!invItem?.item) return;
-
     const qty = Math.min(storeQuantity, invItem.quantity);
     try {
-      // Add to storage
       const existing = storageItems.find(si => si.item_id === invItem.item_id && si.container_id === containerId);
       if (existing) {
-        await supabase.from('storage_items')
-          .update({ quantity: existing.quantity + qty })
-          .eq('id', existing.id);
+        await supabase.from('storage_items').update({ quantity: existing.quantity + qty }).eq('id', existing.id);
       } else {
-        await supabase.from('storage_items').insert({
-          campaign_id: campaignId,
-          container_id: containerId,
-          item_id: invItem.item_id,
-          quantity: qty,
-          stored_by: profile?.id
-        });
+        await supabase.from('storage_items').insert({ campaign_id: campaignId, container_id: containerId, item_id: invItem.item_id, quantity: qty, stored_by: profile?.id });
       }
-
-      // Deduct from inventory
-      if (invItem.quantity <= qty) {
-        await supabase.from('inventory').delete().eq('id', invItem.id);
-      } else {
-        await supabase.from('inventory')
-          .update({ quantity: invItem.quantity - qty })
-          .eq('id', invItem.id);
-      }
-
-      setStoreItemId(null);
-      setStoreQuantity(1);
+      if (invItem.quantity <= qty) { await supabase.from('inventory').delete().eq('id', invItem.id); }
+      else { await supabase.from('inventory').update({ quantity: invItem.quantity - qty }).eq('id', invItem.id); }
+      setStoreItemId(null); setStoreQuantity(1);
       await fetchInventory(selectedCharacter.id);
       await fetchContainerItems(containerId);
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
-    }
+    } catch (err: any) { alert(`Error: ${err.message}`); }
   };
 
   const retrieveItemFromContainer = async (storageItem: StorageItem, qty: number) => {
     if (!selectedCharacter) return;
     const actualQty = Math.min(qty, storageItem.quantity);
     try {
-      // Add to player inventory
       const existingInv = inventory.find(inv => inv.item_id === storageItem.item_id);
-      if (existingInv) {
-        await supabase.from('inventory')
-          .update({ quantity: existingInv.quantity + actualQty })
-          .eq('id', existingInv.id);
-      } else {
-        await supabase.from('inventory').insert({
-          character_id: selectedCharacter.id,
-          item_id: storageItem.item_id,
-          quantity: actualQty,
-          campaign_id: campaignId
-        });
-      }
-
-      // Remove from storage
-      if (storageItem.quantity <= actualQty) {
-        await supabase.from('storage_items').delete().eq('id', storageItem.id);
-      } else {
-        await supabase.from('storage_items')
-          .update({ quantity: storageItem.quantity - actualQty })
-          .eq('id', storageItem.id);
-      }
-
+      if (existingInv) { await supabase.from('inventory').update({ quantity: existingInv.quantity + actualQty }).eq('id', existingInv.id); }
+      else { await supabase.from('inventory').insert({ character_id: selectedCharacter.id, item_id: storageItem.item_id, quantity: actualQty, campaign_id: campaignId }); }
+      if (storageItem.quantity <= actualQty) { await supabase.from('storage_items').delete().eq('id', storageItem.id); }
+      else { await supabase.from('storage_items').update({ quantity: storageItem.quantity - actualQty }).eq('id', storageItem.id); }
       await fetchInventory(selectedCharacter.id);
       if (selectedContainer) await fetchContainerItems(selectedContainer.id);
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
-    }
+    } catch (err: any) { alert(`Error: ${err.message}`); }
   };
+
+  // ============================================================
+  // CONSUME ITEM
+  // ============================================================
 
   const consumeItem = async (inventoryItemId: string, item: any, quantity: number) => {
     if (!selectedCharacter || !item) return;
-
-    // Check if players are locked
-    if (playersLocked) {
-      alert(`Actions locked: ${lockReason || 'DM has locked player actions'}`);
-      return;
-    }
-
-    if (!item.is_consumable) {
-      alert('This item cannot be consumed');
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to consume ${item.name}? This will permanently apply its effects.`)) {
-      return;
-    }
+    if (playersLocked) { alert(`Actions locked: ${lockReason || 'DM has locked player actions'}`); return; }
+    if (!item.is_consumable) { alert('This item cannot be consumed'); return; }
+    if (!confirm(`Consume ${item.name}? Effects applied permanently.`)) return;
 
     try {
-      // Calculate new character stats
       const updates: any = {
         str: selectedCharacter.str + (item.str_mod || 0),
         dex: selectedCharacter.dex + (item.dex_mod || 0),
@@ -828,24 +600,16 @@ export default function PlayerDashboard() {
         implant_capacity: (selectedCharacter.implant_capacity || 3) + (item.ic_mod || 0),
       };
 
-      // Handle HP based on hp_mod_type
       if (item.hp_mod && item.hp_mod !== 0) {
         const hpModType = item.hp_mod_type || 'heal';
         if (hpModType === 'heal') {
-          // Heal current HP (cap at max)
-          updates.current_hp = Math.min(
-            selectedCharacter.current_hp + item.hp_mod,
-            selectedCharacter.max_hp
-          );
+          updates.current_hp = Math.min(selectedCharacter.current_hp + item.hp_mod, selectedCharacter.max_hp);
         } else if (hpModType === 'max_hp') {
-          // Permanently increase max HP
           updates.max_hp = selectedCharacter.max_hp + item.hp_mod;
-          // Also increase current HP by the same amount
           updates.current_hp = selectedCharacter.current_hp + item.hp_mod;
         }
       }
 
-      // Apply skill modifiers permanently
       if (item.skill_mods && typeof item.skill_mods === 'object') {
         for (const [skillName, modifier] of Object.entries(item.skill_mods)) {
           if (typeof modifier === 'number' && modifier !== 0) {
@@ -856,53 +620,25 @@ export default function PlayerDashboard() {
         }
       }
 
-      console.log('Consuming item:', item.name);
-      console.log('Applying updates to character:', updates);
-
-      // Update character stats
-      const { data: updateResult, error: charError } = await supabase
-        .from('characters')
-        .update(updates)
-        .eq('id', selectedCharacter.id)
-        .select();
-
+      const { error: charError } = await supabase.from('characters').update(updates).eq('id', selectedCharacter.id).select();
       if (charError) throw charError;
-      console.log('Character update result:', updateResult);
 
-      // Remove item from inventory (or reduce quantity)
       if (quantity > 1) {
-        const { error: invError } = await supabase
-          .from('inventory')
-          .update({ quantity: quantity - 1 })
-          .eq('id', inventoryItemId);
+        const { error: invError } = await supabase.from('inventory').update({ quantity: quantity - 1 }).eq('id', inventoryItemId);
         if (invError) throw invError;
       } else {
-        const { error: invError } = await supabase
-          .from('inventory')
-          .delete()
-          .eq('id', inventoryItemId);
+        const { error: invError } = await supabase.from('inventory').delete().eq('id', inventoryItemId);
         if (invError) throw invError;
       }
 
-      // Clear selection and refresh data
       setSelectedInventoryItem(null);
-      
-      // Refresh character data
-      const { data: updatedChar } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('id', selectedCharacter.id)
-        .single();
-      
+      const { data: updatedChar } = await supabase.from('characters').select('*').eq('id', selectedCharacter.id).single();
       if (updatedChar) {
         setSelectedCharacter(updatedChar);
         setCharacters(prev => prev.map(c => c.id === updatedChar.id ? updatedChar : c));
       }
-
-      // Refresh inventory
       await fetchInventory(selectedCharacter.id);
-      
-      // Build effect summary
+
       const effects: string[] = [];
       if (item.str_mod) effects.push(`STR ${item.str_mod > 0 ? '+' : ''}${item.str_mod}`);
       if (item.dex_mod) effects.push(`DEX ${item.dex_mod > 0 ? '+' : ''}${item.dex_mod}`);
@@ -910,1718 +646,270 @@ export default function PlayerDashboard() {
       if (item.wis_mod) effects.push(`WIS ${item.wis_mod > 0 ? '+' : ''}${item.wis_mod}`);
       if (item.int_mod) effects.push(`INT ${item.int_mod > 0 ? '+' : ''}${item.int_mod}`);
       if (item.cha_mod) effects.push(`CHA ${item.cha_mod > 0 ? '+' : ''}${item.cha_mod}`);
-      if (item.hp_mod) {
-        const hpType = item.hp_mod_type === 'max_hp' ? 'Max HP' : 'HP healed';
-        effects.push(`${hpType} ${item.hp_mod > 0 ? '+' : ''}${item.hp_mod}`);
-      }
+      if (item.hp_mod) effects.push(`${item.hp_mod_type === 'max_hp' ? 'Max HP' : 'HP'} ${item.hp_mod > 0 ? '+' : ''}${item.hp_mod}`);
       if (item.ac_mod) effects.push(`AC ${item.ac_mod > 0 ? '+' : ''}${item.ac_mod}`);
-      if (item.speed_mod) effects.push(`Speed ${item.speed_mod > 0 ? '+' : ''}${item.speed_mod}`);
-      if (item.init_mod) effects.push(`Init ${item.init_mod > 0 ? '+' : ''}${item.init_mod}`);
-      if (item.ic_mod) effects.push(`IC ${item.ic_mod > 0 ? '+' : ''}${item.ic_mod}`);
-      if (item.skill_mods && Object.keys(item.skill_mods).length > 0) {
-        for (const [skill, mod] of Object.entries(item.skill_mods)) {
-          if (typeof mod === 'number' && mod !== 0) {
-            effects.push(`${skill} ${mod > 0 ? '+' : ''}${mod}`);
-          }
-        }
-      }
-      
       const effectSummary = effects.length > 0 ? `\n\nApplied: ${effects.join(', ')}` : '';
-      alert(`${item.name} consumed! Effects applied permanently.${effectSummary}`);
+      alert(`${item.name} consumed!${effectSummary}`);
     } catch (err: any) {
-      console.error('Error consuming item:', err);
-      alert('Failed to consume item: ' + err.message);
+      console.error('Error consuming:', err);
+      alert('Failed to consume: ' + err.message);
     }
   };
 
-  const fetchCharacters = async () => {
-    try {
-      setLoading(true);
-      const { data, error: fetchError } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+  // ============================================================
+  // MISC
+  // ============================================================
 
-      if (fetchError) throw fetchError;
-
-      setCharacters(data || []);
-      if (data && data.length > 0) {
-        setSelectedCharacter(data[0]); // Auto-select first character
-      }
-    } catch (err: any) {
-      console.error('Error fetching characters:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMissions = async () => {
-    if (!selectedCharacter) return;
-    
-    try {
-      const { data: missionsData, error: missionsError } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('created_at', { ascending: false });
-      
-      if (missionsError) throw missionsError;
-      
-      // Filter to missions assigned to this player's characters
-      const characterIds = characters.map(c => c.id);
-      const playerMissions = (missionsData || []).filter(mission => 
-        mission.assigned_to === null || // Party-wide
-        mission.assigned_to?.some((charId: string) => characterIds.includes(charId))
-      );
-      
-      setMissions(playerMissions);
-    } catch (err: any) {
-      console.error('Error fetching missions:', err);
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
-
-  const getClassInfo = (classId: string) => {
-    return CHARACTER_CLASSES.find(c => c.id === classId);
-  };
-
+  const handleSignOut = async () => { await signOut(); navigate('/login'); };
   const { getClassName } = useClassAliases(campaignId);
 
-  // Convert stored stat to modifier
-  // Old characters have stats stored as 10 + bonus (10 = +0, 11 = +1, 12 = +2)
-  // New characters have direct modifiers (0, 1, 2)
-  // If stat >= 8, assume old format and subtract 10
-  const calculateStatModifier = (stat: number) => {
-    if (stat >= 8) {
-      // Old format: stored as 10 + bonus, so subtract 10
-      return stat - 10;
+  const refreshCharacter = async () => {
+    if (!selectedCharacter) return;
+    const { data } = await supabase.from('characters').select('*').eq('id', selectedCharacter.id).single();
+    if (data) {
+      setSelectedCharacter(data);
+      setCharacters(prev => prev.map(c => c.id === data.id ? data : c));
     }
-    // New format: stat IS the modifier
-    return stat;
-  };
-
-  const formatModifier = (modifier: number) => {
-    return modifier >= 0 ? `+${modifier}` : `${modifier}`;
   };
 
   // Rarity sort order
   const rarityOrder: Record<string, number> = {
-    'Common': 1,
-    'Uncommon': 2,
-    'Rare': 3,
-    'Epic': 4,
-    'Mythic': 5,
-    'Ultra Rare': 6,
-    'MISSION ITEM': 7
+    'Common': 1, 'Uncommon': 2, 'Rare': 3, 'Epic': 4, 'Mythic': 5, 'Ultra Rare': 6, 'MISSION ITEM': 7
   };
 
-  // Filtered and sorted inventory
+  // Filtered and sorted inventory (with optional slot filter from EquipmentPanel)
   const filteredInventory = inventory
     .filter(inv => {
       if (!inv.item) return false;
       const item = inv.item;
-      
-      // Search filter
       if (inventorySearch) {
-        const search = inventorySearch.toLowerCase();
-        if (!item.name.toLowerCase().includes(search) && 
-            !item.description?.toLowerCase().includes(search)) {
-          return false;
-        }
+        const s = inventorySearch.toLowerCase();
+        if (!item.name.toLowerCase().includes(s) && !item.description?.toLowerCase().includes(s)) return false;
       }
-      
-      // Type filter
-      if (inventoryTypeFilter !== 'all' && item.type !== inventoryTypeFilter) {
-        return false;
+      if (inventoryTypeFilter !== 'all' && item.type !== inventoryTypeFilter) return false;
+      if (inventoryRarityFilter !== 'all' && item.rarity !== inventoryRarityFilter) return false;
+      // Slot filter: show items that can go in the selected slot
+      if (slotFilter) {
+        const itemSlotType = item.slot_type as ItemSlotType;
+        if (!itemSlotType) return false;
+        const validSlots = getSlotsForType(itemSlotType);
+        if (!validSlots.includes(slotFilter)) return false;
       }
-      
-      // Rarity filter
-      if (inventoryRarityFilter !== 'all' && item.rarity !== inventoryRarityFilter) {
-        return false;
-      }
-      
       return true;
     })
     .sort((a, b) => {
-      const itemA = a.item!;
-      const itemB = b.item!;
-      
+      const itemA = a.item!; const itemB = b.item!;
       switch (inventorySort) {
-        case 'name':
-          return itemA.name.localeCompare(itemB.name);
-        case 'type':
-          return itemA.type.localeCompare(itemB.type);
-        case 'rarity':
-          return (rarityOrder[itemB.rarity] || 0) - (rarityOrder[itemA.rarity] || 0);
-        case 'equipped':
+        case 'name': return itemA.name.localeCompare(itemB.name);
+        case 'type': return itemA.type.localeCompare(itemB.type);
+        case 'rarity': return (rarityOrder[itemB.rarity] || 0) - (rarityOrder[itemA.rarity] || 0);
         default:
-          // Equipped items first, then by rarity
-          if (a.is_equipped !== b.is_equipped) {
-            return a.is_equipped ? -1 : 1;
-          }
+          if (a.is_equipped !== b.is_equipped) return a.is_equipped ? -1 : 1;
           return (rarityOrder[itemB.rarity] || 0) - (rarityOrder[itemA.rarity] || 0);
       }
     });
 
-  // Get unique types and rarities for filters
-  const inventoryTypes = [...new Set(inventory.map(inv => inv.item?.type).filter(Boolean))];
-  const inventoryRarities = [...new Set(inventory.map(inv => inv.item?.rarity).filter(Boolean))];
+  // Equipped gear for abilities modal
+  const equippedGear = inventory.filter(inv => inv.is_equipped && inv.item && (inv.item.type === 'weapon' || inv.item.type === 'armor' || inv.item.type === 'cyberware'));
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
-      {/* Screen Effects Overlay */}
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, var(--color-cyber-dark) 0%, var(--color-cyber-darker) 50%, var(--color-cyber-dark) 100%)', backgroundAttachment: 'fixed' }}>
+      {/* Screen Effects */}
       <PlayerEffectsOverlay characterId={selectedCharacter?.id || null} campaignId={campaignId ?? undefined} />
-      {/* Header */}
-      <div className="glass-panel neon-border" style={{ borderRadius: 0 }}>
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl neon-text" style={{ fontFamily: 'var(--font-cyber)' }}>
-            PLAYER TERMINAL
-          </h1>
-          <div className="flex items-center gap-4">
-            {/* Lock Status Indicator */}
+
+      {/* HEADER */}
+      <div className="glass-panel neon-border flex-shrink-0" style={{ borderRadius: 0 }}>
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl neon-text" style={{ fontFamily: 'var(--font-cyber)' }}>PLAYER TERMINAL</h1>
             {playersLocked && (
-              <div 
-                className="px-3 py-1.5 rounded flex items-center gap-2 animate-pulse"
-                style={{ 
-                  background: 'rgba(255, 0, 127, 0.2)', 
-                  border: '1px solid var(--color-cyber-magenta)',
-                  color: 'var(--color-cyber-magenta)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem'
-                }}
-                title={lockReason || 'Player actions locked by DM'}
-              >
+              <div className="px-2 py-1 rounded flex items-center gap-1 animate-pulse text-xs"
+                style={{ background: 'rgba(255, 0, 127, 0.2)', border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}
+                title={lockReason || 'Locked'}>
                 🔒 {lockReason || 'LOCKED'}
               </div>
             )}
-            <button
-              onClick={() => navigate('/rules')}
-              className="text-sm px-3 py-1.5 rounded transition-all hover:opacity-80"
-              style={{
-                border: '1px solid var(--color-cyber-cyan)',
-                color: 'var(--color-cyber-cyan)',
-                fontFamily: 'var(--font-mono)',
-                background: 'transparent'
-              }}
-            >
-              📜 RULES
-            </button>
-            <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-              {profile?.username || 'PLAYER'}
-            </span>
-            <button onClick={handleSignOut} className="neon-button-magenta text-sm">
-              LOGOUT
-            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Character selector */}
+            {characters.length > 1 && (
+              <select
+                value={selectedCharacter?.id || ''}
+                onChange={(e) => { const c = characters.find(ch => ch.id === e.target.value); setSelectedCharacter(c || null); }}
+                className="px-2 py-1 rounded text-xs"
+                style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+              >
+                {characters.map(c => <option key={c.id} value={c.id}>{c.name} – Lv{c.level} {getClassName(c.class)}</option>)}
+              </select>
+            )}
+            <button onClick={() => navigate('/rules')} className="text-xs px-2 py-1 rounded" style={{ border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>📜 RULES</button>
+            <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>{profile?.username || 'PLAYER'}</span>
+            <button onClick={handleSignOut} className="neon-button-magenta text-xs">LOGOUT</button>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Character Selection (if multiple) */}
-        {characters.length > 1 && (
-          <div className="glass-panel p-4 mb-6" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)' }}>
-            <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-              SELECT CHARACTER
-            </label>
-            <select
-              value={selectedCharacter?.id || ''}
-              onChange={(e) => {
-                const char = characters.find(c => c.id === e.target.value);
-                setSelectedCharacter(char || null);
-              }}
-              className="terminal-input w-full"
-            >
-              {characters.map(char => (
-                <option key={char.id} value={char.id}>
-                  {char.name} - Level {char.level} {getClassName(char.class)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
+      {/* MAIN CONTENT */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         {loading ? (
-          <div className="glass-panel p-8 text-center">
-            <div className="animate-spin w-12 h-12 border-4 rounded-full mx-auto mb-4" 
-                 style={{ 
-                   borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                   borderTopColor: 'var(--color-cyber-cyan)'
-                 }}>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin w-12 h-12 border-4 rounded-full mx-auto mb-4" style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', borderTopColor: 'var(--color-cyber-cyan)' }} />
+              <p style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>Loading...</p>
             </div>
-            <p style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-              Loading character data...
-            </p>
           </div>
         ) : error ? (
-          <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-pink)' }}>
-            <p style={{ color: 'var(--color-cyber-pink)', fontFamily: 'var(--font-mono)' }}>
-              Error: {error}
-            </p>
+          <div className="flex items-center justify-center h-full">
+            <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-pink)' }}>
+              <p style={{ color: 'var(--color-cyber-pink)', fontFamily: 'var(--font-mono)' }}>Error: {error}</p>
+            </div>
           </div>
         ) : !selectedCharacter ? (
-          // No Character State
-          <div className="glass-panel p-12 text-center">
-            <h3 className="text-2xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-              NO CHARACTER FOUND
-            </h3>
-            <p className="mb-6" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-              Create your first character to begin your cyberpunk adventure
-            </p>
-            <button
-              onClick={() => navigate('/character/create')}
-              className="neon-button"
-              style={{ fontFamily: 'var(--font-cyber)' }}
-            >
-              CREATE CHARACTER
-            </button>
+          <div className="flex items-center justify-center h-full">
+            <div className="glass-panel p-12 text-center">
+              <h3 className="text-2xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>NO CHARACTER FOUND</h3>
+              <p className="mb-6" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>Create your first character to begin</p>
+              <button onClick={() => navigate('/character/create')} className="neon-button" style={{ fontFamily: 'var(--font-cyber)' }}>CREATE CHARACTER</button>
+            </div>
           </div>
         ) : (
-          // Character Dashboard - 1/3 Sidebar + 2/3 Content Layout
-          <div className="flex gap-6">
-            {/* LEFT SIDEBAR - 1/3 width - Character Stats */}
-            <div className="w-1/3 space-y-4">
-              {/* Character Name & Class */}
-              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <h2 className="text-xl mb-1" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
-                  {selectedCharacter.name.toUpperCase()}
-                </h2>
-                <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                  Level <span style={{ color: 'var(--color-cyber-yellow)' }}>{selectedCharacter.level}</span> {getClassName(selectedCharacter.class)}
-                </p>
-              </div>
-
-              {/* HP Bar */}
-              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                  HEALTH POINTS
-                </div>
-                <div className="text-2xl mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                  {Math.min(selectedCharacter.current_hp, computedStats.hp)} / {computedStats.hp}
-                  {computedStats.hp !== selectedCharacter.max_hp && (
-                    <span className="text-sm ml-2" style={{ color: 'var(--color-cyber-green)' }}>
-                      ({computedStats.hp > selectedCharacter.max_hp ? '+' : ''}{computedStats.hp - selectedCharacter.max_hp})
-                    </span>
-                  )}
-                </div>
-                <div className="h-3 rounded relative" style={{ backgroundColor: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' }}>
-                  <div
-                    className="h-full rounded"
-                    style={{
-                      width: `${(Math.min(selectedCharacter.current_hp, computedStats.hp) / (computedStats.hp + (selectedCharacter.temp_hp || 0))) * 100}%`,
-                      backgroundColor: 'var(--color-cyber-magenta)'
-                    }}
-                  ></div>
-                  {(selectedCharacter.temp_hp || 0) > 0 && (
-                    <div
-                      className="h-full rounded absolute top-0"
-                      style={{
-                        left: `${(Math.min(selectedCharacter.current_hp, computedStats.hp) / (computedStats.hp + selectedCharacter.temp_hp)) * 100}%`,
-                        width: `${(selectedCharacter.temp_hp / (computedStats.hp + selectedCharacter.temp_hp)) * 100}%`,
-                        backgroundColor: 'var(--color-cyber-yellow)',
-                        opacity: 0.7,
-                      }}
-                    ></div>
-                  )}
-                </div>
-                {(selectedCharacter.temp_hp || 0) > 0 && (
-                  <div className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                    🛡️ +{selectedCharacter.temp_hp} OVERSHIELD
-                  </div>
-                )}
-              </div>
-
-              {/* AC, CDD, Credits */}
-              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>AC</div>
-                    <div className="text-2xl" style={{ color: computedStats.hasArmorPenalty ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      {computedStats.ac}
-                      {computedStats.hasArmorPenalty && <span className="text-xs ml-1">⚠️</span>}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>CDD</div>
-                    <div className="text-2xl" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>{selectedCharacter.cdd}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>CREDITS</div>
-                    <div className="text-lg" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>${selectedCharacter.usd.toLocaleString()}</div>
-                  </div>
-                </div>
-                {computedStats.hasArmorPenalty && (
-                  <div className="text-xs text-center mt-2 px-2 py-1 rounded" style={{ background: 'rgba(255, 0, 127, 0.2)', color: 'var(--color-cyber-magenta)' }}>
-                    ⚠️ Non-proficient armor: −2 AC, −10 ft speed
-                  </div>
-                )}
-              </div>
-
-              {/* INIT, Speed, IC */}
-              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>INIT</div>
-                    <div className="text-2xl" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      {computedStats.init >= 0 ? `+${computedStats.init}` : computedStats.init}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>SPEED</div>
-                    <div className="text-2xl" style={{ color: computedStats.hasArmorPenalty ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      {computedStats.speed} ft
-                      {computedStats.hasArmorPenalty && <span className="text-xs ml-1">⚠️</span>}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>IC</div>
-                    <div className="text-2xl" style={{ color: computedStats.icRemaining <= 0 ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      {computedStats.icRemaining}/{computedStats.ic}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Equipment Slots */}
-              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                  EQUIPMENT SLOTS
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-2 rounded" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)' }}>
-                    <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>🛡️ ARMOR</div>
-                    <div className="text-xl font-bold" style={{ color: computedStats.equippedArmorCount >= 1 ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      {computedStats.equippedArmorCount}/1
-                    </div>
-                  </div>
-                  <div className="text-center p-2 rounded" style={{ border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)' }}>
-                    <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>⚔️ WEAPONS</div>
-                    <div className="text-xl font-bold" style={{ color: computedStats.equippedWeaponCount >= 3 ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      {computedStats.equippedWeaponCount}/3
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ability Scores */}
-              <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                  ABILITY SCORES <span style={{ opacity: 0.5 }}>(⭐ = Save Proficiency)</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { name: 'STR', value: computedStats.str },
-                    { name: 'DEX', value: computedStats.dex },
-                    { name: 'CON', value: computedStats.con },
-                    { name: 'WIS', value: computedStats.wis },
-                    { name: 'INT', value: computedStats.int },
-                    { name: 'CHA', value: computedStats.cha }
-                  ].map(stat => {
-                    // Convert stat value to modifier (handles both old 10+ format and new direct format)
-                    const modifier = calculateStatModifier(stat.value);
-                    const hasSaveProficiency = selectedCharacter.save_proficiencies?.includes(stat.name);
-                    return (
-                      <div 
-                        key={stat.name} 
-                        className="text-center p-2 rounded relative" 
-                        style={{ 
-                          border: `1px solid ${hasSaveProficiency ? 'var(--color-cyber-green)' : 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)'}`,
-                          background: hasSaveProficiency ? 'color-mix(in srgb, var(--color-cyber-green) 10%, transparent)' : 'transparent'
-                        }}
-                      >
-                        {hasSaveProficiency && (
-                          <span 
-                            className="absolute top-1 right-1 text-xs" 
-                            title="Saving Throw Proficiency"
-                          >⭐</span>
-                        )}
-                        <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                          {stat.name}
-                        </div>
-                        <div className="text-2xl font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>{formatModifier(modifier)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Proficiencies Widget */}
-              {(() => {
-                const classInfo = getClassInfo(selectedCharacter.class);
-                const weaponRanks = [
-                  { type: 'Unarmed', rank: selectedCharacter.weapon_rank_unarmed },
-                  { type: 'Melee', rank: selectedCharacter.weapon_rank_melee },
-                  { type: 'Sidearms', rank: selectedCharacter.weapon_rank_sidearms },
-                  { type: 'Longarms', rank: selectedCharacter.weapon_rank_longarms },
-                  { type: 'Heavy', rank: selectedCharacter.weapon_rank_heavy },
-                ].filter(w => w.rank >= 1);
-                
-                const hasAnyProficiency = (classInfo?.armorProficiencies && classInfo.armorProficiencies.length > 0) || weaponRanks.length > 0;
-                
-                if (!hasAnyProficiency) return null;
-                
-                return (
-                  <div className="glass-panel p-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                    <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                      PROFICIENCIES
-                    </div>
-                    
-                    {/* Armor Proficiencies */}
-                    {classInfo?.armorProficiencies && classInfo.armorProficiencies.length > 0 && (
-                      <div className="mb-3">
-                        <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                          🛡️ ARMOR
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {classInfo.armorProficiencies.map((armor: string) => (
-                            <span 
-                              key={armor}
-                              className="px-2 py-1 text-xs rounded"
-                              style={{ 
-                                background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)',
-                                color: 'var(--color-cyber-green)',
-                                fontFamily: 'var(--font-mono)',
-                                textTransform: 'capitalize'
-                              }}
-                            >
-                              {armor}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Weapon Proficiencies */}
-                    {weaponRanks.length > 0 && (
-                      <div>
-                        <div className="text-xs mb-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                          ⚔️ WEAPONS
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {weaponRanks.map((weapon) => (
-                            <span 
-                              key={weapon.type}
-                              className="px-2 py-1 text-xs rounded flex items-center gap-1"
-                              style={{ 
-                                background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)',
-                                color: 'var(--color-cyber-cyan)',
-                                fontFamily: 'var(--font-mono)'
-                              }}
-                            >
-                              {weapon.type}
-                              <span 
-                                className="px-1 rounded text-xs"
-                                style={{ 
-                                  background: weapon.rank >= 3 ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)',
-                                  color: 'white',
-                                  fontWeight: 'bold'
-                                }}
-                              >
-                                {weapon.rank}
-                              </span>
-                              <span style={{ opacity: 0.6 }}>
-                                ({formatToHit(weapon.rank)})
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+          /* THREE-PANEL LAYOUT */
+          <div
+            className="h-full p-2 lg:p-4"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'clamp(200px, 20vw, 280px) 1fr clamp(280px, 30vw, 400px)',
+              gap: '12px'
+            }}
+          >
+            {/* LEFT PANEL — Stats */}
+            <div className="glass-panel p-2 overflow-y-auto overflow-x-hidden" style={{ border: '1px solid var(--color-cyber-green)' }}>
+              <StatsPanel character={selectedCharacter} computedStats={computedStats} campaignId={campaignId} />
             </div>
 
-            {/* RIGHT CONTENT AREA - 2/3 width */}
-            <div className="w-2/3">
-              {/* Tab Navigation */}
-              <div className="glass-panel p-2 mb-4" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    { id: 'abilities', label: '⚡ ABILITIES' },
-                    { id: 'skills', label: '🎯 SKILLS' },
-                    { id: 'inventory', label: '📦 INVENTORY' },
-                    { id: 'missions', label: '📋 MISSIONS' }
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                      className="px-4 py-2 text-sm rounded transition-all"
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        backgroundColor: activeTab === tab.id ? 'var(--color-cyber-yellow)' : 'transparent',
-                        color: activeTab === tab.id ? 'white' : 'var(--color-cyber-cyan)',
-                        border: `1px solid ${activeTab === tab.id ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'}`,
-                        fontWeight: activeTab === tab.id ? 'bold' : 'normal'
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* CENTER PANEL — Character & Equipment */}
+            <div className="glass-panel p-2 overflow-y-auto flex flex-col" style={{ border: '1px solid var(--color-cyber-green)' }}>
+              <EquipmentPanel
+                character={selectedCharacter}
+                inventory={inventory}
+                weightSystemEnabled={weightSystemEnabled}
+                onSlotClick={(slot) => { setSlotFilter(slot); }}
+                onItemClick={(item) => { setSelectedInventoryItem(item); }}
+                onRefreshCharacter={refreshCharacter}
+              />
+            </div>
 
-              {/* Tab Content */}
-              <div className="glass-panel p-6" style={{ border: '1px solid var(--color-cyber-green)', minHeight: '500px' }}>
-                {/* ABILITIES TAB */}
-                {activeTab === 'abilities' && (
-                  <div>
-                    <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                      ⚡ ABILITIES
-                    </h3>
-                    {abilities.length === 0 ? (
-                      <div className="text-center py-8" style={{ border: '2px dashed color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', borderRadius: '8px' }}>
-                        <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                          No abilities available
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {abilities.map((ability) => (
-                          <div 
-                            key={ability.id} 
-                            className="p-4 rounded"
-                            style={{ 
-                              border: '1px solid var(--color-cyber-green)',
-                              background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)'
-                            }}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex-1">
-                                <div className="font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
-                                  {ability.name}
-                                </div>
-                                <div className="text-xs flex items-center gap-2 flex-wrap" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                                  <span>{ability.type.toUpperCase().replace('_', ' ')}</span>
-                                  {ability.source === 'class' && (
-                                    <span className="px-2 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)' }}>
-                                      🎓 CLASS
-                                    </span>
-                                  )}
-                                  {ability.source === 'item' && (
-                                    <span className="px-2 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)' }}>
-                                      📦 {ability.item_name}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {ability.charge_type !== 'infinite' && (
-                                <div className="text-xs px-2 py-1 rounded" style={{ background: 'var(--color-cyber-cyan)', color: 'black', fontFamily: 'var(--font-mono)' }}>
-                                  {ability.current_charges || 0}/{ability.max_charges || 0}
-                                </div>
-                              )}
-                            </div>
-                            {(() => {
-                              const cooldownText = getAbilityCooldownText(ability, ability.current_charges || 0);
-                              return cooldownText ? (
-                                <div className="text-xs px-2 py-1 mb-2 rounded" style={{
-                                  background: (ability.current_charges || 0) <= 0 
-                                    ? 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)' 
-                                    : 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)',
-                                  color: (ability.current_charges || 0) <= 0 
-                                    ? 'var(--color-cyber-magenta)' 
-                                    : 'var(--color-cyber-yellow)',
-                                  fontFamily: 'var(--font-mono)'
-                                }}>
-                                  {cooldownText}
-                                </div>
-                              ) : null;
-                            })()}
-                            <p className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>
-                              {ability.description}
-                            </p>
-                            {(ability.damage_dice || ability.range_feet) && (
-                              <div className="flex flex-wrap gap-2">
-                                {ability.damage_dice && (
-                                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                    🎲 {ability.damage_dice}
-                                  </span>
-                                )}
-                                {ability.range_feet && (
-                                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                    📏 {ability.range_feet}ft
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {ability.effects && ability.effects.length > 0 && (
-                              <div className="mt-2 pt-2" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-green) 20%, transparent)' }}>
-                                <div className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>EFFECTS:</div>
-                                {ability.effects.map((effect: string, i: number) => (
-                                  <div key={i} className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>• {effect}</div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* EQUIPPED GEAR */}
-                    {(() => {
-                      const equippedGear = inventory.filter(inv => inv.is_equipped && inv.item && (inv.item.type === 'weapon' || inv.item.type === 'armor' || inv.item.type === 'cyberware'));
-                      if (equippedGear.length === 0) return null;
-                      return (
-                        <div className="mt-6">
-                          <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                            🔧 EQUIPPED GEAR
-                          </h3>
-                          <div className="space-y-4">
-                            {equippedGear.map(inv => {
-                              const item = inv.item!;
-                              const isWeapon = item.type === 'weapon';
-                              const weaponType = item.weapon_subtype?.toLowerCase() || '';
-                              const rankKey = isWeapon ? `weapon_rank_${weaponType}` as keyof typeof selectedCharacter : null;
-                              const rank = rankKey ? (selectedCharacter?.[rankKey] as number) ?? 0 : 0;
-                              const isProficient = rank > 0;
-
-                              // Collect all non-zero stat mods
-                              const statMods: {label: string, icon: string, value: number}[] = [];
-                              if (item.ac_mod !== 0) statMods.push({ label: 'AC', icon: '🛡️', value: item.ac_mod });
-                              if (item.hp_mod !== 0) statMods.push({ label: 'HP', icon: '❤️', value: item.hp_mod });
-                              if (item.str_mod !== 0) statMods.push({ label: 'STR', icon: '💪', value: item.str_mod });
-                              if (item.dex_mod !== 0) statMods.push({ label: 'DEX', icon: '🎯', value: item.dex_mod });
-                              if (item.con_mod !== 0) statMods.push({ label: 'CON', icon: '🫀', value: item.con_mod });
-                              if (item.wis_mod !== 0) statMods.push({ label: 'WIS', icon: '👁️', value: item.wis_mod });
-                              if (item.int_mod !== 0) statMods.push({ label: 'INT', icon: '🧠', value: item.int_mod });
-                              if (item.cha_mod !== 0) statMods.push({ label: 'CHA', icon: '✨', value: item.cha_mod });
-                              if (item.speed_mod !== 0) statMods.push({ label: 'SPD', icon: '👟', value: item.speed_mod });
-                              if (item.init_mod !== 0) statMods.push({ label: 'INIT', icon: '⚡', value: item.init_mod });
-
-                              // Collect skill mods
-                              const skillMods = item.skill_mods ? Object.entries(item.skill_mods).filter(([, v]) => v !== 0) : [];
-
-                              return (
-                                <div key={inv.id} className="p-4 rounded" style={{ border: `1px solid ${getRarityColor(item.rarity)}`, background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)' }}>
-                                  {/* Header */}
-                                  <div className="flex items-start gap-3 mb-3">
-                                    <span className="text-3xl">{getItemTypeIcon(item.type)}</span>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-lg" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
-                                        {item.name}
-                                      </div>
-                                      <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                                        {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                                        {item.weapon_subtype && ` • ${item.weapon_subtype.charAt(0).toUpperCase() + item.weapon_subtype.slice(1)}`}
-                                        {item.armor_subtype && ` • ${item.armor_subtype.charAt(0).toUpperCase() + item.armor_subtype.slice(1)}`}
-                                        {' • '}{item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
-                                      </div>
-                                    </div>
-                                    <span className="text-xs px-2 py-1 rounded font-bold flex-shrink-0" style={{ background: 'var(--color-cyber-green)', color: 'white' }}>EQUIPPED</span>
-                                  </div>
-
-                                  {/* Description */}
-                                  {item.description && (
-                                    <p className="text-sm mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.85 }}>
-                                      {item.description}
-                                    </p>
-                                  )}
-
-                                  {/* Weapon To Hit */}
-                                  {isWeapon && (
-                                    <div className="mb-3 flex flex-wrap gap-2">
-                                      {weaponType && (
-                                        <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', color: 'white', fontFamily: 'var(--font-mono)' }}>
-                                          🎯 Proficiency: {formatToHit(rank)} {!isProficient && '(Not Proficient)'}
-                                        </span>
-                                      )}
-                                      {(item.to_hit_type && item.to_hit_type !== 'static' || (item.to_hit_static || 0) !== 0) && selectedCharacter && (
-                                        <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow, #FACC15) 30%, transparent)', border: '1px solid var(--color-cyber-yellow, #FACC15)', color: 'var(--color-cyber-yellow, #FACC15)', fontFamily: 'var(--font-mono)' }}>
-                                          🎯 To Hit: {formatWeaponToHit(item, selectedCharacter as unknown as Record<string, unknown>)}
-                                        </span>
-                                      )}
-                                      {item.damage_dice && selectedCharacter && (
-                                        <span className="text-sm px-3 py-1 rounded font-bold inline-block" style={{ background: 'color-mix(in srgb, var(--color-cyber-red, #EF4444) 30%, transparent)', border: '1px solid var(--color-cyber-red, #EF4444)', color: 'var(--color-cyber-red, #EF4444)', fontFamily: 'var(--font-mono)' }}>
-                                          💥 {formatWeaponDamage(item, selectedCharacter as unknown as Record<string, unknown>)}
-                                        </span>
-                                      )}
-                                      {item.damage_type && (
-                                        <span className="text-sm px-3 py-1 rounded inline-block" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                          🔥 {item.damage_type}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {/* Stat Mods */}
-                                  {statMods.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                      {statMods.map(mod => (
-                                        <span key={mod.label} className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'color-mix(in srgb, var(--color-cyber-green) 20%, transparent)', color: mod.value > 0 ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
-                                          {mod.icon} {mod.label} {mod.value > 0 ? '+' : ''}{mod.value}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* Skill Mods */}
-                                  {skillMods.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                      {skillMods.map(([skill, value]) => (
-                                        <span key={skill} className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 15%, transparent)', color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                                          📊 {skill} {(value as number) > 0 ? '+' : ''}{value}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* IC Cost (cyberware) */}
-                                  {item.type === 'cyberware' && item.ic_cost > 0 && (
-                                    <div className="mb-3">
-                                      <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
-                                        🔌 IC Cost: {item.ic_cost}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* Item Abilities */}
-                                  {item.abilities && item.abilities.length > 0 && (
-                                    <div className="pt-3" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-green) 20%, transparent)' }}>
-                                      <div className="text-xs font-bold mb-2" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>GRANTS ABILITIES:</div>
-                                      <div className="flex flex-wrap gap-2">
-                                        {item.abilities.map((ia: any, i: number) => ia.ability && (
-                                          <span key={i} className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'color-mix(in srgb, var(--color-cyber-magenta) 15%, transparent)', color: 'var(--color-cyber-magenta)', border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 30%, transparent)', fontFamily: 'var(--font-mono)' }}>
-                                            ⚡ {ia.ability.name}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-
-                {/* SKILLS TAB */}
-                {activeTab === 'skills' && (
-                  <div>
-                    <h3 className="text-xl mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                      🎯 SKILLS
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {[
-                        { name: 'Acrobatics', key: 'skill_acrobatics', stat: 'DEX', value: selectedCharacter.skill_acrobatics },
-                        { name: 'Animal Handling', key: 'skill_animal_handling', stat: 'WIS', value: selectedCharacter.skill_animal_handling },
-                        { name: 'Athletics', key: 'skill_athletics', stat: 'STR', value: selectedCharacter.skill_athletics },
-                        { name: 'Biology', key: 'skill_biology', stat: 'INT', value: selectedCharacter.skill_biology },
-                        { name: 'Deception', key: 'skill_deception', stat: 'CHA', value: selectedCharacter.skill_deception },
-                        { name: 'Hacking', key: 'skill_hacking', stat: 'INT', value: selectedCharacter.skill_hacking },
-                        { name: 'History', key: 'skill_history', stat: 'INT', value: selectedCharacter.skill_history },
-                        { name: 'Insight', key: 'skill_insight', stat: 'WIS', value: selectedCharacter.skill_insight },
-                        { name: 'Intimidation', key: 'skill_intimidation', stat: 'CHA', value: selectedCharacter.skill_intimidation },
-                        { name: 'Investigation', key: 'skill_investigation', stat: 'INT', value: selectedCharacter.skill_investigation },
-                        { name: 'Medicine', key: 'skill_medicine', stat: 'WIS', value: selectedCharacter.skill_medicine },
-                        { name: 'Nature', key: 'skill_nature', stat: 'INT', value: selectedCharacter.skill_nature },
-                        { name: 'Perception', key: 'skill_perception', stat: 'WIS', value: selectedCharacter.skill_perception },
-                        { name: 'Performance', key: 'skill_performance', stat: 'CHA', value: selectedCharacter.skill_performance },
-                        { name: 'Persuasion', key: 'skill_persuasion', stat: 'CHA', value: selectedCharacter.skill_persuasion },
-                        { name: 'Sleight of Hand', key: 'skill_sleight_of_hand', stat: 'DEX', value: selectedCharacter.skill_sleight_of_hand },
-                        { name: 'Stealth', key: 'skill_stealth', stat: 'DEX', value: selectedCharacter.skill_stealth },
-                        { name: 'Survival', key: 'skill_survival', stat: 'WIS', value: selectedCharacter.skill_survival }
-                      ].map(skill => {
-                        const statKey = skill.stat.toLowerCase() as keyof typeof computedStats;
-                        const rawStatValue = computedStats[statKey] as number;
-                        // Convert raw stat to modifier (handles both old 10+ format and new direct format)
-                        const statModifier = calculateStatModifier(rawStatValue);
-                        // Look up item skill bonus by skill name (e.g., "Persuasion", "Sleight of Hand")
-                        const itemSkillBonus = computedStats.skills[skill.name] || 0;
-                        const hasItemBonus = itemSkillBonus > 0;
-                        const totalBonus = statModifier + skill.value + itemSkillBonus;
-
-                        return (
-                          <div 
-                            key={skill.key}
-                            className="p-3 rounded text-center"
-                            style={{ 
-                              border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                              background: 'transparent'
-                            }}
-                          >
-                            <div className="flex justify-between items-center mb-1">
-                              <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                                {skill.name}
-                              </div>
-                              {hasItemBonus && (
-                                <span className="text-xs" title={`Item Bonus +${itemSkillBonus}`}>📦</span>
-                              )}
-                            </div>
-                            <div className="text-2xl font-bold" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                              {formatModifier(totalBonus)}
-                            </div>
-                            <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
-                              {skill.stat} {formatModifier(statModifier)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* INVENTORY TAB */}
-                {activeTab === 'inventory' && (
-                  <div className="flex flex-col h-full">
-                    {/* Header with stats */}
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                          📦 INVENTORY
-                        </h3>
-                        <button
-                          onClick={() => { setShowStorageModal(true); fetchStorageContainers(); }}
-                          className="px-3 py-1 rounded text-xs font-bold"
-                          style={{
-                            border: '1px solid var(--color-cyber-green)',
-                            color: 'var(--color-cyber-green)',
-                            fontFamily: 'var(--font-mono)'
-                          }}
-                        >
-                          📦 STORAGE
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        <span>{inventory.length} items</span>
-                        <span>•</span>
-                        <span>{inventory.filter(i => i.is_equipped).length} equipped</span>
-                      </div>
-                    </div>
-
-                    {/* Weight Bar (shown when weight system is enabled) */}
-                    {weightSystemEnabled && (() => {
-                      const totalWeight = inventory.reduce((sum, inv) => sum + (inv.item?.weight || 0) * inv.quantity, 0);
-                      const baseCapacity = (selectedCharacter as any)?.carrying_capacity || (selectedCharacter as any)?.base_carrying_capacity || 100;
-                      // Backpack bonus: sum weight of all equipped backpack-slot items' ac_mod (repurposed) or just a flat +50 per backpack
-                      const backpackBonus = inventory
-                        .filter(inv => inv.is_equipped && inv.item?.slot_type === 'backpack')
-                        .reduce((sum) => sum + 50, 0);
-                      const totalCapacity = baseCapacity + backpackBonus;
-                      const pct = Math.min(100, (totalWeight / totalCapacity) * 100);
-                      const overencumbered = totalWeight > totalCapacity;
-                      return (
-                        <div className="mb-3 p-2 rounded" style={{
-                          border: `1px solid ${overencumbered ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)'}`,
-                          background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)'
-                        }}>
-                          <div className="flex justify-between text-xs mb-1" style={{ color: overencumbered ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                            <span>⚖️ {totalWeight.toFixed(1)} / {totalCapacity.toFixed(0)} lbs</span>
-                            {overencumbered && <span className="font-bold animate-pulse">⚠️ OVERENCUMBERED</span>}
-                          </div>
-                          <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-cyber-darker)' }}>
-                            <div className="h-full rounded-full transition-all" style={{
-                              width: `${pct}%`,
-                              background: overencumbered ? 'var(--color-cyber-magenta)' : pct > 80 ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'
-                            }} />
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Search and Filters Bar */}
-                    <div className="p-3 rounded mb-4 space-y-3" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-green) 5%, transparent)' }}>
-                      {/* Search */}
-                      <div className="flex gap-3">
-                        <div className="flex-1 relative">
-                          <input
-                            type="text"
-                            placeholder="Search items..."
-                            value={inventorySearch}
-                            onChange={(e) => setInventorySearch(e.target.value)}
-                            className="w-full px-3 py-2 rounded text-sm"
-                            style={{
-                              background: 'var(--color-cyber-darker)',
-                              border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                              color: 'var(--color-cyber-cyan)',
-                              fontFamily: 'var(--font-mono)'
-                            }}
-                          />
-                          {inventorySearch && (
-                            <button
-                              onClick={() => setInventorySearch('')}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
-                              style={{ color: 'var(--color-cyber-cyan)' }}
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                        
-                        {/* View Mode Toggle */}
-                        <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--color-cyber-green)' }}>
-                          <button
-                            onClick={() => setInventoryViewMode('grid')}
-                            className="px-3 py-2 text-sm"
-                            style={{
-                              background: inventoryViewMode === 'grid' ? 'var(--color-cyber-green)' : 'transparent',
-                              color: inventoryViewMode === 'grid' ? 'black' : 'var(--color-cyber-cyan)'
-                            }}
-                          >
-                            ▦
-                          </button>
-                          <button
-                            onClick={() => setInventoryViewMode('list')}
-                            className="px-3 py-2 text-sm"
-                            style={{
-                              background: inventoryViewMode === 'list' ? 'var(--color-cyber-green)' : 'transparent',
-                              color: inventoryViewMode === 'list' ? 'black' : 'var(--color-cyber-cyan)'
-                            }}
-                          >
-                            ☰
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Filters Row */}
-                      <div className="flex gap-3 flex-wrap">
-                        {/* Type Filter */}
-                        <select
-                          value={inventoryTypeFilter}
-                          onChange={(e) => setInventoryTypeFilter(e.target.value)}
-                          className="px-3 py-1.5 rounded text-sm"
-                          style={{
-                            background: 'var(--color-cyber-darker)',
-                            border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                            color: 'var(--color-cyber-cyan)',
-                            fontFamily: 'var(--font-mono)'
-                          }}
-                        >
-                          <option value="all">All Types</option>
-                          {inventoryTypes.map(type => (
-                            <option key={type} value={type}>{getItemTypeIcon(type as any)} {type}</option>
-                          ))}
-                        </select>
-
-                        {/* Rarity Filter */}
-                        <select
-                          value={inventoryRarityFilter}
-                          onChange={(e) => setInventoryRarityFilter(e.target.value)}
-                          className="px-3 py-1.5 rounded text-sm"
-                          style={{
-                            background: 'var(--color-cyber-darker)',
-                            border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                            color: 'var(--color-cyber-cyan)',
-                            fontFamily: 'var(--font-mono)'
-                          }}
-                        >
-                          <option value="all">All Rarities</option>
-                          {inventoryRarities.map(rarity => (
-                            <option key={rarity} value={rarity}>{rarity}</option>
-                          ))}
-                        </select>
-
-                        {/* Sort */}
-                        <select
-                          value={inventorySort}
-                          onChange={(e) => setInventorySort(e.target.value as any)}
-                          className="px-3 py-1.5 rounded text-sm"
-                          style={{
-                            background: 'var(--color-cyber-darker)',
-                            border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)',
-                            color: 'var(--color-cyber-cyan)',
-                            fontFamily: 'var(--font-mono)'
-                          }}
-                        >
-                          <option value="equipped">Sort: Equipped First</option>
-                          <option value="name">Sort: Name</option>
-                          <option value="type">Sort: Type</option>
-                          <option value="rarity">Sort: Rarity</option>
-                        </select>
-
-                        {/* Clear Filters */}
-                        {(inventorySearch || inventoryTypeFilter !== 'all' || inventoryRarityFilter !== 'all') && (
-                          <button
-                            onClick={() => {
-                              setInventorySearch('');
-                              setInventoryTypeFilter('all');
-                              setInventoryRarityFilter('all');
-                            }}
-                            className="px-3 py-1.5 rounded text-sm"
-                            style={{
-                              border: '1px solid var(--color-cyber-magenta)',
-                              color: 'var(--color-cyber-magenta)',
-                              background: 'transparent'
-                            }}
-                          >
-                            Clear Filters
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Results Count */}
-                    {filteredInventory.length !== inventory.length && (
-                      <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                        Showing {filteredInventory.length} of {inventory.length} items
-                      </div>
-                    )}
-
-                    {/* Inventory Content */}
-                    {inventory.length === 0 ? (
-                      <div className="text-center py-12" style={{ border: '2px dashed color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', borderRadius: '8px' }}>
-                        <div className="text-4xl mb-4">📦</div>
-                        <p className="text-lg" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
-                          INVENTORY EMPTY
-                        </p>
-                        <p className="text-sm mt-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
-                          Visit a shop or complete missions to acquire items
-                        </p>
-                      </div>
-                    ) : filteredInventory.length === 0 ? (
-                      <div className="text-center py-8" style={{ border: '2px dashed color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', borderRadius: '8px' }}>
-                        <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                          No items match your filters
-                        </p>
-                      </div>
-                    ) : (
-                      <div className={`overflow-y-auto p-1 ${inventoryViewMode === 'grid' ? 'grid grid-cols-2 lg:grid-cols-3 gap-3 content-start' : 'space-y-2'}`} style={{ maxHeight: '400px' }}>
-                        {filteredInventory.map((inv) => {
-                          const item = inv.item!;
-                          const isSelected = selectedInventoryItem?.id === inv.id;
-                          
-                          return inventoryViewMode === 'grid' ? (
-                            // GRID VIEW - Compact cards
-                            <div 
-                              key={inv.id}
-                              onClick={() => setSelectedInventoryItem(isSelected ? null : inv)}
-                              className="p-3 rounded cursor-pointer transition-all"
-                              style={{ 
-                                border: `2px solid ${isSelected ? getRarityColor(item.rarity) : inv.is_equipped ? 'var(--color-cyber-green)' : 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)'}`,
-                                background: isSelected ? 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)' : inv.is_equipped ? 'color-mix(in srgb, var(--color-cyber-green) 8%, transparent)' : 'transparent'
-                              }}
-                            >
-                              <div className="flex items-start gap-2 mb-2">
-                                <span className="text-xl">{getItemTypeIcon(item.type)}</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-bold text-sm truncate" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
-                                    {item.name}
-                                  </div>
-                                  <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6 }}>
-                                    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 15%, transparent)', color: getRarityColor(item.rarity) }}>
-                                  {item.rarity}
-                                </span>
-                                {inv.is_equipped && (
-                                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>
-                                    {inv.equipped_slot ? getSlotLabel(inv.equipped_slot).split(' ').pop() : '✓'}
-                                  </span>
-                                )}
-                                {inv.quantity > 1 && (
-                                  <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                    x{inv.quantity}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            // LIST VIEW - Full width rows
-                            <div 
-                              key={inv.id}
-                              onClick={() => setSelectedInventoryItem(isSelected ? null : inv)}
-                              className="p-3 rounded cursor-pointer transition-all flex items-center gap-4"
-                              style={{ 
-                                border: `1px solid ${isSelected ? getRarityColor(item.rarity) : inv.is_equipped ? 'var(--color-cyber-green)' : 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)'}`,
-                                background: isSelected ? 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)' : inv.is_equipped ? 'color-mix(in srgb, var(--color-cyber-green) 8%, transparent)' : 'transparent'
-                              }}
-                            >
-                              <span className="text-xl">{getItemTypeIcon(item.type)}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-bold truncate" style={{ color: getRarityColor(item.rarity), fontFamily: 'var(--font-cyber)' }}>
-                                  {item.name}
-                                </div>
-                              </div>
-                              <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.6 }}>
-                                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                              </span>
-                              <span className="text-xs px-2 py-0.5 rounded" style={{ color: getRarityColor(item.rarity) }}>
-                                {item.rarity}
-                              </span>
-                              {inv.quantity > 1 && (
-                                <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                                  x{inv.quantity}
-                                </span>
-                              )}
-                              {inv.is_equipped && (
-                                <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>
-                                  {inv.equipped_slot ? getSlotLabel(inv.equipped_slot) : 'EQUIPPED'}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* MAP TAB */}
-                {activeTab === 'missions' && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                        📋 MISSION LOG
-                      </h3>
-                      <div className="flex gap-2">
-                        {(['all', 'active', 'completed', 'failed'] as const).map(filter => (
-                          <button
-                            key={filter}
-                            onClick={() => setMissionFilter(filter)}
-                            className="px-3 py-1 text-xs rounded"
-                            style={{
-                              background: missionFilter === filter ? 'var(--color-cyber-yellow)' : 'transparent',
-                              color: missionFilter === filter ? 'white' : 'var(--color-cyber-cyan)',
-                              border: `1px solid ${missionFilter === filter ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'}`,
-                              fontWeight: missionFilter === filter ? 'bold' : 'normal'
-                            }}
-                          >
-                            {filter.toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {missions.filter(m => missionFilter === 'all' || m.status === missionFilter).length === 0 ? (
-                      <div className="text-center py-8" style={{ border: '2px dashed color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', borderRadius: '8px' }}>
-                        <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                          No {missionFilter !== 'all' ? missionFilter : ''} missions
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {missions
-                          .filter(m => missionFilter === 'all' || m.status === missionFilter)
-                          .map(mission => (
-                            <div 
-                              key={mission.id}
-                              className="p-4 rounded cursor-pointer hover:opacity-80 transition-opacity"
-                              style={{ 
-                                border: `1px solid ${mission.status === 'active' ? 'var(--color-cyber-yellow)' : 'color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)'}`,
-                                background: mission.status === 'active' ? 'color-mix(in srgb, var(--color-cyber-yellow) 5%, transparent)' : 'transparent'
-                              }}
-                              onClick={() => setSelectedMission(selectedMission?.id === mission.id ? null : mission)}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="font-bold" style={{ color: mission.status === 'active' ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
-                                    {mission.title}
-                                  </div>
-                                  <div className="text-xs flex gap-2 mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
-                                    <span style={{ color: 'var(--color-cyber-green)' }}>{mission.type}</span>
-                                    <span style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>|</span>
-                                    <span style={{ color: 'var(--color-cyber-cyan)' }}>{mission.difficulty}</span>
-                                  </div>
-                                </div>
-                                <span 
-                                  className="text-xs px-2 py-1 rounded"
-                                  style={{ 
-                                    background: mission.status === 'active' ? 'var(--color-cyber-yellow)' : 
-                                               mission.status === 'completed' ? 'var(--color-cyber-cyan)' : 
-                                               'var(--color-cyber-magenta)',
-                                    color: 'white',
-                                    fontWeight: 'bold'
-                                  }}
-                                >
-                                  {mission.status.toUpperCase()}
-                                </span>
-                              </div>
-                              
-                              {selectedMission?.id === mission.id && (
-                                <div className="mt-4 pt-4" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)' }}>
-                                  <p className="text-sm mb-3" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>
-                                    {mission.description}
-                                  </p>
-                                  {mission.objectives && mission.objectives.length > 0 && (
-                                    <div className="text-xs">
-                                      <div className="mb-1" style={{ color: 'var(--color-cyber-green)' }}>OBJECTIVES:</div>
-                                      {mission.objectives.map((obj: string, i: number) => (
-                                        <div key={i} className="flex items-center gap-2" style={{ color: 'var(--color-cyber-cyan)' }}>
-                                          <span style={{ color: 'var(--color-cyber-green)' }}>{i + 1}.</span>
-                                          <span>{obj}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {mission.reward_credits && mission.reward_credits > 0 && (
-                                    <div className="mt-2 text-xs" style={{ color: 'var(--color-cyber-yellow)' }}>
-                                      💰 ${mission.reward_credits.toLocaleString()} credit reward
-                                    </div>
-                                  )}
-                                  {mission.reward_item_ids && mission.reward_item_ids.length > 0 && (
-                                    <div className="mt-2 text-xs" style={{ color: 'var(--color-cyber-green)' }}>
-                                      🎁 {mission.reward_item_ids.length} reward item{mission.reward_item_ids.length > 1 ? 's' : ''} available
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Item Detail Panel - Separate widget below tab content */}
-              {activeTab === 'inventory' && (
-                <div className="glass-panel p-4 mt-4" style={{ border: `1px solid ${selectedInventoryItem?.item ? getRarityColor(selectedInventoryItem.item.rarity) : 'var(--color-cyber-cyan)'}` }}>
-                  <h4 className="text-sm mb-3" style={{ fontFamily: 'var(--font-cyber)', color: selectedInventoryItem?.item ? getRarityColor(selectedInventoryItem.item.rarity) : 'var(--color-cyber-cyan)' }}>
-                    📋 ITEM DETAILS
-                  </h4>
-                  {selectedInventoryItem && selectedInventoryItem.item ? (
-                    <>
-                      <div className="flex items-start gap-3 mb-4">
-                        <span className="text-3xl">{getItemTypeIcon(selectedInventoryItem.item.type)}</span>
-                        <div className="flex-1">
-                          <h4 className="font-bold text-lg" style={{ color: getRarityColor(selectedInventoryItem.item.rarity), fontFamily: 'var(--font-cyber)' }}>
-                            {selectedInventoryItem.item.name}
-                          </h4>
-                          <div className="text-xs" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                            {selectedInventoryItem.item.type.charAt(0).toUpperCase() + selectedInventoryItem.item.type.slice(1)} • {selectedInventoryItem.item.rarity.charAt(0).toUpperCase() + selectedInventoryItem.item.rarity.slice(1)}
-                            {selectedInventoryItem.item.weapon_subtype && ` • ${selectedInventoryItem.item.weapon_subtype.charAt(0).toUpperCase() + selectedInventoryItem.item.weapon_subtype.slice(1)}`}
-                            {selectedInventoryItem.item.armor_subtype && ` • ${selectedInventoryItem.item.armor_subtype.charAt(0).toUpperCase() + selectedInventoryItem.item.armor_subtype.slice(1)}`}
-                          </div>
-                          {/* Weapon To-Hit Display */}
-                          {selectedInventoryItem.item.type === 'weapon' && selectedCharacter && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {/* Proficiency-based to-hit (from weapon rank) */}
-                              {selectedInventoryItem.item.weapon_subtype && (() => {
-                                const weaponType = selectedInventoryItem.item.weapon_subtype.toLowerCase();
-                                const rankKey = `weapon_rank_${weaponType}` as keyof Character;
-                                const rank = (selectedCharacter[rankKey] as number) ?? 0;
-                                const isProficient = rank > 0;
-                                const toHitText = formatToHit(rank);
-                                return (
-                                  <span 
-                                    className="text-sm px-3 py-1 rounded font-bold inline-block"
-                                    style={{ 
-                                      background: isProficient ? 'var(--color-cyber-green)' : 'var(--color-cyber-magenta)',
-                                      color: 'white',
-                                      fontFamily: 'var(--font-mono)'
-                                    }}
-                                  >
-                                    🎯 Proficiency: {toHitText} {!isProficient && '(Not Proficient)'}
-                                  </span>
-                                );
-                              })()}
-                              {/* New combat stats to-hit */}
-                              {(selectedInventoryItem.item.to_hit_type && selectedInventoryItem.item.to_hit_type !== 'static' || (selectedInventoryItem.item.to_hit_static || 0) !== 0) && (
-                                <span 
-                                  className="text-sm px-3 py-1 rounded font-bold inline-block"
-                                  style={{ 
-                                    background: 'color-mix(in srgb, var(--color-cyber-yellow, #FACC15) 30%, transparent)',
-                                    border: '1px solid var(--color-cyber-yellow, #FACC15)',
-                                    color: 'var(--color-cyber-yellow, #FACC15)',
-                                    fontFamily: 'var(--font-mono)'
-                                  }}
-                                >
-                                  🎯 To Hit: {formatWeaponToHit(selectedInventoryItem.item, selectedCharacter as unknown as Record<string, unknown>)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {/* Weapon Damage Display */}
-                          {selectedInventoryItem.item.type === 'weapon' && selectedInventoryItem.item.damage_dice && selectedCharacter && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              <span 
-                                className="text-sm px-3 py-1 rounded font-bold inline-block"
-                                style={{ 
-                                  background: 'color-mix(in srgb, var(--color-cyber-red, #EF4444) 30%, transparent)',
-                                  border: '1px solid var(--color-cyber-red, #EF4444)',
-                                  color: 'var(--color-cyber-red, #EF4444)',
-                                  fontFamily: 'var(--font-mono)'
-                                }}
-                              >
-                                💥 {formatWeaponDamage(selectedInventoryItem.item, selectedCharacter as unknown as Record<string, unknown>)}
-                              </span>
-                              {selectedInventoryItem.item.damage_type && (
-                                <span 
-                                  className="text-sm px-3 py-1 rounded inline-block"
-                                  style={{ 
-                                    background: 'color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)',
-                                    border: '1px solid var(--color-cyber-cyan)',
-                                    color: 'var(--color-cyber-cyan)',
-                                    fontFamily: 'var(--font-mono)'
-                                  }}
-                                >
-                                  🔥 {selectedInventoryItem.item.damage_type}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {selectedInventoryItem.is_equipped && (
-                          <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--color-cyber-green)', color: 'white', fontWeight: 'bold' }}>EQUIPPED</span>
-                        )}
-                      </div>
-
-                      <p className="text-sm mb-4" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>
-                        {selectedInventoryItem.item.description || 'No description available.'}
-                      </p>
-
-                      {/* Stats - Grid layout */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-                        {selectedInventoryItem.item.ac_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>🛡️ AC</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.ac_mod > 0 ? '+' : ''}{selectedInventoryItem.item.ac_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.hp_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>❤️ HP</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.hp_mod > 0 ? '+' : ''}{selectedInventoryItem.item.hp_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.str_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>💪 STR</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.str_mod > 0 ? '+' : ''}{selectedInventoryItem.item.str_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.dex_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>🎯 DEX</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.dex_mod > 0 ? '+' : ''}{selectedInventoryItem.item.dex_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.con_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>🏋️ CON</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.con_mod > 0 ? '+' : ''}{selectedInventoryItem.item.con_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.wis_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>🧠 WIS</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.wis_mod > 0 ? '+' : ''}{selectedInventoryItem.item.wis_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.int_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>📚 INT</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.int_mod > 0 ? '+' : ''}{selectedInventoryItem.item.int_mod}
-                            </span>
-                          </div>
-                        )}
-                        {selectedInventoryItem.item.cha_mod !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>✨ CHA</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {selectedInventoryItem.item.cha_mod > 0 ? '+' : ''}{selectedInventoryItem.item.cha_mod}
-                            </span>
-                          </div>
-                        )}
-                        {(selectedInventoryItem.item.speed_mod ?? 0) !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>⚡ Speed</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {(selectedInventoryItem.item.speed_mod ?? 0) > 0 ? '+' : ''}{selectedInventoryItem.item.speed_mod}
-                            </span>
-                          </div>
-                        )}
-                        {(selectedInventoryItem.item.init_mod ?? 0) !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>🎲 Init</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {(selectedInventoryItem.item.init_mod ?? 0) > 0 ? '+' : ''}{selectedInventoryItem.item.init_mod}
-                            </span>
-                          </div>
-                        )}
-                        {(selectedInventoryItem.item.ic_mod ?? 0) !== 0 && (
-                          <div className="flex justify-between text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            <span>🔧 IC</span>
-                            <span style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}>
-                              {(selectedInventoryItem.item.ic_mod ?? 0) > 0 ? '+' : ''}{selectedInventoryItem.item.ic_mod}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Cyberware IC Cost */}
-                      {selectedInventoryItem.item.type === 'cyberware' && (selectedInventoryItem.item.ic_cost ?? 0) > 0 && (
-                        <div className="mb-4 p-2 rounded text-center" style={{ background: 'rgba(255, 215, 0, 0.1)', border: '1px solid var(--color-cyber-yellow)' }}>
-                          <span className="text-sm" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
-                            🔌 Requires {selectedInventoryItem.item.ic_cost} IC to equip
-                          </span>
-                          {!selectedInventoryItem.is_equipped && (selectedInventoryItem.item.ic_cost ?? 0) > computedStats.icRemaining && (
-                            <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-magenta)' }}>
-                              ⚠️ Not enough IC remaining ({computedStats.icRemaining} available)
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Item Abilities */}
-                      {selectedInventoryItem.item.abilities && selectedInventoryItem.item.abilities.length > 0 && (
-                        <div className="mb-4 p-3 rounded" style={{ background: 'rgba(189, 0, 255, 0.1)', border: '1px solid var(--color-cyber-purple)' }}>
-                          <h5 className="text-sm font-bold mb-2" style={{ color: 'var(--color-cyber-purple)', fontFamily: 'var(--font-cyber)' }}>
-                            ⚡ LINKED ABILITIES
-                          </h5>
-                          <div className="space-y-2">
-                            {selectedInventoryItem.item.abilities.map((itemAbility: any, index: number) => {
-                              const ability = itemAbility.ability;
-                              if (!ability) return null;
-                              return (
-                                <div key={ability.id || index} className="p-2 rounded" style={{ background: 'rgba(0, 0, 0, 0.3)' }}>
-                                  <div className="font-bold text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                                    {ability.name}
-                                  </div>
-                                  <div className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7 }}>
-                                    {ability.type?.replace('_', ' ').toUpperCase()}
-                                    {ability.damage_dice && ` • ${ability.damage_dice}`}
-                                    {ability.damage_type && ` ${ability.damage_type}`}
-                                    {ability.range_feet && ` • ${ability.range_feet}ft range`}
-                                  </div>
-                                  {ability.description && (
-                                    <p className="text-xs mt-1" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.8 }}>
-                                      {ability.description}
-                                    </p>
-                                  )}
-                                  {ability.effects && ability.effects.length > 0 && (
-                                    <ul className="mt-1 text-xs" style={{ color: 'var(--color-cyber-green)' }}>
-                                      {ability.effects.map((effect: string, i: number) => (
-                                        <li key={i}>• {effect}</li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Quantity & Value */}
-                      <div className="flex justify-between items-center text-xs mb-4 pt-3" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
-                        <div>
-                          <span className="opacity-70">Quantity:</span>
-                          <span className="ml-2">{selectedInventoryItem.quantity}</span>
-                        </div>
-                        <div>
-                          <span className="opacity-70">Value:</span>
-                          <span className="ml-2">${selectedInventoryItem.item.price?.toLocaleString() || 0}</span>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        {/* Equip Button */}
-                        {selectedInventoryItem.item.is_equippable && (
-                          <button
-                            onClick={() => toggleEquipItem(selectedInventoryItem.id, selectedInventoryItem.is_equipped)}
-                            className="flex-1 py-2 rounded font-bold text-sm transition-all"
-                            style={{
-                              background: selectedInventoryItem.is_equipped ? 'transparent' : 'var(--color-cyber-yellow)',
-                              color: selectedInventoryItem.is_equipped ? 'var(--color-cyber-cyan)' : 'white',
-                              border: `2px solid ${selectedInventoryItem.is_equipped ? 'var(--color-cyber-cyan)' : 'var(--color-cyber-yellow)'}`,
-                              fontFamily: 'var(--font-cyber)'
-                            }}
-                          >
-                            {selectedInventoryItem.is_equipped ? 'UNEQUIP' : 'EQUIP'}
-                          </button>
-                        )}
-                        
-                        {/* Consume Button */}
-                        {selectedInventoryItem.item.is_consumable && (
-                          <button
-                            onClick={() => consumeItem(selectedInventoryItem.id, selectedInventoryItem.item, selectedInventoryItem.quantity)}
-                            className="flex-1 py-2 rounded font-bold text-sm transition-all"
-                            style={{
-                              background: 'var(--color-cyber-magenta)',
-                              color: 'white',
-                              border: '2px solid var(--color-cyber-magenta)',
-                              fontFamily: 'var(--font-cyber)'
-                            }}
-                          >
-                            🍴 CONSUME
-                          </button>
-                        )}
-                      </div>
-                      
-                      {/* Consumable Effect Info */}
-                      {selectedInventoryItem.item.is_consumable && selectedInventoryItem.item.hp_mod !== 0 && (
-                        <div className="mt-2 text-xs text-center" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
-                          {selectedInventoryItem.item.hp_mod_type === 'max_hp' 
-                            ? `Permanently ${selectedInventoryItem.item.hp_mod > 0 ? 'increases' : 'decreases'} Max HP`
-                            : `${selectedInventoryItem.item.hp_mod > 0 ? 'Heals' : 'Damages'} ${Math.abs(selectedInventoryItem.item.hp_mod)} HP`
-                          }
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-sm" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
-                        Select an item to view details
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* RIGHT PANEL — Inventory */}
+            <div className="glass-panel p-2 overflow-y-auto flex flex-col" style={{ border: '1px solid var(--color-cyber-green)' }}>
+              <InventoryPanel
+                character={selectedCharacter}
+                inventory={inventory}
+                computedStats={computedStats}
+                filteredInventory={filteredInventory}
+                inventorySearch={inventorySearch}
+                setInventorySearch={setInventorySearch}
+                inventoryTypeFilter={inventoryTypeFilter}
+                setInventoryTypeFilter={setInventoryTypeFilter}
+                inventoryRarityFilter={inventoryRarityFilter}
+                setInventoryRarityFilter={setInventoryRarityFilter}
+                inventorySort={inventorySort}
+                setInventorySort={setInventorySort}
+                inventoryViewMode={inventoryViewMode}
+                setInventoryViewMode={setInventoryViewMode}
+                selectedInventoryItem={selectedInventoryItem}
+                setSelectedInventoryItem={setSelectedInventoryItem}
+                onEquipToggle={toggleEquipItem}
+                onConsume={consumeItem}
+                getSlotLabel={getSlotLabel}
+                slotFilter={slotFilter}
+                onClearSlotFilter={() => setSlotFilter(null)}
+              />
             </div>
           </div>
         )}
       </div>
 
-      {/* Storage Modal */}
-      {showStorageModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto" style={{
-            background: 'var(--color-dark-bg)',
-            border: '2px solid var(--color-cyber-green)',
-            boxShadow: '0 0 30px rgba(0, 255, 0, 0.2)'
-          }}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
-                📦 STORAGE
-              </h3>
-              <button onClick={() => { setShowStorageModal(false); setSelectedContainer(null); setStorageItems([]); setStoreItemId(null); }}
-                className="text-xl" style={{ color: 'var(--color-cyber-magenta)' }}>✕</button>
-            </div>
-
-            {!selectedContainer ? (
-              /* Container list */
-              <div className="space-y-2">
-                {storageContainers.filter(c => !c.is_locked).length === 0 ? (
-                  <p className="text-sm text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No unlocked storage containers available</p>
-                ) : storageContainers.map(container => (
-                  <button
-                    key={container.id}
-                    onClick={() => {
-                      if (container.is_locked) return;
-                      setSelectedContainer(container);
-                      fetchContainerItems(container.id);
-                    }}
-                    disabled={container.is_locked}
-                    className="w-full p-3 rounded text-left transition-all"
-                    style={{
-                      background: container.is_locked ? 'var(--color-cyber-darker)' : 'color-mix(in srgb, var(--color-cyber-green) 10%, transparent)',
-                      border: `1px solid ${container.is_locked ? 'var(--color-text-muted)' : 'var(--color-cyber-green)'}`,
-                      opacity: container.is_locked ? 0.5 : 1
-                    }}
-                  >
-                    <div className="font-bold text-sm" style={{ color: container.is_locked ? 'var(--color-text-muted)' : 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
-                      {container.is_locked ? '🔒' : '📦'} {container.name}
-                    </div>
-                    {container.description && (
-                      <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{container.description}</div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              /* Container contents */
-              <div>
-                <button onClick={() => { setSelectedContainer(null); setStorageItems([]); setStoreItemId(null); }}
-                  className="text-sm mb-3" style={{ color: 'var(--color-cyber-cyan)' }}>← Back to containers</button>
-                
-                <h4 className="font-bold mb-3" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
-                  {selectedContainer.name}
-                </h4>
-
-                {/* Container contents */}
-                <div className="mb-4">
-                  <h5 className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>STORED ITEMS:</h5>
-                  {storageItems.length === 0 ? (
-                    <p className="text-xs py-2" style={{ color: 'var(--color-text-muted)' }}>Empty</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {storageItems.map(si => (
-                        <div key={si.id} className="flex items-center justify-between p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)' }}>
-                          <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
-                            {si.item ? `${getItemTypeIcon(si.item.type)} ${si.item.name}` : 'Unknown'} ×{si.quantity}
-                          </span>
-                          <button
-                            onClick={() => retrieveItemFromContainer(si, 1)}
-                            className="text-xs px-2 py-1 rounded"
-                            style={{ background: 'var(--color-cyber-green)', color: 'white', fontFamily: 'var(--font-mono)' }}
-                          >
-                            Take 1
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Store item from inventory */}
-                <div className="p-3 rounded" style={{ border: '1px solid var(--color-cyber-yellow)', background: 'color-mix(in srgb, var(--color-cyber-yellow) 5%, transparent)' }}>
-                  <h5 className="text-xs mb-2" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>STORE ITEM:</h5>
-                  <select
-                    value={storeItemId || ''}
-                    onChange={(e) => { setStoreItemId(e.target.value || null); setStoreQuantity(1); }}
-                    className="w-full px-3 py-2 rounded text-sm mb-2"
-                    style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
-                  >
-                    <option value="">-- Select item --</option>
-                    {inventory.filter(inv => !inv.is_equipped).map(inv => (
-                      <option key={inv.id} value={inv.id}>
-                        {inv.item?.name || 'Unknown'} (×{inv.quantity})
-                      </option>
-                    ))}
-                  </select>
-                  {storeItemId && (
-                    <div className="flex gap-2">
-                      <NumberInput
-                        min={1}
-                        max={inventory.find(inv => inv.id === storeItemId)?.quantity || 1}
-                        value={storeQuantity}
-                        onChange={(v) => setStoreQuantity(v)}
-                        className="w-20 px-2 py-1 rounded text-sm"
-                        style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
-                      />
-                      <button
-                        onClick={() => storeItemInContainer(selectedContainer.id)}
-                        className="flex-1 py-1 rounded text-sm font-bold"
-                        style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
-                      >
-                        Store
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+      {/* BOTTOM NAVIGATION BAR */}
+      {selectedCharacter && !loading && !error && (
+        <div className="flex-shrink-0 glass-panel neon-border" style={{ borderRadius: 0 }}>
+          <div className="container mx-auto px-4 py-2 flex justify-center gap-3">
+            <button
+              onClick={() => setShowAbilitiesModal(true)}
+              className="px-4 py-2 rounded text-sm font-bold transition-all hover:scale-105"
+              style={{ background: 'transparent', color: 'var(--color-cyber-cyan)', border: '1px solid var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+            >
+              ⚡ Abilities
+            </button>
+            <button
+              onClick={() => setShowMissionsModal(true)}
+              className="px-4 py-2 rounded text-sm font-bold transition-all hover:scale-105"
+              style={{ background: 'transparent', color: 'var(--color-cyber-yellow)', border: '1px solid var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}
+            >
+              📋 Missions
+            </button>
+            <button
+              onClick={() => { setShowStorageModal(true); fetchStorageContainers(); }}
+              className="px-4 py-2 rounded text-sm font-bold transition-all hover:scale-105"
+              style={{ background: 'transparent', color: 'var(--color-cyber-green)', border: '1px solid var(--color-cyber-green)', fontFamily: 'var(--font-mono)' }}
+            >
+              📦 Storage
+            </button>
+            <button
+              onClick={() => navigate('/encounter')}
+              className="px-4 py-2 rounded text-sm font-bold transition-all hover:scale-105"
+              style={{ background: 'transparent', color: 'var(--color-cyber-magenta)', border: '1px solid var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}
+            >
+              ⚔️ Combat
+            </button>
           </div>
         </div>
       )}
 
+      {/* OVERLAY MODALS */}
+      <AbilitiesModal
+        isOpen={showAbilitiesModal}
+        onClose={() => setShowAbilitiesModal(false)}
+        abilities={abilities}
+        equippedGear={equippedGear}
+        character={selectedCharacter || {}}
+      />
+
+      <MissionsModal
+        isOpen={showMissionsModal}
+        onClose={() => setShowMissionsModal(false)}
+        missions={missions}
+        missionFilter={missionFilter}
+        setMissionFilter={setMissionFilter}
+        selectedMission={selectedMission}
+        setSelectedMission={setSelectedMission}
+      />
+
+      <StorageModal
+        isOpen={showStorageModal}
+        onClose={() => { setShowStorageModal(false); setSelectedContainer(null); setStorageItems([]); setStoreItemId(null); }}
+        storageContainers={storageContainers}
+        storageItems={storageItems}
+        selectedContainer={selectedContainer}
+        setSelectedContainer={setSelectedContainer}
+        onSelectContainer={(c) => { setSelectedContainer(c); fetchContainerItems(c.id); }}
+        inventory={inventory}
+        storeItemId={storeItemId}
+        setStoreItemId={setStoreItemId}
+        storeQuantity={storeQuantity}
+        setStoreQuantity={setStoreQuantity}
+        onStoreItem={storeItemInContainer}
+        onRetrieveItem={retrieveItemFromContainer}
+      />
+
       {/* Slot Selection Modal */}
       {showSlotModal && slotModalItem && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg p-6 max-w-sm w-full" style={{
-            background: 'var(--color-dark-bg)',
-            border: '2px solid var(--color-cyber-cyan)',
-            boxShadow: '0 0 30px rgba(0, 255, 255, 0.2)'
-          }}>
-            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
-              Choose Equipment Slot
-            </h3>
+          <div className="rounded-lg p-6 max-w-sm w-full" style={{ background: 'var(--color-dark-bg)', border: '2px solid var(--color-cyber-cyan)', boxShadow: '0 0 30px rgba(0, 255, 255, 0.2)' }}>
+            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>Choose Equipment Slot</h3>
             <p className="text-sm mb-4" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
               Equipping: <span style={{ color: 'var(--color-cyber-yellow)' }}>{slotModalItem.item?.name}</span>
             </p>
@@ -2629,54 +917,25 @@ export default function PlayerDashboard() {
               {availableSlots.map(slot => {
                 const occupant = inventory.find(inv => inv.is_equipped && inv.equipped_slot === slot);
                 return (
-                  <button
-                    key={slot}
-                    onClick={async () => {
-                      try {
-                        if (occupant) {
-                          if (!confirm(`Replace ${occupant.item?.name || 'current item'} in ${getSlotLabel(slot)}?`)) return;
-                        }
-                        await equipInSlot(slotModalItem.id, slot);
-                      } catch (err: any) {
-                        alert('Failed to equip: ' + err.message);
-                      }
-                      setShowSlotModal(false);
-                      setSlotModalItem(null);
-                    }}
+                  <button key={slot} onClick={async () => {
+                    try {
+                      if (occupant && !confirm(`Replace ${occupant.item?.name || 'current item'} in ${getSlotLabel(slot)}?`)) return;
+                      await equipInSlot(slotModalItem.id, slot);
+                    } catch (err: any) { alert('Failed: ' + err.message); }
+                    setShowSlotModal(false); setSlotModalItem(null);
+                  }}
                     className="w-full p-3 rounded text-left transition-all hover:opacity-80"
-                    style={{
-                      background: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
-                      border: `1px solid ${occupant ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)'}`,
-                      color: 'var(--color-cyber-cyan)',
-                      fontFamily: 'var(--font-mono)'
-                    }}
-                  >
+                    style={{ background: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)', border: `1px solid ${occupant ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)'}`, color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                     <div className="flex justify-between items-center">
                       <span>{getSlotLabel(slot)}</span>
-                      {occupant && (
-                        <span className="text-xs" style={{ color: 'var(--color-cyber-yellow)' }}>
-                          ⚠️ {occupant.item?.name}
-                        </span>
-                      )}
-                      {!occupant && (
-                        <span className="text-xs opacity-50">Empty</span>
-                      )}
+                      {occupant ? <span className="text-xs" style={{ color: 'var(--color-cyber-yellow)' }}>⚠️ {occupant.item?.name}</span> : <span className="text-xs opacity-50">Empty</span>}
                     </div>
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={() => { setShowSlotModal(false); setSlotModalItem(null); }}
-              className="w-full mt-4 py-2 rounded text-sm"
-              style={{
-                border: '1px solid var(--color-cyber-magenta)',
-                color: 'var(--color-cyber-magenta)',
-                fontFamily: 'var(--font-mono)'
-              }}
-            >
-              Cancel
-            </button>
+            <button onClick={() => { setShowSlotModal(false); setSlotModalItem(null); }} className="w-full mt-4 py-2 rounded text-sm"
+              style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>Cancel</button>
           </div>
         </div>
       )}
