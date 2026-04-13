@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { CHARACTER_CLASSES, formatToHit } from '../data/characterClasses';
 import { useClassAliases } from '../utils/useClassAliases';
-import type { InventoryItem, Ability } from '../types/inventory';
+import type { InventoryItem, Ability, EquipmentSlot, ItemSlotType } from '../types/inventory';
 import type { MissionWithDetails, MissionStatus } from '../types/mission';
 import { getRarityColor, getItemTypeIcon, formatWeaponToHit, formatWeaponDamage, getAbilityCooldownText } from '../utils/stats';
 import PlayerEffectsOverlay from '../components/PlayerEffectsOverlay';
@@ -97,6 +97,11 @@ export default function PlayerDashboard() {
   // Player Lock state - prevents equipping/using items/shopping during encounters
   const [playersLocked, setPlayersLocked] = useState(false);
   const [lockReason, setLockReason] = useState<string | null>(null);
+
+  // Slot selection modal
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [slotModalItem, setSlotModalItem] = useState<InventoryItem | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<EquipmentSlot[]>([]);
   
   // Computed stats (base + equipment bonuses)
   const [computedStats, setComputedStats] = useState({
@@ -508,6 +513,61 @@ export default function PlayerDashboard() {
     }
   };
 
+  // Helper to get valid equipment slots for an item's slot_type
+  const getSlotsForType = (slotType: ItemSlotType): EquipmentSlot[] => {
+    switch (slotType) {
+      case 'weapon': return ['weapon_primary', 'weapon_secondary'];
+      case 'head': return ['head'];
+      case 'chest': return ['chest'];
+      case 'legs': return ['legs'];
+      case 'eyewear': return ['eyewear'];
+      case 'gloves': return ['gloves'];
+      case 'shoes': return ['shoes'];
+      case 'accessory': return ['accessory_1', 'accessory_2'];
+      default: return [];
+    }
+  };
+
+  const getSlotLabel = (slot: EquipmentSlot): string => {
+    const labels: Record<EquipmentSlot, string> = {
+      head: '🎩 Head', chest: '🛡️ Chest', legs: '👖 Legs',
+      eyewear: '👓 Eyewear', gloves: '🧤 Gloves', shoes: '👟 Shoes',
+      accessory_1: '💍 Accessory 1', accessory_2: '💍 Accessory 2',
+      weapon_primary: '⚔️ Primary Weapon', weapon_secondary: '🗡️ Secondary Weapon'
+    };
+    return labels[slot] || slot;
+  };
+
+  const equipInSlot = async (inventoryItemId: string, slot: EquipmentSlot | null) => {
+    if (!selectedCharacter) return;
+
+    // If a slot is occupied, unequip the item currently in it
+    if (slot) {
+      const occupant = inventory.find(inv => inv.is_equipped && inv.equipped_slot === slot && inv.id !== inventoryItemId);
+      if (occupant) {
+        const { error: unequipError } = await supabase
+          .from('inventory')
+          .update({ is_equipped: false, equipped_slot: null })
+          .eq('id', occupant.id);
+        if (unequipError) throw unequipError;
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('inventory')
+      .update({ is_equipped: true, equipped_slot: slot })
+      .eq('id', inventoryItemId);
+
+    if (updateError) throw updateError;
+
+    if (selectedInventoryItem && selectedInventoryItem.id === inventoryItemId) {
+      setSelectedInventoryItem({ ...selectedInventoryItem, is_equipped: true, equipped_slot: slot });
+    }
+
+    await fetchInventory(selectedCharacter.id);
+    await fetchAbilities(selectedCharacter.id);
+  };
+
   const toggleEquipItem = async (inventoryItemId: string, currentlyEquipped: boolean) => {
     if (!selectedCharacter) return;
 
@@ -523,50 +583,83 @@ export default function PlayerDashboard() {
 
     const item = inventoryItem.item;
 
-    // If equipping (not currently equipped), check limits
-    if (!currentlyEquipped) {
-      // Check armor limit (max 1)
-      if (item.type === 'armor') {
-        if (computedStats.equippedArmorCount >= 1) {
-          alert('You can only equip 1 armor at a time. Unequip your current armor first.');
-          return;
-        }
-      }
+    // UNEQUIP path
+    if (currentlyEquipped) {
+      try {
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({ is_equipped: false, equipped_slot: null })
+          .eq('id', inventoryItemId);
 
-      // Check weapon limit (max 3)
-      if (item.type === 'weapon') {
-        if (computedStats.equippedWeaponCount >= 3) {
-          alert('You can only equip 3 weapons at a time. Unequip a weapon first.');
-          return;
-        }
-      }
+        if (updateError) throw updateError;
 
-      // Check cyberware IC limit
-      if (item.type === 'cyberware') {
-        const icCost = item.ic_cost || 0;
-        if (icCost > computedStats.icRemaining) {
-          alert(`Not enough Implant Capacity. This cyberware requires ${icCost} IC, but you only have ${computedStats.icRemaining} IC remaining.`);
-          return;
+        if (selectedInventoryItem && selectedInventoryItem.id === inventoryItemId) {
+          setSelectedInventoryItem({ ...selectedInventoryItem, is_equipped: false, equipped_slot: null });
         }
+
+        await fetchInventory(selectedCharacter.id);
+        await fetchAbilities(selectedCharacter.id);
+      } catch (err: any) {
+        console.error('Error unequipping item:', err);
+        alert('Failed to unequip item: ' + err.message);
+      }
+      return;
+    }
+
+    // EQUIP path — check limits
+    // Check armor limit (max 1)
+    if (item.type === 'armor') {
+      if (computedStats.equippedArmorCount >= 1) {
+        alert('You can only equip 1 armor at a time. Unequip your current armor first.');
+        return;
       }
     }
 
-    try {
-      const { error: updateError } = await supabase
-        .from('inventory')
-        .update({ is_equipped: !currentlyEquipped })
-        .eq('id', inventoryItemId);
-
-      if (updateError) throw updateError;
-
-      // Update selectedInventoryItem immediately so button text updates
-      if (selectedInventoryItem && selectedInventoryItem.id === inventoryItemId) {
-        setSelectedInventoryItem({ ...selectedInventoryItem, is_equipped: !currentlyEquipped });
+    // Check weapon limit (max 3)
+    if (item.type === 'weapon') {
+      if (computedStats.equippedWeaponCount >= 3) {
+        alert('You can only equip 3 weapons at a time. Unequip a weapon first.');
+        return;
       }
+    }
 
-      // Refresh inventory and abilities
-      await fetchInventory(selectedCharacter.id);
-      await fetchAbilities(selectedCharacter.id);
+    // Check cyberware IC limit
+    if (item.type === 'cyberware') {
+      const icCost = item.ic_cost || 0;
+      if (icCost > computedStats.icRemaining) {
+        alert(`Not enough Implant Capacity. This cyberware requires ${icCost} IC, but you only have ${computedStats.icRemaining} IC remaining.`);
+        return;
+      }
+    }
+
+    // If item has a slot_type, show slot selection
+    const slotType = item.slot_type as ItemSlotType;
+    if (slotType && slotType !== 'backpack' && slotType !== 'weapon_mod') {
+      const validSlots = getSlotsForType(slotType);
+      if (validSlots.length === 1) {
+        // Only one valid slot — equip directly (auto-replace if occupied)
+        try {
+          const occupant = inventory.find(inv => inv.is_equipped && inv.equipped_slot === validSlots[0]);
+          if (occupant) {
+            if (!confirm(`Replace ${occupant.item?.name || 'current item'} in ${getSlotLabel(validSlots[0])}?`)) return;
+          }
+          await equipInSlot(inventoryItemId, validSlots[0]);
+        } catch (err: any) {
+          console.error('Error equipping item:', err);
+          alert('Failed to equip item: ' + err.message);
+        }
+      } else {
+        // Multiple valid slots — show slot picker modal
+        setSlotModalItem(inventoryItem);
+        setAvailableSlots(validSlots);
+        setShowSlotModal(true);
+      }
+      return;
+    }
+
+    // No slot_type — equip generically (old behavior)
+    try {
+      await equipInSlot(inventoryItemId, null);
     } catch (err: any) {
       console.error('Error toggling item equip:', err);
       alert('Failed to equip/unequip item: ' + err.message);
@@ -1751,7 +1844,7 @@ export default function PlayerDashboard() {
                                 </span>
                                 {inv.is_equipped && (
                                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>
-                                    ✓
+                                    {inv.equipped_slot ? getSlotLabel(inv.equipped_slot).split(' ').pop() : '✓'}
                                   </span>
                                 )}
                                 {inv.quantity > 1 && (
@@ -1791,7 +1884,7 @@ export default function PlayerDashboard() {
                               )}
                               {inv.is_equipped && (
                                 <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontWeight: 'bold' }}>
-                                  EQUIPPED
+                                  {inv.equipped_slot ? getSlotLabel(inv.equipped_slot) : 'EQUIPPED'}
                                 </span>
                               )}
                             </div>
@@ -2222,6 +2315,76 @@ export default function PlayerDashboard() {
           </div>
         )}
       </div>
+
+      {/* Slot Selection Modal */}
+      {showSlotModal && slotModalItem && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="rounded-lg p-6 max-w-sm w-full" style={{
+            background: 'var(--color-dark-bg)',
+            border: '2px solid var(--color-cyber-cyan)',
+            boxShadow: '0 0 30px rgba(0, 255, 255, 0.2)'
+          }}>
+            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
+              Choose Equipment Slot
+            </h3>
+            <p className="text-sm mb-4" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+              Equipping: <span style={{ color: 'var(--color-cyber-yellow)' }}>{slotModalItem.item?.name}</span>
+            </p>
+            <div className="space-y-2">
+              {availableSlots.map(slot => {
+                const occupant = inventory.find(inv => inv.is_equipped && inv.equipped_slot === slot);
+                return (
+                  <button
+                    key={slot}
+                    onClick={async () => {
+                      try {
+                        if (occupant) {
+                          if (!confirm(`Replace ${occupant.item?.name || 'current item'} in ${getSlotLabel(slot)}?`)) return;
+                        }
+                        await equipInSlot(slotModalItem.id, slot);
+                      } catch (err: any) {
+                        alert('Failed to equip: ' + err.message);
+                      }
+                      setShowSlotModal(false);
+                      setSlotModalItem(null);
+                    }}
+                    className="w-full p-3 rounded text-left transition-all hover:opacity-80"
+                    style={{
+                      background: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                      border: `1px solid ${occupant ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-cyan)'}`,
+                      color: 'var(--color-cyber-cyan)',
+                      fontFamily: 'var(--font-mono)'
+                    }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span>{getSlotLabel(slot)}</span>
+                      {occupant && (
+                        <span className="text-xs" style={{ color: 'var(--color-cyber-yellow)' }}>
+                          ⚠️ {occupant.item?.name}
+                        </span>
+                      )}
+                      {!occupant && (
+                        <span className="text-xs opacity-50">Empty</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => { setShowSlotModal(false); setSlotModalItem(null); }}
+              className="w-full mt-4 py-2 rounded text-sm"
+              style={{
+                border: '1px solid var(--color-cyber-magenta)',
+                color: 'var(--color-cyber-magenta)',
+                fontFamily: 'var(--font-mono)'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

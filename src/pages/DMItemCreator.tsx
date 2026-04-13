@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { ItemType, ItemRarity, ToHitType, DamageBonusType } from '../types/inventory';
+import type { ItemType, ItemRarity, ToHitType, DamageBonusType, ItemSlotType } from '../types/inventory';
 import { ALL_SKILLS, STATS } from '../data/characterClasses';
 import { formatModifier, getRarityColor, getItemTypeIcon } from '../utils/stats';
 import AbilityBrowser from '../components/AbilityBrowser';
@@ -43,6 +43,7 @@ export default function DMItemCreator() {
   const [isConsumable, setIsConsumable] = useState(false);
   const [isEquippable, setIsEquippable] = useState(true);
   const [stackSize, setStackSize] = useState(1);
+  const [slotType, setSlotType] = useState<ItemSlotType>(null);
   
   // Weapon combat stats
   const [toHitType, setToHitType] = useState<ToHitType>('static');
@@ -105,6 +106,7 @@ export default function DMItemCreator() {
           is_consumable: isConsumable,
           is_equippable: isEquippable,
           stack_size: stackSize,
+          slot_type: slotType,
           to_hit_type: type === 'weapon' ? toHitType : 'static',
           to_hit_static: type === 'weapon' ? toHitStatic : 0,
           to_hit_reference: type === 'weapon' && toHitType !== 'static' ? toHitReference || null : null,
@@ -163,6 +165,7 @@ export default function DMItemCreator() {
       setIsConsumable(false);
       setIsEquippable(true);
       setStackSize(1);
+      setSlotType(null);
       setLinkedAbilityIds([]);
       setRequiresEquipped(true);
       setToHitType('static');
@@ -251,7 +254,7 @@ export default function DMItemCreator() {
                   />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                       Type
@@ -273,6 +276,35 @@ export default function DMItemCreator() {
                       <option value="cyberware">Cyberware</option>
                       <option value="item">Item</option>
                       <option value="mission_item">Mission Item</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                      Equipment Slot
+                    </label>
+                    <select
+                      value={slotType || ''}
+                      onChange={(e) => setSlotType((e.target.value || null) as ItemSlotType)}
+                      className="w-full px-4 py-2 rounded"
+                      style={{
+                        backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                        border: '1px solid var(--color-cyber-cyan)',
+                        color: 'var(--color-cyber-cyan)',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    >
+                      <option value="">None</option>
+                      <option value="weapon">Weapon</option>
+                      <option value="head">Head</option>
+                      <option value="chest">Chest</option>
+                      <option value="legs">Legs</option>
+                      <option value="eyewear">Eyewear</option>
+                      <option value="gloves">Gloves</option>
+                      <option value="shoes">Shoes</option>
+                      <option value="accessory">Accessory</option>
+                      <option value="backpack">Backpack</option>
+                      <option value="weapon_mod">Weapon Mod</option>
                     </select>
                   </div>
 

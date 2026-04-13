@@ -15,6 +15,10 @@ export type DamageBonusType = 'none' | 'stat' | 'skill' | 'modifier';
 export type ArmorSubtype = 'clothes' | 'light' | 'medium' | 'heavy' | 'shield';
 export type WeaponSubtype = 'unarmed' | 'melee' | 'sidearms' | 'longarms' | 'heavy';
 
+// Equipment slot types
+export type EquipmentSlot = 'head' | 'chest' | 'legs' | 'eyewear' | 'gloves' | 'shoes' | 'accessory_1' | 'accessory_2' | 'weapon_primary' | 'weapon_secondary';
+export type ItemSlotType = 'head' | 'chest' | 'legs' | 'eyewear' | 'gloves' | 'shoes' | 'accessory' | 'weapon' | 'backpack' | 'weapon_mod' | null;
+
 export interface StatModifiers {
   str_mod: number;
   dex_mod: number;
@@ -68,6 +72,9 @@ export interface Item {
   damage_bonus_type: DamageBonusType;
   damage_bonus_reference: string | null;
   damage_type: string | null;
+  
+  // Equipment slot
+  slot_type: ItemSlotType;
   
   // Item properties
   is_consumable: boolean;
@@ -132,11 +139,21 @@ export interface InventoryItem {
   item_id: string;
   quantity: number;
   is_equipped: boolean;
+  equipped_slot: EquipmentSlot | null;
   current_uses: number | null; // For consumables
   acquired_at: string;
   
   // Joined data
   item?: Item;
+}
+
+export interface WeaponModification {
+  id: string;
+  inventory_id: string;
+  mod_item_id: string;
+  slot_order: number;
+  attached_at: string;
+  mod_item?: Item;
 }
 
 export interface CharacterAbility {

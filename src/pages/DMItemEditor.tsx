@@ -10,7 +10,7 @@ import {
 import { ALL_SKILLS, STATS } from '../data/characterClasses';
 import NumberInput from '../components/NumberInput';
 import AbilityBrowser from '../components/AbilityBrowser';
-import type { Item, ToHitType, DamageBonusType } from '../types/inventory';
+import type { Item, ToHitType, DamageBonusType, ItemSlotType } from '../types/inventory';
 import { useCampaign } from '../contexts/CampaignContext';
 
 export default function DMItemEditor() {
@@ -47,6 +47,7 @@ export default function DMItemEditor() {
   const [isConsumable, setIsConsumable] = useState(false);
   const [isEquippable, setIsEquippable] = useState(true);
   const [stackSize, setStackSize] = useState(1);
+  const [slotType, setSlotType] = useState<ItemSlotType>(null);
   const [linkedAbilityIds, setLinkedAbilityIds] = useState<string[]>([]);
   const [requiresEquipped, setRequiresEquipped] = useState(true);
 
@@ -109,6 +110,7 @@ export default function DMItemEditor() {
     setIsConsumable(item.is_consumable || false);
     setIsEquippable(item.is_equippable !== false);
     setStackSize(item.stack_size || 1);
+    setSlotType(item.slot_type || null);
 
     // Load weapon combat stats
     setToHitType(item.to_hit_type || 'static');
@@ -178,6 +180,7 @@ export default function DMItemEditor() {
           is_consumable: isConsumable,
           is_equippable: isEquippable,
           stack_size: stackSize,
+          slot_type: slotType,
           to_hit_type: type === 'weapon' ? toHitType : 'static',
           to_hit_static: type === 'weapon' ? toHitStatic : 0,
           to_hit_reference: type === 'weapon' && toHitType !== 'static' ? toHitReference || null : null,
@@ -495,6 +498,35 @@ export default function DMItemEditor() {
                         <option value="consumable">Consumable</option>
                         <option value="cyberware">Cyberware</option>
                         <option value="mission_item">Mission Item</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        Equipment Slot
+                      </label>
+                      <select
+                        value={slotType || ''}
+                        onChange={(e) => setSlotType((e.target.value || null) as ItemSlotType)}
+                        className="w-full px-4 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      >
+                        <option value="">None</option>
+                        <option value="weapon">Weapon</option>
+                        <option value="head">Head</option>
+                        <option value="chest">Chest</option>
+                        <option value="legs">Legs</option>
+                        <option value="eyewear">Eyewear</option>
+                        <option value="gloves">Gloves</option>
+                        <option value="shoes">Shoes</option>
+                        <option value="accessory">Accessory</option>
+                        <option value="backpack">Backpack</option>
+                        <option value="weapon_mod">Weapon Mod</option>
                       </select>
                     </div>
 
