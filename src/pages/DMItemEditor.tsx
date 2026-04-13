@@ -48,6 +48,7 @@ export default function DMItemEditor() {
   const [isEquippable, setIsEquippable] = useState(true);
   const [stackSize, setStackSize] = useState(1);
   const [slotType, setSlotType] = useState<ItemSlotType>(null);
+  const [weight, setWeight] = useState(0);
   const [linkedAbilityIds, setLinkedAbilityIds] = useState<string[]>([]);
   const [requiresEquipped, setRequiresEquipped] = useState(true);
 
@@ -111,6 +112,7 @@ export default function DMItemEditor() {
     setIsEquippable(item.is_equippable !== false);
     setStackSize(item.stack_size || 1);
     setSlotType(item.slot_type || null);
+    setWeight(item.weight || 0);
 
     // Load weapon combat stats
     setToHitType(item.to_hit_type || 'static');
@@ -181,6 +183,7 @@ export default function DMItemEditor() {
           is_equippable: isEquippable,
           stack_size: stackSize,
           slot_type: slotType,
+          weight: weight,
           to_hit_type: type === 'weapon' ? toHitType : 'static',
           to_hit_static: type === 'weapon' ? toHitStatic : 0,
           to_hit_reference: type === 'weapon' && toHitType !== 'static' ? toHitReference || null : null,
@@ -563,6 +566,44 @@ export default function DMItemEditor() {
                         min={0}
                         value={price}
                         onChange={(val) => setPrice(Math.max(0, val))}
+                        className="w-full px-4 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        Weight (lbs)
+                      </label>
+                      <NumberInput
+                        min={0}
+                        step={0.1}
+                        value={weight}
+                        onChange={(val) => setWeight(Math.max(0, val))}
+                        className="w-full px-4 py-2 rounded"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',
+                          border: '1px solid var(--color-cyber-cyan)',
+                          color: 'var(--color-cyber-cyan)',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        Stack Size
+                      </label>
+                      <NumberInput
+                        min={1}
+                        value={stackSize}
+                        onChange={(val) => setStackSize(Math.max(1, val))}
                         className="w-full px-4 py-2 rounded"
                         style={{
                           backgroundColor: 'color-mix(in srgb, var(--color-cyber-cyan) 10%, transparent)',

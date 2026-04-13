@@ -76,6 +76,9 @@ export interface Item {
   // Equipment slot
   slot_type: ItemSlotType;
   
+  // Weight
+  weight: number;
+  
   // Item properties
   is_consumable: boolean;
   is_equippable: boolean;

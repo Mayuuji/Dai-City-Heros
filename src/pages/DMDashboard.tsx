@@ -351,6 +351,9 @@ export default function DMDashboard() {
   const [mediaUploading, setMediaUploading] = useState(false);
   const [flashInterval, setFlashInterval] = useState(200);
 
+  // Weight system
+  const [weightSystemEnabled, setWeightSystemEnabled] = useState(false);
+
   // Fetch player lock status on mount and subscribe to changes
   useEffect(() => {
     const fetchLockStatus = async () => {
@@ -510,6 +513,33 @@ export default function DMDashboard() {
     }
   };
 
+  // Weight system setting
+  const fetchWeightSetting = async () => {
+    const { data } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('campaign_id', campaignId)
+      .eq('key', 'weight_system_enabled')
+      .single();
+    if (data?.value) setWeightSystemEnabled(data.value.enabled || false);
+  };
+
+  const toggleWeightSystem = async (enabled: boolean) => {
+    try {
+      await supabase
+        .from('game_settings')
+        .upsert({
+          key: 'weight_system_enabled',
+          value: { enabled },
+          updated_at: new Date().toISOString(),
+          campaign_id: campaignId
+        }, { onConflict: 'key,campaign_id' });
+      setWeightSystemEnabled(enabled);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     if (profile && profile.role !== 'admin') {
       navigate('/player');
@@ -524,6 +554,7 @@ export default function DMDashboard() {
       fetchLandingSubtitle();
       fetchInviteCode();
       fetchClassAliases();
+      fetchWeightSetting();
     }
   }, [activeTab]);
 
@@ -7028,6 +7059,28 @@ export default function DMDashboard() {
                     {settingsSaving ? '⏳ Saving...' : '💾 Save Settings'}
                   </button>
                 </div>
+              </div>
+
+              {/* Invite Code Settings */}
+              <div className="glass-panel p-6" style={{ border: '2px solid var(--color-cyber-yellow)' }}>
+                <h3 className="text-lg mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
+                  ⚖️ Weight System
+                </h3>
+                <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  Enable optional weight tracking. Items have weight, characters have carrying capacity. Backpacks increase capacity.
+                </p>
+                <button
+                  onClick={() => toggleWeightSystem(!weightSystemEnabled)}
+                  className="px-6 py-3 rounded font-bold"
+                  style={{
+                    background: weightSystemEnabled ? 'var(--color-cyber-green)' : 'var(--color-cyber-dark)',
+                    color: weightSystemEnabled ? 'white' : 'var(--color-cyber-cyan)',
+                    border: `2px solid ${weightSystemEnabled ? 'var(--color-cyber-green)' : 'var(--color-cyber-cyan)'}`,
+                    fontFamily: 'var(--font-cyber)'
+                  }}
+                >
+                  {weightSystemEnabled ? '✅ WEIGHT SYSTEM ON' : '❌ WEIGHT SYSTEM OFF'}
+                </button>
               </div>
 
               {/* Invite Code Settings */}

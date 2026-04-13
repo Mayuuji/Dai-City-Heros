@@ -102,6 +102,9 @@ export default function PlayerDashboard() {
   const [showSlotModal, setShowSlotModal] = useState(false);
   const [slotModalItem, setSlotModalItem] = useState<InventoryItem | null>(null);
   const [availableSlots, setAvailableSlots] = useState<EquipmentSlot[]>([]);
+
+  // Weight system
+  const [weightSystemEnabled, setWeightSystemEnabled] = useState(false);
   
   // Computed stats (base + equipment bonuses)
   const [computedStats, setComputedStats] = useState({
@@ -128,6 +131,16 @@ export default function PlayerDashboard() {
   useEffect(() => {
     if (user) {
       fetchCharacters();
+      // Fetch weight system setting
+      supabase
+        .from('game_settings')
+        .select('value')
+        .eq('campaign_id', campaignId)
+        .eq('key', 'weight_system_enabled')
+        .single()
+        .then(({ data }) => {
+          if (data?.value) setWeightSystemEnabled(data.value.enabled || false);
+        });
     }
   }, [user]);
 
@@ -1654,6 +1667,36 @@ export default function PlayerDashboard() {
                         <span>{inventory.filter(i => i.is_equipped).length} equipped</span>
                       </div>
                     </div>
+
+                    {/* Weight Bar (shown when weight system is enabled) */}
+                    {weightSystemEnabled && (() => {
+                      const totalWeight = inventory.reduce((sum, inv) => sum + (inv.item?.weight || 0) * inv.quantity, 0);
+                      const baseCapacity = (selectedCharacter as any)?.carrying_capacity || (selectedCharacter as any)?.base_carrying_capacity || 100;
+                      // Backpack bonus: sum weight of all equipped backpack-slot items' ac_mod (repurposed) or just a flat +50 per backpack
+                      const backpackBonus = inventory
+                        .filter(inv => inv.is_equipped && inv.item?.slot_type === 'backpack')
+                        .reduce((sum) => sum + 50, 0);
+                      const totalCapacity = baseCapacity + backpackBonus;
+                      const pct = Math.min(100, (totalWeight / totalCapacity) * 100);
+                      const overencumbered = totalWeight > totalCapacity;
+                      return (
+                        <div className="mb-3 p-2 rounded" style={{
+                          border: `1px solid ${overencumbered ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)'}`,
+                          background: 'color-mix(in srgb, var(--color-cyber-cyan) 5%, transparent)'
+                        }}>
+                          <div className="flex justify-between text-xs mb-1" style={{ color: overencumbered ? 'var(--color-cyber-magenta)' : 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
+                            <span>⚖️ {totalWeight.toFixed(1)} / {totalCapacity.toFixed(0)} lbs</span>
+                            {overencumbered && <span className="font-bold animate-pulse">⚠️ OVERENCUMBERED</span>}
+                          </div>
+                          <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-cyber-darker)' }}>
+                            <div className="h-full rounded-full transition-all" style={{
+                              width: `${pct}%`,
+                              background: overencumbered ? 'var(--color-cyber-magenta)' : pct > 80 ? 'var(--color-cyber-yellow)' : 'var(--color-cyber-green)'
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Search and Filters Bar */}
                     <div className="p-3 rounded mb-4 space-y-3" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-green) 5%, transparent)' }}>
