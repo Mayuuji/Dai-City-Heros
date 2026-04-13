@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import type { InventoryItem, Item, ItemType, ItemRarity, Ability, AbilityType, ChargeType } from '../types/inventory';
 import type { NPC, NPCType } from '../types/npc';
 import type { MissionWithDetails, MissionType, MissionDifficulty, MissionStatus, RewardMode } from '../types/mission';
+import type { StorageContainer, StorageItem } from '../types/storage';
 import { getRarityColor, getRarityBgColor, getItemTypeIcon, formatModifier, getAbilityTypeIcon, getAbilityCooldownText } from '../utils/stats';
 import { ALL_SKILLS, CHARACTER_CLASSES, formatToHit, WeaponType } from '../data/characterClasses';
 import { useClassAliases } from '../utils/useClassAliases';
@@ -354,6 +355,14 @@ export default function DMDashboard() {
   // Weight system
   const [weightSystemEnabled, setWeightSystemEnabled] = useState(false);
 
+  // Storage containers
+  const [storageContainers, setStorageContainers] = useState<StorageContainer[]>([]);
+  const [storageItems, setStorageItems] = useState<StorageItem[]>([]);
+  const [newContainerName, setNewContainerName] = useState('');
+  const [newContainerDesc, setNewContainerDesc] = useState('');
+  const [newContainerCapacity, setNewContainerCapacity] = useState<number | null>(null);
+  const [selectedContainer, setSelectedContainer] = useState<StorageContainer | null>(null);
+
   // Fetch player lock status on mount and subscribe to changes
   useEffect(() => {
     const fetchLockStatus = async () => {
@@ -540,6 +549,81 @@ export default function DMDashboard() {
     }
   };
 
+  // Storage container functions
+  const fetchStorageContainers = async () => {
+    const { data } = await supabase
+      .from('storage_containers')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: true });
+    if (data) setStorageContainers(data);
+  };
+
+  const fetchStorageItems = async (containerId: string) => {
+    const { data } = await supabase
+      .from('storage_items')
+      .select('*, item:items(*)')
+      .eq('container_id', containerId);
+    if (data) setStorageItems(data);
+  };
+
+  const createStorageContainer = async () => {
+    if (!newContainerName.trim()) return;
+    try {
+      const { error } = await supabase.from('storage_containers').insert({
+        campaign_id: campaignId,
+        name: newContainerName.trim(),
+        description: newContainerDesc.trim() || null,
+        max_capacity: newContainerCapacity,
+        created_by: profile?.id
+      });
+      if (error) throw error;
+      setNewContainerName('');
+      setNewContainerDesc('');
+      setNewContainerCapacity(null);
+      await fetchStorageContainers();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const deleteStorageContainer = async (id: string) => {
+    if (!confirm('Delete this container and all its contents?')) return;
+    try {
+      await supabase.from('storage_containers').delete().eq('id', id);
+      if (selectedContainer?.id === id) {
+        setSelectedContainer(null);
+        setStorageItems([]);
+      }
+      await fetchStorageContainers();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const toggleContainerLock = async (container: StorageContainer) => {
+    try {
+      await supabase.from('storage_containers')
+        .update({ is_locked: !container.is_locked })
+        .eq('id', container.id);
+      await fetchStorageContainers();
+      if (selectedContainer?.id === container.id) {
+        setSelectedContainer({ ...container, is_locked: !container.is_locked });
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const removeStorageItem = async (storageItemId: string) => {
+    try {
+      await supabase.from('storage_items').delete().eq('id', storageItemId);
+      if (selectedContainer) await fetchStorageItems(selectedContainer.id);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     if (profile && profile.role !== 'admin') {
       navigate('/player');
@@ -555,6 +639,7 @@ export default function DMDashboard() {
       fetchInviteCode();
       fetchClassAliases();
       fetchWeightSetting();
+      fetchStorageContainers();
     }
   }, [activeTab]);
 
@@ -7225,6 +7310,122 @@ export default function DMDashboard() {
                 >
                   {classAliasesSaving ? '⏳ Saving...' : '💾 Save Class Names'}
                 </button>
+              </div>
+
+              {/* Storage Containers */}
+              <div className="glass-panel p-6" style={{ border: '2px solid var(--color-cyber-green)' }}>
+                <h3 className="text-lg mb-4" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-green)' }}>
+                  📦 STORAGE CONTAINERS
+                </h3>
+                <p className="text-xs mb-4" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  Create containers where players can store and retrieve items. Lock containers to prevent access.
+                </p>
+
+                {/* Create new container */}
+                <div className="space-y-2 mb-4 p-3 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-green)' }}>
+                  <input
+                    type="text"
+                    value={newContainerName}
+                    onChange={(e) => setNewContainerName(e.target.value)}
+                    placeholder="Container name..."
+                    className="w-full px-3 py-2 rounded text-sm"
+                    style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                  />
+                  <input
+                    type="text"
+                    value={newContainerDesc}
+                    onChange={(e) => setNewContainerDesc(e.target.value)}
+                    placeholder="Description (optional)..."
+                    className="w-full px-3 py-2 rounded text-sm"
+                    style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                  />
+                  <button
+                    onClick={createStorageContainer}
+                    disabled={!newContainerName.trim()}
+                    className="px-4 py-2 rounded font-bold text-sm"
+                    style={{
+                      background: newContainerName.trim() ? 'var(--color-cyber-green)' : 'var(--color-cyber-dark)',
+                      color: 'white',
+                      fontFamily: 'var(--font-cyber)',
+                      opacity: newContainerName.trim() ? 1 : 0.5
+                    }}
+                  >
+                    + Create Container
+                  </button>
+                </div>
+
+                {/* Container list */}
+                <div className="space-y-2">
+                  {storageContainers.map(container => (
+                    <div key={container.id} className="p-3 rounded flex items-center justify-between" style={{
+                      background: selectedContainer?.id === container.id ? 'color-mix(in srgb, var(--color-cyber-green) 15%, transparent)' : 'var(--color-cyber-darker)',
+                      border: `1px solid ${selectedContainer?.id === container.id ? 'var(--color-cyber-green)' : 'var(--color-cyber-cyan)'}`,
+                      cursor: 'pointer'
+                    }} onClick={() => {
+                      setSelectedContainer(container);
+                      fetchStorageItems(container.id);
+                    }}>
+                      <div>
+                        <div className="font-bold text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-cyber)' }}>
+                          {container.is_locked ? '🔒' : '📦'} {container.name}
+                        </div>
+                        {container.description && (
+                          <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{container.description}</div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleContainerLock(container); }}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{ border: '1px solid var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }}
+                        >
+                          {container.is_locked ? '🔓 Unlock' : '🔒 Lock'}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteStorageContainer(container.id); }}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {storageContainers.length === 0 && (
+                    <p className="text-sm text-center py-4" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      No storage containers yet
+                    </p>
+                  )}
+                </div>
+
+                {/* Selected container contents */}
+                {selectedContainer && (
+                  <div className="mt-4 p-3 rounded" style={{ border: '1px solid var(--color-cyber-green)', background: 'color-mix(in srgb, var(--color-cyber-green) 5%, transparent)' }}>
+                    <h4 className="text-sm font-bold mb-2" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
+                      Contents of: {selectedContainer.name}
+                    </h4>
+                    {storageItems.length === 0 ? (
+                      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Empty</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {storageItems.map(si => (
+                          <div key={si.id} className="flex items-center justify-between p-2 rounded" style={{ background: 'var(--color-cyber-darker)' }}>
+                            <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
+                              {si.item ? `${getItemTypeIcon(si.item.type)} ${si.item.name}` : 'Unknown item'} x{si.quantity}
+                            </span>
+                            <button
+                              onClick={() => removeStorageItem(si.id)}
+                              className="text-xs px-2 py-1 rounded"
+                              style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)' }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

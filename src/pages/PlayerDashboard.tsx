@@ -7,8 +7,10 @@ import { CHARACTER_CLASSES, formatToHit } from '../data/characterClasses';
 import { useClassAliases } from '../utils/useClassAliases';
 import type { InventoryItem, Ability, EquipmentSlot, ItemSlotType } from '../types/inventory';
 import type { MissionWithDetails, MissionStatus } from '../types/mission';
+import type { StorageContainer, StorageItem } from '../types/storage';
 import { getRarityColor, getItemTypeIcon, formatWeaponToHit, formatWeaponDamage, getAbilityCooldownText } from '../utils/stats';
 import PlayerEffectsOverlay from '../components/PlayerEffectsOverlay';
+import NumberInput from '../components/NumberInput';
 
 // Helper to convert skill name to database column name
 const skillToColumn = (skillName: string): string => {
@@ -105,6 +107,14 @@ export default function PlayerDashboard() {
 
   // Weight system
   const [weightSystemEnabled, setWeightSystemEnabled] = useState(false);
+
+  // Storage
+  const [showStorageModal, setShowStorageModal] = useState(false);
+  const [storageContainers, setStorageContainers] = useState<StorageContainer[]>([]);
+  const [storageItems, setStorageItems] = useState<StorageItem[]>([]);
+  const [selectedContainer, setSelectedContainer] = useState<StorageContainer | null>(null);
+  const [storeItemId, setStoreItemId] = useState<string | null>(null);
+  const [storeQuantity, setStoreQuantity] = useState(1);
   
   // Computed stats (base + equipment bonuses)
   const [computedStats, setComputedStats] = useState({
@@ -255,6 +265,18 @@ export default function PlayerDashboard() {
       supabase.removeChannel(abilitiesChannel);
     };
   }, [selectedCharacter?.id]);
+
+  // Real-time subscription for storage container changes (lock/unlock)
+  useEffect(() => {
+    const storageChannel = supabase
+      .channel('storage-containers-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'storage_containers', filter: `campaign_id=eq.${campaignId}` }, () => {
+        fetchStorageContainers();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(storageChannel); };
+  }, [campaignId]);
 
   // Fetch and subscribe to player lock status
   useEffect(() => {
@@ -676,6 +698,100 @@ export default function PlayerDashboard() {
     } catch (err: any) {
       console.error('Error toggling item equip:', err);
       alert('Failed to equip/unequip item: ' + err.message);
+    }
+  };
+
+  // Storage functions
+  const fetchStorageContainers = async () => {
+    const { data } = await supabase
+      .from('storage_containers')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: true });
+    if (data) setStorageContainers(data);
+  };
+
+  const fetchContainerItems = async (containerId: string) => {
+    const { data } = await supabase
+      .from('storage_items')
+      .select('*, item:items(*)')
+      .eq('container_id', containerId);
+    if (data) setStorageItems(data);
+  };
+
+  const storeItemInContainer = async (containerId: string) => {
+    if (!storeItemId || !selectedCharacter) return;
+    const invItem = inventory.find(inv => inv.id === storeItemId);
+    if (!invItem?.item) return;
+
+    const qty = Math.min(storeQuantity, invItem.quantity);
+    try {
+      // Add to storage
+      const existing = storageItems.find(si => si.item_id === invItem.item_id && si.container_id === containerId);
+      if (existing) {
+        await supabase.from('storage_items')
+          .update({ quantity: existing.quantity + qty })
+          .eq('id', existing.id);
+      } else {
+        await supabase.from('storage_items').insert({
+          campaign_id: campaignId,
+          container_id: containerId,
+          item_id: invItem.item_id,
+          quantity: qty,
+          stored_by: profile?.id
+        });
+      }
+
+      // Deduct from inventory
+      if (invItem.quantity <= qty) {
+        await supabase.from('inventory').delete().eq('id', invItem.id);
+      } else {
+        await supabase.from('inventory')
+          .update({ quantity: invItem.quantity - qty })
+          .eq('id', invItem.id);
+      }
+
+      setStoreItemId(null);
+      setStoreQuantity(1);
+      await fetchInventory(selectedCharacter.id);
+      await fetchContainerItems(containerId);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const retrieveItemFromContainer = async (storageItem: StorageItem, qty: number) => {
+    if (!selectedCharacter) return;
+    const actualQty = Math.min(qty, storageItem.quantity);
+    try {
+      // Add to player inventory
+      const existingInv = inventory.find(inv => inv.item_id === storageItem.item_id);
+      if (existingInv) {
+        await supabase.from('inventory')
+          .update({ quantity: existingInv.quantity + actualQty })
+          .eq('id', existingInv.id);
+      } else {
+        await supabase.from('inventory').insert({
+          character_id: selectedCharacter.id,
+          item_id: storageItem.item_id,
+          quantity: actualQty,
+          campaign_id: campaignId
+        });
+      }
+
+      // Remove from storage
+      if (storageItem.quantity <= actualQty) {
+        await supabase.from('storage_items').delete().eq('id', storageItem.id);
+      } else {
+        await supabase.from('storage_items')
+          .update({ quantity: storageItem.quantity - actualQty })
+          .eq('id', storageItem.id);
+      }
+
+      await fetchInventory(selectedCharacter.id);
+      if (selectedContainer) await fetchContainerItems(selectedContainer.id);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
     }
   };
 
@@ -1658,9 +1774,22 @@ export default function PlayerDashboard() {
                   <div className="flex flex-col h-full">
                     {/* Header with stats */}
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
-                        📦 INVENTORY
-                      </h3>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-xl" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-cyan)' }}>
+                          📦 INVENTORY
+                        </h3>
+                        <button
+                          onClick={() => { setShowStorageModal(true); fetchStorageContainers(); }}
+                          className="px-3 py-1 rounded text-xs font-bold"
+                          style={{
+                            border: '1px solid var(--color-cyber-green)',
+                            color: 'var(--color-cyber-green)',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                        >
+                          📦 STORAGE
+                        </button>
+                      </div>
                       <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>
                         <span>{inventory.length} items</span>
                         <span>•</span>
@@ -2358,6 +2487,129 @@ export default function PlayerDashboard() {
           </div>
         )}
       </div>
+
+      {/* Storage Modal */}
+      {showStorageModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="rounded-lg p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto" style={{
+            background: 'var(--color-dark-bg)',
+            border: '2px solid var(--color-cyber-green)',
+            boxShadow: '0 0 30px rgba(0, 255, 0, 0.2)'
+          }}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
+                📦 STORAGE
+              </h3>
+              <button onClick={() => { setShowStorageModal(false); setSelectedContainer(null); setStorageItems([]); setStoreItemId(null); }}
+                className="text-xl" style={{ color: 'var(--color-cyber-magenta)' }}>✕</button>
+            </div>
+
+            {!selectedContainer ? (
+              /* Container list */
+              <div className="space-y-2">
+                {storageContainers.filter(c => !c.is_locked).length === 0 ? (
+                  <p className="text-sm text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No unlocked storage containers available</p>
+                ) : storageContainers.map(container => (
+                  <button
+                    key={container.id}
+                    onClick={() => {
+                      if (container.is_locked) return;
+                      setSelectedContainer(container);
+                      fetchContainerItems(container.id);
+                    }}
+                    disabled={container.is_locked}
+                    className="w-full p-3 rounded text-left transition-all"
+                    style={{
+                      background: container.is_locked ? 'var(--color-cyber-darker)' : 'color-mix(in srgb, var(--color-cyber-green) 10%, transparent)',
+                      border: `1px solid ${container.is_locked ? 'var(--color-text-muted)' : 'var(--color-cyber-green)'}`,
+                      opacity: container.is_locked ? 0.5 : 1
+                    }}
+                  >
+                    <div className="font-bold text-sm" style={{ color: container.is_locked ? 'var(--color-text-muted)' : 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
+                      {container.is_locked ? '🔒' : '📦'} {container.name}
+                    </div>
+                    {container.description && (
+                      <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{container.description}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Container contents */
+              <div>
+                <button onClick={() => { setSelectedContainer(null); setStorageItems([]); setStoreItemId(null); }}
+                  className="text-sm mb-3" style={{ color: 'var(--color-cyber-cyan)' }}>← Back to containers</button>
+                
+                <h4 className="font-bold mb-3" style={{ color: 'var(--color-cyber-green)', fontFamily: 'var(--font-cyber)' }}>
+                  {selectedContainer.name}
+                </h4>
+
+                {/* Container contents */}
+                <div className="mb-4">
+                  <h5 className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>STORED ITEMS:</h5>
+                  {storageItems.length === 0 ? (
+                    <p className="text-xs py-2" style={{ color: 'var(--color-text-muted)' }}>Empty</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {storageItems.map(si => (
+                        <div key={si.id} className="flex items-center justify-between p-2 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 20%, transparent)' }}>
+                          <span className="text-sm" style={{ color: 'var(--color-cyber-cyan)' }}>
+                            {si.item ? `${getItemTypeIcon(si.item.type)} ${si.item.name}` : 'Unknown'} ×{si.quantity}
+                          </span>
+                          <button
+                            onClick={() => retrieveItemFromContainer(si, 1)}
+                            className="text-xs px-2 py-1 rounded"
+                            style={{ background: 'var(--color-cyber-green)', color: 'white', fontFamily: 'var(--font-mono)' }}
+                          >
+                            Take 1
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Store item from inventory */}
+                <div className="p-3 rounded" style={{ border: '1px solid var(--color-cyber-yellow)', background: 'color-mix(in srgb, var(--color-cyber-yellow) 5%, transparent)' }}>
+                  <h5 className="text-xs mb-2" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>STORE ITEM:</h5>
+                  <select
+                    value={storeItemId || ''}
+                    onChange={(e) => { setStoreItemId(e.target.value || null); setStoreQuantity(1); }}
+                    className="w-full px-3 py-2 rounded text-sm mb-2"
+                    style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                  >
+                    <option value="">-- Select item --</option>
+                    {inventory.filter(inv => !inv.is_equipped).map(inv => (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.item?.name || 'Unknown'} (×{inv.quantity})
+                      </option>
+                    ))}
+                  </select>
+                  {storeItemId && (
+                    <div className="flex gap-2">
+                      <NumberInput
+                        min={1}
+                        max={inventory.find(inv => inv.id === storeItemId)?.quantity || 1}
+                        value={storeQuantity}
+                        onChange={(v) => setStoreQuantity(v)}
+                        className="w-20 px-2 py-1 rounded text-sm"
+                        style={{ background: 'var(--color-cyber-dark)', border: '1px solid var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
+                      />
+                      <button
+                        onClick={() => storeItemInContainer(selectedContainer.id)}
+                        className="flex-1 py-1 rounded text-sm font-bold"
+                        style={{ background: 'var(--color-cyber-yellow)', color: 'white', fontFamily: 'var(--font-cyber)' }}
+                      >
+                        Store
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Slot Selection Modal */}
       {showSlotModal && slotModalItem && (
