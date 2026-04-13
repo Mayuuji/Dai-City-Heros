@@ -6,7 +6,8 @@ import type {
   Encounter, 
   EncounterParticipantWithDetails,
   Character,
-  ParticipantType 
+  ParticipantType,
+  EncounterStatusEffect
 } from '../types/encounter';
 import type { NPC } from '../types/npc';
 import type { CharacterAbility } from '../types/inventory';
@@ -45,6 +46,17 @@ export default function DMEncounterManager() {
   const [newEncounterName, setNewEncounterName] = useState('');
   const [newEncounterDescription, setNewEncounterDescription] = useState('');
 
+  // Status effects
+  const [statusEffects, setStatusEffects] = useState<EncounterStatusEffect[]>([]);
+  const [newStatusLabel, setNewStatusLabel] = useState('');
+  const [newStatusDuration, setNewStatusDuration] = useState(1);
+  
+  // Use Item on Player modal
+  const [showUseItemModal, setShowUseItemModal] = useState(false);
+  const [useItemInventory, setUseItemInventory] = useState<any[]>([]);
+  const [selectedUseItem, setSelectedUseItem] = useState<any | null>(null);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>('');
+
   useEffect(() => {
     fetchEncounters();
     fetchAvailableParticipants();
@@ -53,6 +65,7 @@ export default function DMEncounterManager() {
   useEffect(() => {
     if (selectedEncounter) {
       fetchParticipants(selectedEncounter.id);
+      fetchStatusEffects(selectedEncounter.id);
     }
   }, [selectedEncounter]);
 
@@ -349,6 +362,8 @@ export default function DMEncounterManager() {
   const advanceTurn = async () => {
     if (!selectedEncounter) return;
 
+    const previousRound = selectedEncounter.round_number;
+
     try {
       const { error } = await supabase.rpc('advance_turn', {
         encounter_uuid: selectedEncounter.id
@@ -366,6 +381,12 @@ export default function DMEncounterManager() {
         setSelectedEncounter(data);
         setEncounters(encounters.map(e => e.id === data.id ? data : e));
         
+        // Auto-decrement status effects when a new round starts
+        if (data.round_number > previousRound) {
+          await supabase.rpc('decrement_encounter_statuses', { p_encounter_id: selectedEncounter.id });
+          fetchStatusEffects(selectedEncounter.id);
+        }
+
         // Auto-select the new current turn participant
         const currentTurnParticipant = participants.find(
           p => p.initiative_order === data.current_turn
@@ -464,6 +485,116 @@ export default function DMEncounterManager() {
     } catch (err: any) {
       console.error('Error using ability charge:', err);
       alert('Failed to use ability: ' + err.message);
+    }
+  };
+
+  // ==========================================
+  // STATUS EFFECTS
+  // ==========================================
+  const fetchStatusEffects = async (encounterId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('encounter_statuses')
+        .select('*')
+        .eq('encounter_id', encounterId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      setStatusEffects(data || []);
+    } catch (err: any) {
+      console.error('Error fetching status effects:', err);
+    }
+  };
+
+  const addStatusEffect = async (participantId: string) => {
+    if (!selectedEncounter || !newStatusLabel.trim()) return;
+    try {
+      const { error } = await supabase.from('encounter_statuses').insert({
+        campaign_id: campaignId,
+        encounter_id: selectedEncounter.id,
+        participant_id: participantId,
+        label: newStatusLabel.trim(),
+        remaining_rounds: newStatusDuration,
+      });
+      if (error) throw error;
+      setNewStatusLabel('');
+      setNewStatusDuration(1);
+      fetchStatusEffects(selectedEncounter.id);
+    } catch (err: any) {
+      console.error('Error adding status effect:', err);
+      alert('Failed to add status: ' + err.message);
+    }
+  };
+
+  const removeStatusEffect = async (statusId: string) => {
+    if (!selectedEncounter) return;
+    try {
+      await supabase.from('encounter_statuses').delete().eq('id', statusId);
+      setStatusEffects(prev => prev.filter(s => s.id !== statusId));
+    } catch (err: any) {
+      console.error('Error removing status effect:', err);
+    }
+  };
+
+  // ==========================================
+  // USE ITEM ON PLAYER
+  // ==========================================
+  const fetchConsumableInventory = async (characterId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*, item:items!inventory_item_id_fkey(*)')
+        .eq('character_id', characterId);
+      if (error) throw error;
+      const consumables = (data || []).filter((inv: any) => inv.item?.is_consumable);
+      setUseItemInventory(consumables);
+    } catch (err: any) {
+      console.error('Error fetching consumable inventory:', err);
+    }
+  };
+
+  const openUseItemModal = (characterId: string) => {
+    setSelectedUseItem(null);
+    setSelectedTargetId('');
+    fetchConsumableInventory(characterId);
+    setShowUseItemModal(true);
+  };
+
+  const useItemOnTarget = async () => {
+    if (!selectedUseItem || !selectedTargetId || !selectedEncounter) return;
+    const item = selectedUseItem.item;
+    const targetParticipant = participants.find(p => p.id === selectedTargetId);
+    if (!targetParticipant) return;
+    const sourceParticipant = participants.find(p => p.id === selectedParticipantId);
+    if (!sourceParticipant) return;
+
+    try {
+      // Apply healing if item has heal effect
+      if (item.hp_mod_type === 'heal' && item.hp_mod && targetParticipant.character_id) {
+        const targetChar = targetParticipant.character;
+        if (targetChar) {
+          const newHp = Math.min((targetChar.current_hp || 0) + item.hp_mod, targetChar.max_hp || 0);
+          await supabase.from('characters').update({ current_hp: newHp }).eq('id', targetParticipant.character_id);
+        }
+      }
+
+      // Decrement quantity or remove from inventory
+      if (selectedUseItem.quantity > 1) {
+        await supabase.from('inventory').update({ quantity: selectedUseItem.quantity - 1 }).eq('id', selectedUseItem.id);
+      } else {
+        await supabase.from('inventory').delete().eq('id', selectedUseItem.id);
+      }
+
+      // Refresh participants
+      fetchParticipants(selectedEncounter.id);
+      setShowUseItemModal(false);
+      setSelectedUseItem(null);
+      setSelectedTargetId('');
+      
+      const healText = item.hp_mod_type === 'heal' && item.hp_mod ? ` — healed ${item.hp_mod} HP` : '';
+      alert(`${sourceParticipant.display_name} used ${item.name} on ${targetParticipant.display_name}${healText}`);
+    } catch (err: any) {
+      console.error('Error using item on target:', err);
+      alert('Failed to use item: ' + err.message);
     }
   };
 
@@ -807,6 +938,21 @@ export default function DMEncounterManager() {
                             AC {p.display_ac}
                           </span>
                         </div>
+                        {/* Status effect badges */}
+                        {statusEffects.filter(s => s.participant_id === p.id).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1 pl-9">
+                            {statusEffects.filter(s => s.participant_id === p.id).map(s => (
+                              <span key={s.id} className="text-xs px-1.5 py-0.5 rounded" style={{
+                                background: 'color-mix(in srgb, var(--color-cyber-magenta) 25%, transparent)',
+                                color: 'var(--color-cyber-magenta)',
+                                fontFamily: 'var(--font-mono)',
+                                border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)'
+                              }}>
+                                {s.label} ({s.remaining_rounds}r)
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -842,6 +988,92 @@ export default function DMEncounterManager() {
                     </button>
                   )}
                 </div>
+
+                {/* DM Notes (moved to top for quick access) */}
+                <div className="glass-panel p-4">
+                  <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
+                    📝 DM NOTES
+                  </div>
+                  <textarea
+                    value={notesInputs[selectedParticipant.id] || ''}
+                    onChange={(e) => handleNotesChange(selectedParticipant.id, e.target.value)}
+                    className="w-full p-2 rounded bg-gray-900 border text-sm"
+                    style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                    rows={2}
+                    placeholder="Type notes here... (auto-saves)"
+                  />
+                </div>
+
+                {/* Status Effects */}
+                <div className="glass-panel p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>
+                      🔴 STATUS EFFECTS
+                    </div>
+                  </div>
+                  {/* Current statuses */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {statusEffects.filter(s => s.participant_id === selectedParticipant.id).map(s => (
+                      <div key={s.id} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{
+                        background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)',
+                        border: '1px solid var(--color-cyber-magenta)',
+                        color: 'var(--color-cyber-magenta)',
+                        fontFamily: 'var(--font-mono)'
+                      }}>
+                        <span>{s.label}</span>
+                        <span style={{ opacity: 0.6 }}>({s.remaining_rounds}r)</span>
+                        <button onClick={() => removeStatusEffect(s.id)} className="ml-1 hover:opacity-100" style={{ opacity: 0.6 }}>✕</button>
+                      </div>
+                    ))}
+                    {statusEffects.filter(s => s.participant_id === selectedParticipant.id).length === 0 && (
+                      <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.4, fontFamily: 'var(--font-mono)' }}>No active effects</span>
+                    )}
+                  </div>
+                  {/* Add new status */}
+                  {selectedEncounter.status !== 'completed' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newStatusLabel}
+                        onChange={(e) => setNewStatusLabel(e.target.value)}
+                        placeholder="e.g. Poison 3 DMG, Stunned..."
+                        className="flex-1 px-2 py-1 rounded text-xs bg-gray-900 border"
+                        style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}
+                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={newStatusDuration}
+                          onChange={(e) => setNewStatusDuration(parseInt(e.target.value) || 1)}
+                          className="w-12 px-1 py-1 rounded text-xs text-center bg-gray-900 border"
+                          style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}
+                        />
+                        <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', opacity: 0.6 }}>r</span>
+                      </div>
+                      <button
+                        onClick={() => addStatusEffect(selectedParticipant.id)}
+                        disabled={!newStatusLabel.trim()}
+                        className="neon-button text-xs px-2 py-1"
+                        style={{ borderColor: 'var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)', opacity: newStatusLabel.trim() ? 1 : 0.4 }}
+                      >
+                        + ADD
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Use Item on Player button (only for player participants in active encounters) */}
+                {selectedEncounter.status === 'active' && selectedParticipant.character_id && (
+                  <button
+                    onClick={() => openUseItemModal(selectedParticipant.character_id!)}
+                    className="neon-button text-sm px-4 py-2 w-full"
+                    style={{ borderColor: 'var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)' }}
+                  >
+                    🎒 USE ITEM ON PLAYER...
+                  </button>
+                )}
 
                 {/* Combat Stats Row */}
                 <div className="grid grid-cols-4 gap-4">
@@ -1182,20 +1414,6 @@ export default function DMEncounterManager() {
                   </div>
                 )}
 
-                {/* DM Notes */}
-                <div className="glass-panel p-4">
-                  <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.7, fontFamily: 'var(--font-mono)' }}>
-                    DM NOTES
-                  </div>
-                  <textarea
-                    value={notesInputs[selectedParticipant.id] || ''}
-                    onChange={(e) => handleNotesChange(selectedParticipant.id, e.target.value)}
-                    className="w-full p-2 rounded bg-gray-900 border text-sm"
-                    style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-cyan) 40%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
-                    rows={3}
-                    placeholder="Type notes here... (auto-saves)"
-                  />
-                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
@@ -1464,6 +1682,88 @@ export default function DMEncounterManager() {
             >
               DONE
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Use Item on Player Modal */}
+      {showUseItemModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg" style={{ fontFamily: 'var(--font-cyber)', color: 'var(--color-cyber-yellow)' }}>
+              🎒 USE ITEM ON PLAYER
+            </h3>
+
+            {/* Step 1: Select item */}
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>SELECT CONSUMABLE</label>
+              {useItemInventory.length === 0 ? (
+                <p className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.5 }}>No consumable items in inventory</p>
+              ) : (
+                <select
+                  value={selectedUseItem?.id || ''}
+                  onChange={(e) => setSelectedUseItem(useItemInventory.find((i: any) => i.id === e.target.value) || null)}
+                  className="w-full px-3 py-2 rounded bg-gray-900 border text-sm"
+                  style={{ borderColor: 'var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}
+                >
+                  <option value="">-- Select Item --</option>
+                  {useItemInventory.map((inv: any) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.item?.name} (x{inv.quantity}){inv.item?.hp_mod_type === 'heal' ? ` [Heals ${inv.item.hp_mod} HP]` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Step 2: Select target */}
+            {selectedUseItem && (
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>SELECT TARGET</label>
+                <select
+                  value={selectedTargetId}
+                  onChange={(e) => setSelectedTargetId(e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-gray-900 border text-sm"
+                  style={{ borderColor: 'var(--color-cyber-yellow)', color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}
+                >
+                  <option value="">-- Select Target --</option>
+                  {participants.filter(p => p.participant_type === 'player' && p.is_active).map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.display_name} ({p.display_hp}/{p.display_max_hp} HP)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Item details preview */}
+            {selectedUseItem?.item && (
+              <div className="p-3 rounded text-xs" style={{ background: 'color-mix(in srgb, var(--color-cyber-yellow) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-yellow) 30%, transparent)', color: 'var(--color-cyber-yellow)', fontFamily: 'var(--font-mono)' }}>
+                <div className="font-bold mb-1">{selectedUseItem.item.name}</div>
+                <div style={{ opacity: 0.7 }}>{selectedUseItem.item.description}</div>
+                {selectedUseItem.item.hp_mod_type === 'heal' && (
+                  <div className="mt-1" style={{ color: 'var(--color-cyber-green)' }}>❤️ Heals {selectedUseItem.item.hp_mod} HP</div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={useItemOnTarget}
+                disabled={!selectedUseItem || !selectedTargetId}
+                className="neon-button flex-1"
+                style={{ borderColor: 'var(--color-cyber-green)', color: 'var(--color-cyber-green)', opacity: (!selectedUseItem || !selectedTargetId) ? 0.4 : 1 }}
+              >
+                APPLY
+              </button>
+              <button
+                onClick={() => { setShowUseItemModal(false); setSelectedUseItem(null); setSelectedTargetId(''); }}
+                className="neon-button flex-1"
+                style={{ borderColor: 'var(--color-cyber-cyan)', color: 'var(--color-cyber-cyan)' }}
+              >
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
       )}

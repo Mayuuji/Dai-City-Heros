@@ -278,6 +278,11 @@ export default function DMDashboard() {
   const notesDebounceRef = useRef<{[key: string]: ReturnType<typeof setTimeout>}>({});
   const [selectedCombatParticipantId, setSelectedCombatParticipantId] = useState<string | null>(null);
   
+  // Status effects for encounters
+  const [encounterStatusEffects, setEncounterStatusEffects] = useState<{id: string; encounter_id: string; participant_id: string; label: string; remaining_rounds: number; created_at: string}[]>([]);
+  const [newEncStatusLabel, setNewEncStatusLabel] = useState('');
+  const [newEncStatusDuration, setNewEncStatusDuration] = useState(1);
+
   // Combat participant resources (inventory/abilities for players in combat)
   const [combatPlayerInventory, setCombatPlayerInventory] = useState<InventoryItem[]>([]);
   const [combatPlayerAbilities, setCombatPlayerAbilities] = useState<any[]>([]);
@@ -1751,6 +1756,7 @@ export default function DMDashboard() {
     setEncounterRound(encounter.round_number);
     setEncounterCurrentTurn(encounter.current_turn);
     await fetchEncounterParticipants(encounter.id);
+    await fetchEncounterStatuses(encounter.id);
   };
 
   const fetchEncounterParticipants = async (encounterId: string) => {
@@ -2323,6 +2329,52 @@ export default function DMDashboard() {
     return 'var(--color-cyber-magenta)';
   };
 
+  // ==========================================
+  // ENCOUNTER STATUS EFFECTS
+  // ==========================================
+  const fetchEncounterStatuses = async (encounterId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('encounter_statuses')
+        .select('*')
+        .eq('encounter_id', encounterId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      setEncounterStatusEffects(data || []);
+    } catch (err: any) {
+      console.error('Error fetching encounter statuses:', err);
+    }
+  };
+
+  const addEncounterStatus = async (participantId: string) => {
+    if (!activeEncounter || !newEncStatusLabel.trim()) return;
+    try {
+      const { error } = await supabase.from('encounter_statuses').insert({
+        campaign_id: campaignId,
+        encounter_id: activeEncounter.id,
+        participant_id: participantId,
+        label: newEncStatusLabel.trim(),
+        remaining_rounds: newEncStatusDuration,
+      });
+      if (error) throw error;
+      setNewEncStatusLabel('');
+      setNewEncStatusDuration(1);
+      fetchEncounterStatuses(activeEncounter.id);
+    } catch (err: any) {
+      console.error('Error adding status:', err);
+    }
+  };
+
+  const removeEncounterStatus = async (statusId: string) => {
+    if (!activeEncounter) return;
+    try {
+      await supabase.from('encounter_statuses').delete().eq('id', statusId);
+      setEncounterStatusEffects(prev => prev.filter(s => s.id !== statusId));
+    } catch (err: any) {
+      console.error('Error removing status:', err);
+    }
+  };
+
   const nextTurn = async () => {
     if (!activeEncounter || combatParticipants.length === 0) return;
     
@@ -2339,6 +2391,12 @@ export default function DMDashboard() {
     
     setEncounterCurrentTurn(newTurn);
     setEncounterRound(newRound);
+    
+    // Auto-decrement status effects when a new round starts
+    if (newRound > encounterRound) {
+      await supabase.rpc('decrement_encounter_statuses', { p_encounter_id: activeEncounter.id });
+      fetchEncounterStatuses(activeEncounter.id);
+    }
     
     // Auto-select the new current participant
     const newCurrentParticipant = activeParticipants[newTurn];
@@ -5287,6 +5345,21 @@ export default function DMDashboard() {
                                     🛡️ {p.ac}
                                   </span>
                                 </div>
+                                {/* Status effect badges */}
+                                {encounterStatusEffects.filter(s => s.participant_id === p.id).length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1 pl-10">
+                                    {encounterStatusEffects.filter(s => s.participant_id === p.id).map(s => (
+                                      <span key={s.id} className="text-xs px-1 py-0.5 rounded" style={{
+                                        background: 'color-mix(in srgb, var(--color-cyber-magenta) 25%, transparent)',
+                                        color: 'var(--color-cyber-magenta)',
+                                        fontFamily: 'var(--font-mono)',
+                                        border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)'
+                                      }}>
+                                        {s.label} ({s.remaining_rounds}r)
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
@@ -5335,6 +5408,72 @@ export default function DMDashboard() {
                             >
                               REMOVE
                             </button>
+                          </div>
+
+                          {/* DM Notes (moved to top for quick access) */}
+                          <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
+                            <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>📝 DM NOTES</div>
+                            <textarea
+                              value={notesInput[selectedP.id] !== undefined ? notesInput[selectedP.id] : selectedP.notes}
+                              onChange={e => handleNotesChange(selectedP.id, e.target.value)}
+                              placeholder="Combat notes... (auto-saves)"
+                              rows={2}
+                              className="w-full px-3 py-2 rounded text-sm"
+                              style={{ background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
+                            />
+                          </div>
+
+                          {/* Status Effects */}
+                          <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-magenta)' }}>
+                            <div className="text-xs mb-3" style={{ color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}>🔴 STATUS EFFECTS</div>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {encounterStatusEffects.filter(s => s.participant_id === selectedP.id).map(s => (
+                                <div key={s.id} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{
+                                  background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)',
+                                  border: '1px solid var(--color-cyber-magenta)',
+                                  color: 'var(--color-cyber-magenta)',
+                                  fontFamily: 'var(--font-mono)'
+                                }}>
+                                  <span>{s.label}</span>
+                                  <span style={{ opacity: 0.6 }}>({s.remaining_rounds}r)</span>
+                                  <button onClick={() => removeEncounterStatus(s.id)} className="ml-1 hover:opacity-100" style={{ opacity: 0.6 }}>✕</button>
+                                </div>
+                              ))}
+                              {encounterStatusEffects.filter(s => s.participant_id === selectedP.id).length === 0 && (
+                                <span className="text-xs" style={{ color: 'var(--color-cyber-cyan)', opacity: 0.4, fontFamily: 'var(--font-mono)' }}>No active effects</span>
+                              )}
+                            </div>
+                            {activeEncounter?.status !== 'completed' && (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={newEncStatusLabel}
+                                  onChange={(e) => setNewEncStatusLabel(e.target.value)}
+                                  placeholder="e.g. Poison 3 DMG, Stunned..."
+                                  className="flex-1 px-2 py-1 rounded text-xs bg-gray-900 border"
+                                  style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}
+                                />
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min={1} max={99}
+                                    value={newEncStatusDuration}
+                                    onChange={(e) => setNewEncStatusDuration(parseInt(e.target.value) || 1)}
+                                    className="w-12 px-1 py-1 rounded text-xs text-center bg-gray-900 border"
+                                    style={{ borderColor: 'color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)', color: 'var(--color-cyber-magenta)', fontFamily: 'var(--font-mono)' }}
+                                  />
+                                  <span className="text-xs" style={{ color: 'var(--color-cyber-magenta)', opacity: 0.6 }}>r</span>
+                                </div>
+                                <button
+                                  onClick={() => addEncounterStatus(selectedP.id)}
+                                  disabled={!newEncStatusLabel.trim()}
+                                  className="px-2 py-1 rounded text-xs"
+                                  style={{ border: '1px solid var(--color-cyber-magenta)', color: 'var(--color-cyber-magenta)', opacity: newEncStatusLabel.trim() ? 1 : 0.4 }}
+                                >
+                                  + ADD
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {/* Combat Stats Row */}
@@ -5661,18 +5800,6 @@ export default function DMDashboard() {
                             </div>
                           )}
 
-                          {/* DM Notes */}
-                          <div className="p-4 rounded" style={{ background: 'var(--color-cyber-darker)', border: '1px solid var(--color-cyber-cyan)' }}>
-                            <div className="text-xs mb-2" style={{ color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}>DM NOTES</div>
-                            <textarea
-                              value={notesInput[selectedP.id] !== undefined ? notesInput[selectedP.id] : selectedP.notes}
-                              onChange={e => handleNotesChange(selectedP.id, e.target.value)}
-                              placeholder="Combat notes... (auto-saves)"
-                              rows={3}
-                              className="w-full px-3 py-2 rounded text-sm"
-                              style={{ background: 'color-mix(in srgb, var(--color-cyber-darker) 90%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyber-cyan) 30%, transparent)', color: 'var(--color-cyber-cyan)', fontFamily: 'var(--font-mono)' }}
-                            />
-                          </div>
                         </div>
                       );
                     })()}

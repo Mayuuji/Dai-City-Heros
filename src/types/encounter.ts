@@ -7,6 +7,17 @@ import type { NPC as NPCType } from './npc';
 export type EncounterStatus = 'draft' | 'active' | 'completed' | 'archived';
 export type ParticipantType = 'player' | 'npc' | 'enemy';
 
+// Per-turn status effects (Poison, Stunned, Burning, etc.)
+export interface EncounterStatusEffect {
+  id: string;
+  encounter_id: string;
+  participant_id: string;
+  label: string;
+  remaining_rounds: number;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface Encounter {
   id: string;
   name: string;

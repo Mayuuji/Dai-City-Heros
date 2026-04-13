@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCampaign } from '../contexts/CampaignContext';
-import type { Encounter, EncounterParticipantWithDetails, PlayerEncounterNote } from '../types/encounter';
+import type { Encounter, EncounterParticipantWithDetails, PlayerEncounterNote, EncounterStatusEffect } from '../types/encounter';
 import type { Character } from '../types/encounter';
 
 export default function PlayerEncounterView() {
@@ -17,6 +17,7 @@ export default function PlayerEncounterView() {
   const [notes, setNotes] = useState<PlayerEncounterNote[]>([]);
   const [newNoteText, setNewNoteText] = useState('');
   const [selectedTurn, setSelectedTurn] = useState<number | null>(null);
+  const [statusEffects, setStatusEffects] = useState<EncounterStatusEffect[]>([]);
 
   useEffect(() => {
     loadEncounterData();
@@ -50,6 +51,18 @@ export default function PlayerEncounterView() {
         },
         () => {
           fetchParticipants(activeEncounter.id);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'encounter_statuses',
+          filter: `encounter_id=eq.${activeEncounter.id}`
+        },
+        () => {
+          fetchStatusEffects(activeEncounter.id);
         }
       )
       .subscribe();
@@ -140,6 +153,7 @@ export default function PlayerEncounterView() {
       setActiveEncounter(encounter);
       await fetchParticipants(encounter.id);
       await fetchMyNotes(encounter.id);
+      await fetchStatusEffects(encounter.id);
     } catch (err: any) {
       console.error('Error fetching encounter:', err);
       alert(`Error: ${err.message}`);
@@ -205,6 +219,20 @@ export default function PlayerEncounterView() {
       setParticipants(transformed);
     } catch (err: any) {
       console.error('Error fetching participants:', err);
+    }
+  };
+
+  const fetchStatusEffects = async (encounterId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('encounter_statuses')
+        .select('*')
+        .eq('encounter_id', encounterId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      setStatusEffects(data || []);
+    } catch (err: any) {
+      console.error('Error fetching status effects:', err);
     }
   };
 
@@ -391,6 +419,21 @@ export default function PlayerEncounterView() {
                       </div>
                     )}
                   </div>
+                  {/* Status effect badges */}
+                  {statusEffects.filter(s => s.participant_id === p.id).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {statusEffects.filter(s => s.participant_id === p.id).map(s => (
+                        <span key={s.id} className="text-xs px-1.5 py-0.5 rounded" style={{
+                          background: 'color-mix(in srgb, var(--color-cyber-magenta) 20%, transparent)',
+                          color: 'var(--color-cyber-magenta)',
+                          fontFamily: 'var(--font-mono)',
+                          border: '1px solid color-mix(in srgb, var(--color-cyber-magenta) 40%, transparent)'
+                        }}>
+                          {s.label} ({s.remaining_rounds}r)
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
